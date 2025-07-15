@@ -57,3 +57,5 @@ function defineEmployee(sequelize) {
 
   return Employee;
 }
+
+module.exports = defineEmployee;

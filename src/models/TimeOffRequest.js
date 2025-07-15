@@ -1,4 +1,5 @@
 const { DataTypes } = require('sequelize');
+const { v4: uuidv4 } = require('uuid');
 
 function defineTimeOffRequest(sequelize) {
   const TimeOffRequest = sequelize.define(
@@ -8,6 +9,11 @@ function defineTimeOffRequest(sequelize) {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
+      },
+      groupId: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        comment: 'UUID linking multiple days in single request',
       },
       startDate: {
         type: DataTypes.DATEONLY,
@@ -76,8 +82,46 @@ function defineTimeOffRequest(sequelize) {
           }
         },
       },
+      hooks: {
+        beforeCreate: (request) => {
+          // Generate groupId for single day requests if not provided
+          if (!request.groupId) {
+            request.groupId = uuidv4();
+          }
+        },
+      },
     }
   );
+
+  // Static method to create group requests
+  TimeOffRequest.createGroupRequest = async function (requestData) {
+    const { dates, customMessage, employeeId } = requestData;
+    const groupId = uuidv4();
+    const requests = [];
+
+    for (const dateInfo of dates) {
+      const request = await this.create({
+        groupId,
+        startDate: dateInfo.date,
+        endDate: dateInfo.date,
+        type: dateInfo.type,
+        flightNumber: dateInfo.flightNumber || null,
+        customMessage,
+        employeeId,
+      });
+      requests.push(request);
+    }
+
+    return requests;
+  };
+
+  // Static method to get requests by group
+  TimeOffRequest.getByGroupId = async function (groupId) {
+    return await this.findAll({
+      where: { groupId },
+      order: [['startDate', 'ASC']],
+    });
+  };
 
   return TimeOffRequest;
 }

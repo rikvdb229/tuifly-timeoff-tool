@@ -1,401 +1,57 @@
-// FILE: src/views/pages/dashboard.ejs
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        .request-card {
-            transition: transform 0.2s ease-in-out;
-            border-left: 4px solid #007bff;
-        }
-        .request-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        .status-pending { border-left-color: #ffc107; }
-        .status-approved { border-left-color: #28a745; }
-        .status-denied { border-left-color: #dc3545; }
-        .fade-in {
-            animation: fadeIn 0.5s ease-in;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #3498db;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
-</head>
-<body class="bg-light">
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="/">
-                <i class="bi bi-airplane"></i> TUIfly Time-Off Tool
-            </a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="/create">
-                    <i class="bi bi-plus-circle"></i> New Request
-                </a>
-                <a class="nav-link" href="/requests">
-                    <i class="bi bi-list-ul"></i> View All
-                </a>
-            </div>
-        </div>
-    </nav>
+const express = require('express');
+const router = express.Router();
 
-    <div class="container mt-4">
-        <!-- Header -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <h1 class="display-5">Dashboard</h1>
-                <p class="text-muted">Manage your TUIfly Belgium time-off requests</p>
-            </div>
-        </div>
+// Calendar Dashboard - Main page
+router.get('/', (req, res) => {
+  res.render('pages/dashboard', {
+    title: 'TUIfly Time-Off Calendar',
+  });
+});
 
-        <!-- Quick Stats -->
-        <div class="row mb-4" id="statsCards">
-            <div class="col-md-3">
-                <div class="card bg-warning text-white">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <h5 class="card-title">Pending</h5>
-                                <h3 id="pendingCount"><div class="loading"></div></h3>
-                            </div>
-                            <div class="align-self-center">
-                                <i class="bi bi-clock-history fs-1"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-success text-white">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <h5 class="card-title">Approved</h5>
-                                <h3 id="approvedCount"><div class="loading"></div></h3>
-                            </div>
-                            <div class="align-self-center">
-                                <i class="bi bi-check-circle fs-1"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-danger text-white">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <h5 class="card-title">Denied</h5>
-                                <h3 id="deniedCount"><div class="loading"></div></h3>
-                            </div>
-                            <div class="align-self-center">
-                                <i class="bi bi-x-circle fs-1"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-info text-white">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <h5 class="card-title">Total</h5>
-                                <h3 id="totalCount"><div class="loading"></div></h3>
-                            </div>
-                            <div class="align-self-center">
-                                <i class="bi bi-calendar3 fs-1"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+// Health check
+router.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    uptime: process.uptime(),
+    version: '2.0.0',
+    features: ['calendar-interface', 'group-requests', 'real-time-validation']
+  });
+});
 
-        <!-- Quick Actions -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-3 mb-2">
-                                <button class="btn btn-outline-primary w-100" onclick="createRequest('REQ_DO')">
-                                    <i class="bi bi-calendar-day"></i> Request Day Off
-                                </button>
-                            </div>
-                            <div class="col-md-3 mb-2">
-                                <button class="btn btn-outline-info w-100" onclick="createRequest('PM_OFF')">
-                                    <i class="bi bi-sunset"></i> PM Off
-                                </button>
-                            </div>
-                            <div class="col-md-3 mb-2">
-                                <button class="btn btn-outline-warning w-100" onclick="createRequest('AM_OFF')">
-                                    <i class="bi bi-sunrise"></i> AM Off
-                                </button>
-                            </div>
-                            <div class="col-md-3 mb-2">
-                                <button class="btn btn-outline-success w-100" onclick="createRequest('FLIGHT')">
-                                    <i class="bi bi-airplane"></i> Flight Request
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+// Legacy dashboard redirect (for bookmarks)
+router.get('/dashboard', (req, res) => {
+  res.redirect('/');
+});
 
-        <!-- Recent Requests -->
-        <div class="row">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Requests</h5>
-                        <a href="/requests" class="btn btn-sm btn-outline-primary">View All</a>
-                    </div>
-                    <div class="card-body">
-                        <div id="recentRequests">
-                            <div class="text-center">
-                                <div class="loading"></div>
-                                <p class="mt-2">Loading requests...</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+// API documentation page (optional)
+router.get('/api-docs', (req, res) => {
+  res.json({
+    message: 'TUIfly Time-Off API Documentation',
+    baseUrl: '/api',
+    endpoints: {
+      'GET /api/requests': 'Get all time-off requests',
+      'POST /api/requests': 'Create single time-off request',
+      'POST /api/requests/group': 'Create group time-off request (multi-day)',
+      'PUT /api/requests/:id': 'Update time-off request',
+      'DELETE /api/requests/:id': 'Delete time-off request',
+      'GET /api/requests/:id': 'Get specific time-off request',
+      'GET /api/requests/group/:groupId': 'Get requests by group ID',
+      'GET /api/requests/conflicts': 'Check for date conflicts',
+      'GET /api/requests/status/:status': 'Filter requests by status'
+    },
+    requestTypes: ['REQ_DO', 'PM_OFF', 'AM_OFF', 'FLIGHT'],
+    statusTypes: ['PENDING', 'APPROVED', 'DENIED'],
+    groupRequestFormat: {
+      dates: [
+        { date: '2025-02-15', type: 'REQ_DO' },
+        { date: '2025-02-16', type: 'PM_OFF' },
+        { date: '2025-02-17', type: 'FLIGHT', flightNumber: 'TB123' }
+      ],
+      customMessage: 'Wedding weekend'
+    }
+  });
+});
 
-    <!-- Quick Create Modal -->
-    <div class="modal fade" id="quickCreateModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Quick Create Request</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="quickCreateForm">
-                        <input type="hidden" id="requestType" name="type">
-                        
-                        <div class="mb-3">
-                            <label for="startDate" class="form-label">Start Date</label>
-                            <input type="date" class="form-control" id="startDate" name="startDate" required>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="endDate" class="form-label">End Date</label>
-                            <input type="date" class="form-control" id="endDate" name="endDate" required>
-                        </div>
-                        
-                        <div class="mb-3" id="flightNumberGroup" style="display: none;">
-                            <label for="flightNumber" class="form-label">Flight Number (TB###)</label>
-                            <input type="text" class="form-control" id="flightNumber" name="flightNumber" placeholder="TB123">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="customMessage" class="form-label">Custom Message (Optional)</label>
-                            <textarea class="form-control" id="customMessage" name="customMessage" rows="3"></textarea>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="submitQuickCreate()">Create Request</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Load dashboard data
-        async function loadDashboard() {
-            try {
-                const response = await fetch('/api/requests');
-                const data = await response.json();
-                
-                if (data.success) {
-                    updateStats(data.data);
-                    displayRecentRequests(data.data.slice(-5).reverse());
-                }
-            } catch (error) {
-                console.error('Error loading dashboard:', error);
-            }
-        }
-
-        function updateStats(requests) {
-            const pending = requests.filter(r => r.status === 'PENDING').length;
-            const approved = requests.filter(r => r.status === 'APPROVED').length;
-            const denied = requests.filter(r => r.status === 'DENIED').length;
-            
-            document.getElementById('pendingCount').textContent = pending;
-            document.getElementById('approvedCount').textContent = approved;
-            document.getElementById('deniedCount').textContent = denied;
-            document.getElementById('totalCount').textContent = requests.length;
-        }
-
-        function displayRecentRequests(requests) {
-            const container = document.getElementById('recentRequests');
-            
-            if (requests.length === 0) {
-                container.innerHTML = '<p class="text-muted text-center">No requests found</p>';
-                return;
-            }
-
-            const html = requests.map(request => `
-                <div class="request-card card mb-2 status-${request.status.toLowerCase()}">
-                    <div class="card-body py-2">
-                        <div class="row align-items-center">
-                            <div class="col-md-3">
-                                <strong>${formatRequestType(request.type)}</strong>
-                                ${request.flightNumber ? `<br><small class="text-muted">${request.flightNumber}</small>` : ''}
-                            </div>
-                            <div class="col-md-3">
-                                ${formatDate(request.startDate)}
-                                ${request.startDate !== request.endDate ? ` - ${formatDate(request.endDate)}` : ''}
-                            </div>
-                            <div class="col-md-2">
-                                <span class="badge bg-${getStatusColor(request.status)}">${request.status}</span>
-                            </div>
-                            <div class="col-md-3">
-                                <small class="text-muted">Created: ${formatDate(request.createdAt.split('T')[0])}</small>
-                            </div>
-                            <div class="col-md-1">
-                                <button class="btn btn-sm btn-outline-secondary" onclick="viewRequest(${request.id})">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-            
-            container.innerHTML = html;
-        }
-
-        function formatRequestType(type) {
-            const types = {
-                'REQ_DO': 'Day Off',
-                'PM_OFF': 'PM Off',
-                'AM_OFF': 'AM Off',
-                'FLIGHT': 'Flight'
-            };
-            return types[type] || type;
-        }
-
-        function formatDate(dateString) {
-            const date = new Date(dateString);
-            return date.toLocaleDateString('en-GB');
-        }
-
-        function getStatusColor(status) {
-            const colors = {
-                'PENDING': 'warning',
-                'APPROVED': 'success',
-                'DENIED': 'danger'
-            };
-            return colors[status] || 'secondary';
-        }
-
-        function createRequest(type) {
-            document.getElementById('requestType').value = type;
-            document.querySelector('#quickCreateModal .modal-title').textContent = `Create ${formatRequestType(type)} Request`;
-            
-            // Show/hide flight number field
-            const flightGroup = document.getElementById('flightNumberGroup');
-            if (type === 'FLIGHT') {
-                flightGroup.style.display = 'block';
-                document.getElementById('flightNumber').required = true;
-            } else {
-                flightGroup.style.display = 'none';
-                document.getElementById('flightNumber').required = false;
-            }
-
-            // Set default dates
-            const today = new Date();
-            const tomorrow = new Date(today);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            
-            document.getElementById('startDate').value = tomorrow.toISOString().split('T')[0];
-            document.getElementById('endDate').value = tomorrow.toISOString().split('T')[0];
-
-            new bootstrap.Modal(document.getElementById('quickCreateModal')).show();
-        }
-
-        async function submitQuickCreate() {
-            const form = document.getElementById('quickCreateForm');
-            const formData = new FormData(form);
-            
-            const requestData = {
-                type: formData.get('type'),
-                startDate: formData.get('startDate'),
-                endDate: formData.get('endDate'),
-                customMessage: formData.get('customMessage')
-            };
-
-            if (requestData.type === 'FLIGHT') {
-                requestData.flightNumber = formData.get('flightNumber');
-            }
-
-            try {
-                const response = await fetch('/api/requests', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestData)
-                });
-
-                const result = await response.json();
-                
-                if (result.success) {
-                    bootstrap.Modal.getInstance(document.getElementById('quickCreateModal')).hide();
-                    form.reset();
-                    loadDashboard(); // Refresh dashboard
-                    alert('Request created successfully!');
-                } else {
-                    alert('Error: ' + result.error);
-                }
-            } catch (error) {
-                console.error('Error creating request:', error);
-                alert('Failed to create request');
-            }
-        }
-
-        function viewRequest(id) {
-            window.location.href = `/requests?id=${id}`;
-        }
-
-        // Auto-sync end date with start date for single-day requests
-        document.getElementById('startDate').addEventListener('change', function() {
-            document.getElementById('endDate').value = this.value;
-        });
-
-        // Load dashboard on page load
-        document.addEventListener('DOMContentLoaded', loadDashboard);
-    </script>
-</body>
-</html>
+module.exports = router;
