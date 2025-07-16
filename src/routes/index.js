@@ -1,4 +1,5 @@
-// src/routes/index.js
+// src/routes/index.js - Updated to use layout system
+
 const express = require('express');
 const { requireAuth, requireOnboarding } = require('../middleware/auth');
 
@@ -8,10 +9,21 @@ const router = express.Router();
 router.use(requireAuth);
 router.use(requireOnboarding);
 
-// Calendar Dashboard - Main page (now protected)
+// Calendar Dashboard - Main page (now uses layout system)
 router.get('/', (req, res) => {
-  res.render('pages/calendar-dashboard', {
+  // Meta tags for calendar configuration
+  const metaTags = `
+    <meta name="min-advance-days" content="${process.env.MIN_ADVANCE_DAYS || 60}">
+    <meta name="max-advance-days" content="${process.env.MAX_ADVANCE_DAYS || 120}">
+    <meta name="max-days-per-request" content="${process.env.MAX_DAYS_PER_REQUEST || 4}">
+  `;
+
+  res.render('layouts/base', {
     title: 'TUIfly Time-Off Calendar',
+    body: '../pages/calendar-dashboard',
+    additionalCSS: 'calendar',
+    additionalJS: 'calendar',
+    metaTags: metaTags,
     user: req.user.toSafeObject(),
   });
 });

@@ -2,28 +2,17 @@
 <script>
   // Base JavaScript functions for all pages
 
-  // Authentication and user management
+  // Modern logout function using modernConfirm
   async function logout() {
-    if (confirm('Are you sure you want to logout?')) {
-      try {
-        const response = await fetch('/auth/logout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+    const confirmed = await modernConfirm(
+      'Are you sure you want to logout? You will be redirected to the login page.',
+      'Logout Confirmation',
+      'logout'
+    );
 
-        const data = await response.json();
-
-        if (data.success) {
-          window.location.href = '/auth/login?message=logged_out';
-        } else {
-          showToast('Logout failed', 'error');
-        }
-      } catch (error) {
-        console.error('Logout error:', error);
-        showToast('Logout failed', 'error');
-      }
+    if (confirmed) {
+      showToast('Logging out...', 'info');
+      window.location.href = '/auth/logout';
     }
   }
 
@@ -40,8 +29,8 @@
     const settingsLoading = document.getElementById('settingsLoading');
     const settingsContent = document.getElementById('settingsContent');
 
-    settingsLoading.style.display = 'block';
-    settingsContent.style.display = 'none';
+    if (settingsLoading) settingsLoading.style.display = 'block';
+    if (settingsContent) settingsContent.style.display = 'none';
 
     try {
       const response = await fetch('/settings/api');
@@ -49,40 +38,132 @@
 
       if (data.success) {
         // Populate profile form
-        document.getElementById('userName').value = data.data.user.name || '';
-        document.getElementById('userCode').value = data.data.user.code || '';
-        document.getElementById('userSignature').value =
-          data.data.user.signature || '';
+        const userName = document.getElementById('userName');
+        const userCode = document.getElementById('userCode');
+        const userSignature = document.getElementById('userSignature');
+
+        if (userName) userName.value = data.data.user.name || '';
+        if (userCode) userCode.value = data.data.user.code || '';
+        if (userSignature) userSignature.value = data.data.user.signature || '';
 
         // Populate settings form
-        document.getElementById('theme').value =
-          data.data.settings.theme || 'light';
-        document.getElementById('language').value =
-          data.data.settings.language || 'en';
-        document.getElementById('notifications').checked =
-          data.data.settings.notifications !== false;
-        document.getElementById('autoSave').checked =
-          data.data.settings.autoSave !== false;
+        const theme = document.getElementById('theme');
+        const language = document.getElementById('language');
+        const notifications = document.getElementById('notifications');
+        const autoSave = document.getElementById('autoSave');
+
+        if (theme) theme.value = data.data.settings.theme || 'light';
+        if (language) language.value = data.data.settings.language || 'en';
+        if (notifications)
+          notifications.checked = data.data.settings.notifications !== false;
+        if (autoSave) autoSave.checked = data.data.settings.autoSave !== false;
 
         // Populate global settings (read-only)
-        document.getElementById('minAdvanceDays').textContent =
-          data.data.globalSettings.MIN_ADVANCE_DAYS;
-        document.getElementById('maxAdvanceDays').textContent =
-          data.data.globalSettings.MAX_ADVANCE_DAYS;
-        document.getElementById('maxDaysPerRequest').textContent =
-          data.data.globalSettings.MAX_DAYS_PER_REQUEST;
-        document.getElementById('approverEmail').textContent =
-          data.data.globalSettings.TUIFLY_APPROVER_EMAIL;
+        const minAdvanceDays = document.getElementById('minAdvanceDays');
+        const maxAdvanceDays = document.getElementById('maxAdvanceDays');
+        const maxDaysPerRequest = document.getElementById('maxDaysPerRequest');
+        const approverEmail = document.getElementById('approverEmail');
 
-        settingsLoading.style.display = 'none';
-        settingsContent.style.display = 'block';
+        if (minAdvanceDays)
+          minAdvanceDays.textContent =
+            data.data.globalSettings.MIN_ADVANCE_DAYS;
+        if (maxAdvanceDays)
+          maxAdvanceDays.textContent =
+            data.data.globalSettings.MAX_ADVANCE_DAYS;
+        if (maxDaysPerRequest)
+          maxDaysPerRequest.textContent =
+            data.data.globalSettings.MAX_DAYS_PER_REQUEST;
+        if (approverEmail)
+          approverEmail.textContent =
+            data.data.globalSettings.TUIFLY_APPROVER_EMAIL;
+
+        if (settingsLoading) settingsLoading.style.display = 'none';
+        if (settingsContent) settingsContent.style.display = 'block';
       } else {
         throw new Error(data.error || 'Failed to load settings');
       }
     } catch (error) {
       console.error('Settings load error:', error);
       showToast('Failed to load settings', 'error');
-      settingsLoading.style.display = 'none';
+      if (settingsLoading) settingsLoading.style.display = 'none';
+    }
+  }
+
+  // Modern settings reset function
+  async function resetSettings() {
+    const confirmed = await modernConfirm(
+      'This will reset all your preferences to default values. Your profile information will not be affected.',
+      'Reset Settings',
+      'warning'
+    );
+
+    if (confirmed) {
+      try {
+        const response = await fetch('/settings/reset', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          showToast('Settings reset to defaults', 'success');
+          await loadSettings(); // Reload the form
+        } else {
+          throw new Error(data.error || 'Failed to reset settings');
+        }
+      } catch (error) {
+        console.error('Settings reset error:', error);
+        showToast('Failed to reset settings', 'error');
+      }
+    }
+  }
+
+  // Modern account deletion function
+  async function confirmDeleteAccount() {
+    const confirmed = await modernConfirm(
+      'This will permanently delete your account and ALL your data. This action cannot be undone.\n\nAll your time-off requests will be lost forever.',
+      'Delete Account',
+      'danger'
+    );
+
+    if (confirmed) {
+      // Second confirmation for such a critical action
+      const finalConfirmation = prompt(
+        'Type "DELETE" to confirm account deletion:'
+      );
+
+      if (finalConfirmation === 'DELETE') {
+        try {
+          const response = await fetch('/auth/account', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showToast('Account deleted successfully', 'success');
+            setTimeout(() => {
+              window.location.href = '/auth/login?message=account_deleted';
+            }, 2000);
+          } else {
+            throw new Error(data.error || 'Failed to delete account');
+          }
+        } catch (error) {
+          console.error('Account deletion error:', error);
+          showToast('Failed to delete account', 'error');
+        }
+      } else {
+        showToast(
+          'Account deletion cancelled. You must type "DELETE" exactly.',
+          'info'
+        );
+      }
     }
   }
 
@@ -112,8 +193,9 @@
 
           if (data.success) {
             showToast('Profile updated successfully', 'success');
-            // Update navbar display
-            location.reload(); // Simple reload for now
+            setTimeout(() => {
+              location.reload(); // Simple reload for now
+            }, 1500);
           } else {
             throw new Error(data.error || 'Failed to update profile');
           }
@@ -161,87 +243,43 @@
     }
   });
 
-  async function resetSettings() {
-    if (confirm('Reset all settings to default values?')) {
-      try {
-        const response = await fetch('/settings/reset', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-          showToast('Settings reset to defaults', 'success');
-          await loadSettings(); // Reload the form
-        } else {
-          throw new Error(data.error || 'Failed to reset settings');
-        }
-      } catch (error) {
-        console.error('Settings reset error:', error);
-        showToast('Failed to reset settings', 'error');
-      }
-    }
-  }
-
-  async function confirmDeleteAccount() {
-    const confirmation = prompt(
-      'This will permanently delete your account and all data.\n\n' +
-        'Type "DELETE" to confirm:'
-    );
-
-    if (confirmation === 'DELETE') {
-      try {
-        const response = await fetch('/auth/account', {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-          showToast('Account deleted successfully', 'success');
-          setTimeout(() => {
-            window.location.href = '/auth/login?message=account_deleted';
-          }, 2000);
-        } else {
-          throw new Error(data.error || 'Failed to delete account');
-        }
-      } catch (error) {
-        console.error('Account deletion error:', error);
-        showToast('Failed to delete account', 'error');
-      }
-    }
-  }
-
   // Toast notification system
   function showToast(message, type = 'info') {
     // Create toast container if it doesn't exist
     let toastContainer = document.querySelector('.toast-container');
     if (!toastContainer) {
       toastContainer = document.createElement('div');
-      toastContainer.className = 'toast-container';
+      toastContainer.className =
+        'toast-container position-fixed top-0 end-0 p-3';
+      toastContainer.style.zIndex = '9999';
       document.body.appendChild(toastContainer);
     }
 
     // Create toast element
     const toastId = 'toast-' + Date.now();
+    const iconClass =
+      type === 'error'
+        ? 'exclamation-triangle'
+        : type === 'success'
+          ? 'check-circle'
+          : 'info-circle';
+    const bgClass =
+      type === 'error' ? 'danger' : type === 'success' ? 'success' : 'primary';
+    const titleText =
+      type === 'error' ? 'Error' : type === 'success' ? 'Success' : 'Info';
+
     const toastHTML = `
-    <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-      <div class="toast-header bg-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'primary'} text-white">
-        <i class="bi bi-${type === 'error' ? 'exclamation-triangle' : type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>
-        <strong class="me-auto">${type === 'error' ? 'Error' : type === 'success' ? 'Success' : 'Info'}</strong>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+      <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header bg-${bgClass} text-white">
+          <i class="bi bi-${iconClass} me-2"></i>
+          <strong class="me-auto">${titleText}</strong>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body">
+          ${message}
+        </div>
       </div>
-      <div class="toast-body">
-        ${message}
-      </div>
-    </div>
-  `;
+    `;
 
     toastContainer.insertAdjacentHTML('beforeend', toastHTML);
 

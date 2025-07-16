@@ -1,0 +1,71 @@
+<!-- src/views/partials/confirmation-modals.ejs -->
+
+<!-- Modern Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-2">
+        <h5 class="modal-title d-flex align-items-center">
+          <i
+            id="confirmIcon"
+            class="bi bi-question-circle text-warning me-2 fs-4"
+          ></i>
+          <span id="confirmTitle">Confirm Action</span>
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmMessage" class="mb-0">
+          Are you sure you want to continue?
+        </p>
+      </div>
+      <div class="modal-footer border-0 pt-2">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="bi bi-x-lg me-1"></i>
+          Cancel
+        </button>
+        <button type="button" class="btn btn-primary" id="confirmAction">
+          <i class="bi bi-check-lg me-1"></i>
+          Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modern Alert Modal -->
+<div class="modal fade" id="alertModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-2">
+        <h5 class="modal-title d-flex align-items-center">
+          <i
+            id="alertIcon"
+            class="bi bi-info-circle text-primary me-2 fs-4"
+          ></i>
+          <span id="alertTitle">Information</span>
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <p id="alertMessage" class="mb-0">This is an information message.</p>
+      </div>
+      <div class="modal-footer border-0 pt-2">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+          <i class="bi bi-check-lg me-1"></i>
+          OK
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

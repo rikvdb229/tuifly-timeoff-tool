@@ -127,6 +127,7 @@
 
     isWeekend(date) {
       const day = date.getDay();
+      // Saturday = 6, Sunday = 0
       return day === 0 || day === 6;
     }
 
@@ -135,46 +136,40 @@
     }
 
     generateCalendar() {
+      console.log('=== GENERATING CALENDAR ===');
       const calendarGrid = document.getElementById('calendarGrid');
       calendarGrid.innerHTML = '';
 
       const months = this.getMonthsToDisplay();
-      const allDatesInView = new Set();
+      console.log(
+        'Displaying months:',
+        months.map((m) =>
+          m.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+        )
+      );
 
-      // First pass: collect all dates that will be displayed
-      months.forEach((monthStart) => {
-        const firstDay = new Date(
-          monthStart.getFullYear(),
-          monthStart.getMonth(),
-          1
+      // Create month containers with consistent logic
+      months.forEach((monthStart, index) => {
+        console.log(
+          `Creating month ${index + 1}:`,
+          monthStart.toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric',
+          })
         );
-        const lastDay = new Date(
-          monthStart.getFullYear(),
-          monthStart.getMonth() + 1,
-          0
-        );
-        const startDate = new Date(firstDay);
-        startDate.setDate(startDate.getDate() - firstDay.getDay());
-
-        for (let i = 0; i < 42; i++) {
-          const currentDate = new Date(startDate);
-          currentDate.setDate(startDate.getDate() + i);
-          allDatesInView.add(this.formatDate(currentDate));
-        }
-      });
-
-      // Second pass: create month containers, only showing dates that belong to each month
-      months.forEach((monthStart) => {
-        const monthContainer = this.createMonthContainer(
-          monthStart,
-          allDatesInView
-        );
+        const monthContainer = this.createMonthContainer(monthStart, null);
         calendarGrid.appendChild(monthContainer);
       });
 
       this.updateNavigationButtons();
-      // Restore selection highlighting after calendar regeneration
-      this.updateDateSelection();
+
+      // Use requestAnimationFrame for better timing
+      requestAnimationFrame(() => {
+        console.log('Running delayed selection update...');
+        this.updateDateSelection();
+      });
+
+      console.log('=== CALENDAR GENERATION COMPLETE ===');
     }
 
     createMonthContainer(monthStart, allDatesInView) {
@@ -189,10 +184,10 @@
         year: 'numeric',
       });
 
-      // Weekday headers
+      // Weekday headers - MONDAY START
       const weekdayHeader = document.createElement('div');
       weekdayHeader.className = 'weekday-header';
-      ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach((day) => {
+      ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach((day) => {
         const dayElement = document.createElement('div');
         dayElement.className = 'weekday';
         dayElement.textContent = day;
@@ -208,45 +203,27 @@
         monthStart.getMonth(),
         1
       );
-      const lastDay = new Date(
-        monthStart.getFullYear(),
-        monthStart.getMonth() + 1,
-        0
-      );
+
+      // Calculate start date for Monday-based week
       const startDate = new Date(firstDay);
-      startDate.setDate(startDate.getDate() - firstDay.getDay());
+      // Get day of week (0 = Sunday, 1 = Monday, etc.)
+      let dayOfWeek = firstDay.getDay();
+      // Convert to Monday-based (0 = Monday, 1 = Tuesday, etc.)
+      dayOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      // Go back to the Monday of the week containing the 1st
+      startDate.setDate(startDate.getDate() - dayOfWeek);
 
       for (let i = 0; i < 42; i++) {
         const currentDate = new Date(startDate);
         currentDate.setDate(startDate.getDate() + i);
 
-        // Only create cell if this date belongs to current month or is adjacent and not shown elsewhere
+        // Only show dates that belong to this specific month
         const isCurrentMonth = currentDate.getMonth() === monthStart.getMonth();
-        const dateStr = this.formatDate(currentDate);
-
-        let shouldShowDate = false;
-
-        if (isCurrentMonth) {
-          shouldShowDate = true;
-        } else {
-          // Show adjacent month dates only if they don't belong to another displayed month
-          const dateMonth = new Date(
-            currentDate.getFullYear(),
-            currentDate.getMonth(),
-            1
-          );
-          const isInOtherDisplayedMonth = this.getMonthsToDisplay().some(
-            (month) =>
-              month.getMonth() === dateMonth.getMonth() &&
-              month.getFullYear() === dateMonth.getFullYear()
-          );
-          shouldShowDate = !isInOtherDisplayedMonth;
-        }
 
         const dayCell = this.createDayCell(
           currentDate,
           monthStart,
-          shouldShowDate
+          isCurrentMonth
         );
         daysGrid.appendChild(dayCell);
       }
@@ -264,7 +241,9 @@
       dayCell.dataset.date = this.formatDate(date);
 
       if (!shouldShowDate) {
+        // Make cell invisible but keep in DOM for grid layout
         dayCell.style.visibility = 'hidden';
+        dayCell.style.pointerEvents = 'none';
         return dayCell;
       }
 
@@ -282,6 +261,7 @@
         dayCell.classList.add('other-month');
       }
 
+      // Add weekend class BEFORE availability check
       if (isWeekend) {
         dayCell.classList.add('weekend');
       }
@@ -317,7 +297,6 @@
       dayCell.appendChild(dayNumber);
       return dayCell;
     }
-
     getExistingRequest(date) {
       const dateStr = this.formatDate(date);
       return existingRequests.find(
@@ -325,7 +304,6 @@
           request.startDate === dateStr || request.endDate === dateStr
       );
     }
-
     handleDateClick(date) {
       if (!this.isDateAvailable(date)) return;
 
@@ -333,42 +311,107 @@
       const existingRequest = this.getExistingRequest(date);
 
       if (existingRequest) {
-        // TODO: Show request details modal
         showToast(`Request already exists for ${dateStr}`, 'info');
         return;
       }
 
-      // Handle date selection for new requests
+      // Handle smart date selection
       const index = selectedDates.findIndex((d) => d.date === dateStr);
 
       if (index > -1) {
-        // Deselect date
+        // Date is already selected - deselect it
         selectedDates.splice(index, 1);
+        console.log('Deselected:', dateStr);
       } else {
-        // Check if this date can be added (consecutive rule)
-        if (!this.canAddDate(dateStr)) {
-          return;
+        // Date is not selected - check if we should add or start fresh
+        if (selectedDates.length === 0) {
+          // First date - always allow
+          selectedDates.push({ date: dateStr, type: 'REQ_DO' });
+          console.log('First selection:', dateStr);
+        } else {
+          // Check if new date extends the consecutive range
+          if (this.isConsecutiveToSelection(dateStr)) {
+            // Check if we're at the limit
+            if (selectedDates.length >= CONFIG.MAX_DAYS_PER_REQUEST) {
+              showToast(
+                `Maximum ${CONFIG.MAX_DAYS_PER_REQUEST} consecutive days allowed`,
+                'warning'
+              );
+              return;
+            }
+            // Add to existing selection
+            selectedDates.push({ date: dateStr, type: 'REQ_DO' });
+            console.log(
+              'Extended selection:',
+              dateStr,
+              'Total:',
+              selectedDates.length
+            );
+          } else {
+            // Start fresh selection - clear previous dates and select new one
+            selectedDates = [{ date: dateStr, type: 'REQ_DO' }];
+            showToast('Started new selection', 'info');
+            console.log('Fresh selection:', dateStr);
+          }
         }
-        selectedDates.push({ date: dateStr, type: 'REQ_DO' });
       }
 
       // Sort dates chronologically
       selectedDates.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-      this.updateDateSelection();
-      this.updateFloatingButton();
+      // Force update after a small delay to ensure DOM is ready
+      setTimeout(() => {
+        this.updateDateSelection();
+        this.updateFloatingButton();
+      }, 10);
+    }
+    // New method to check if a date is consecutive to current selection
+    isConsecutiveToSelection(newDateStr) {
+      if (selectedDates.length === 0) return true;
+
+      // Get all selected dates sorted
+      const selectedDateStrings = selectedDates.map((d) => d.date).sort();
+      const newDate = new Date(newDateStr);
+
+      // Get min and max dates from current selection
+      const minDateStr = selectedDateStrings[0];
+      const maxDateStr = selectedDateStrings[selectedDateStrings.length - 1];
+
+      const minDate = new Date(minDateStr);
+      const maxDate = new Date(maxDateStr);
+
+      // Calculate one day before min and one day after max
+      const dayBefore = new Date(minDate);
+      dayBefore.setDate(dayBefore.getDate() - 1);
+
+      const dayAfter = new Date(maxDate);
+      dayAfter.setDate(dayAfter.getDate() + 1);
+
+      // Check if new date extends the range consecutively
+      const isConsecutive =
+        newDate.getTime() === dayBefore.getTime() ||
+        newDate.getTime() === dayAfter.getTime();
+
+      console.log('Consecutive check:', {
+        newDate: newDateStr,
+        minDate: minDateStr,
+        maxDate: maxDateStr,
+        dayBefore: this.formatDate(dayBefore),
+        dayAfter: this.formatDate(dayAfter),
+        isConsecutive: isConsecutive,
+      });
+
+      return isConsecutive;
     }
 
+    // Updated canAddDate method (can be simplified now)
     canAddDate(newDateStr) {
+      // This method is now mainly used for validation in other contexts
       if (selectedDates.length === 0) {
-        return true; // First date is always allowed
+        return true;
       }
 
       if (selectedDates.length >= CONFIG.MAX_DAYS_PER_REQUEST) {
-        showToast(
-          `Maximum ${CONFIG.MAX_DAYS_PER_REQUEST} consecutive days allowed`,
-          'warning'
-        );
         return false;
       }
 
@@ -382,7 +425,6 @@
         const dayDiff = (currentDate - prevDate) / (1000 * 60 * 60 * 24);
 
         if (dayDiff !== 1) {
-          showToast('Selected dates must be consecutive', 'warning');
           return false;
         }
       }
@@ -390,19 +432,38 @@
       return true;
     }
 
+    // Enhanced updateDateSelection with better debugging
     updateDateSelection() {
-      // Clear all selections
-      document.querySelectorAll('.day-cell.selected').forEach((cell) => {
+      console.log('=== UPDATE SELECTION ===');
+      console.log(
+        'Selected dates:',
+        selectedDates.map((d) => d.date)
+      );
+
+      // Clear all selections first
+      const allSelected = document.querySelectorAll('.day-cell.selected');
+      console.log('Clearing', allSelected.length, 'previously selected cells');
+      allSelected.forEach((cell) => {
         cell.classList.remove('selected');
       });
 
       // Apply current selections
       selectedDates.forEach(({ date }) => {
-        const cell = document.querySelector(`[data-date="${date}"]`);
-        if (cell) {
-          cell.classList.add('selected');
-        }
+        // Find all cells with this date (should be only one, but let's be thorough)
+        const cells = document.querySelectorAll(`[data-date="${date}"]`);
+        console.log(`Looking for date ${date}: found ${cells.length} cell(s)`);
+
+        cells.forEach((cell, index) => {
+          if (cell.style.visibility !== 'hidden') {
+            cell.classList.add('selected');
+            console.log(`  - Highlighted cell ${index + 1} for ${date}`);
+          } else {
+            console.log(`  - Skipped hidden cell ${index + 1} for ${date}`);
+          }
+        });
       });
+
+      console.log('=== SELECTION UPDATE COMPLETE ===');
     }
 
     updateFloatingButton() {

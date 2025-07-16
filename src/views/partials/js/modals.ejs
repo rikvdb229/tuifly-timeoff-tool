@@ -1,0 +1,100 @@
+<!-- src/views/partials/js/modals.ejs -->
+<script>
+  // Modern replacement for confirm() and alert()
+  window.modernConfirm = function (
+    message,
+    title = 'Confirm Action',
+    type = 'warning'
+  ) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('confirmationModal');
+      const modalContent = modal.querySelector('.modal-content');
+      const titleElement = document.getElementById('confirmTitle');
+      const messageElement = document.getElementById('confirmMessage');
+      const iconElement = document.getElementById('confirmIcon');
+      const confirmButton = document.getElementById('confirmAction');
+
+      // Reset modal styling
+      modalContent.className = 'modal-content';
+
+      // Set content
+      titleElement.textContent = title;
+      messageElement.textContent = message;
+
+      // Configure for different types
+      if (type === 'danger') {
+        modalContent.classList.add('danger');
+        iconElement.className =
+          'bi bi-exclamation-triangle text-danger me-2 fs-4';
+        confirmButton.className = 'btn btn-danger';
+        confirmButton.innerHTML = '<i class="bi bi-trash me-1"></i>Delete';
+      } else if (type === 'logout') {
+        modalContent.classList.add('warning');
+        iconElement.className = 'bi bi-box-arrow-right text-warning me-2 fs-4';
+        confirmButton.className = 'btn btn-warning';
+        confirmButton.innerHTML =
+          '<i class="bi bi-box-arrow-right me-1"></i>Logout';
+      } else {
+        iconElement.className = 'bi bi-question-circle text-warning me-2 fs-4';
+        confirmButton.className = 'btn btn-primary';
+        confirmButton.innerHTML = '<i class="bi bi-check-lg me-1"></i>Confirm';
+      }
+
+      // Show modal
+      const bootstrapModal = new bootstrap.Modal(modal);
+      bootstrapModal.show();
+
+      // Handle confirmation
+      const handleConfirm = () => {
+        bootstrapModal.hide();
+        confirmButton.removeEventListener('click', handleConfirm);
+        resolve(true);
+      };
+
+      // Handle cancellation
+      const handleCancel = () => {
+        confirmButton.removeEventListener('click', handleConfirm);
+        resolve(false);
+      };
+
+      confirmButton.addEventListener('click', handleConfirm);
+      modal.addEventListener('hidden.bs.modal', handleCancel, { once: true });
+    });
+  };
+
+  window.modernAlert = function (
+    message,
+    title = 'Information',
+    type = 'info'
+  ) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('alertModal');
+      const titleElement = document.getElementById('alertTitle');
+      const messageElement = document.getElementById('alertMessage');
+      const iconElement = document.getElementById('alertIcon');
+
+      // Set content
+      titleElement.textContent = title;
+      messageElement.textContent = message;
+
+      // Configure icon for different types
+      if (type === 'error') {
+        iconElement.className =
+          'bi bi-exclamation-triangle text-danger me-2 fs-4';
+      } else if (type === 'success') {
+        iconElement.className = 'bi bi-check-circle text-success me-2 fs-4';
+      } else {
+        iconElement.className = 'bi bi-info-circle text-primary me-2 fs-4';
+      }
+
+      // Show modal
+      const bootstrapModal = new bootstrap.Modal(modal);
+      bootstrapModal.show();
+
+      // Handle close
+      modal.addEventListener('hidden.bs.modal', () => resolve(), {
+        once: true,
+      });
+    });
+  };
+</script>

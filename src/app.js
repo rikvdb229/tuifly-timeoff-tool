@@ -38,7 +38,13 @@ app.use(
           'https:',
           'https://lh3.googleusercontent.com',
         ],
-        connectSrc: ["'self'", 'https://accounts.google.com'],
+        // ADD THIS LINE - Allow fetch requests to your own domain
+        connectSrc: [
+          "'self'",
+          'https://accounts.google.com',
+          'http://localhost:3000', // Add your development domain
+          'https://your-production-domain.com', // Add your production domain
+        ],
         frameSrc: ["'self'", 'https://accounts.google.com'],
       },
     },

@@ -1,4 +1,3 @@
-/* src/views/partials/css/calendar.ejs */
 <style>
   /* Calendar-specific styles */
   .calendar-container {
@@ -85,28 +84,48 @@
 
   /* Day States */
   .day-cell.unavailable {
-    background-color: var(--unavailable-color);
-    color: #adb5bd;
+    background-color: #e9ecef !important; /* Darker gray for unavailable - overrides weekend */
+    color: #6c757d; /* Darker text */
     cursor: not-allowed;
+    position: relative;
+  }
+
+  /* Add subtle striped pattern to unavailable days */
+  .day-cell.unavailable::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 2px,
+      rgba(108, 117, 125, 0.1) 2px,
+      rgba(108, 117, 125, 0.1) 4px
+    );
+    pointer-events: none;
   }
 
   .day-cell.other-month {
     color: #adb5bd;
   }
 
-  .day-cell.weekend {
-    background-color: #f8f9fa;
+  /* Only apply weekend styling to AVAILABLE days */
+  .day-cell.weekend:not(.unavailable) {
+    background-color: #f1f8ff; /* Very light blue tint */
   }
 
   .day-cell.selected {
     background-color: var(--selected-color) !important;
-    border: 2px solid var(--tuifly-blue);
+    border: 2px solid var(--tuifly-blue) !important;
     transform: scale(1.05);
   }
 
   .day-cell.conflict {
     background-color: #f8d7da !important;
-    border: 2px solid #dc3545;
+    border: 2px solid #dc3545 !important;
   }
 
   /* Request Status Colors */

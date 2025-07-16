@@ -76,6 +76,19 @@ router.get(
 );
 
 // Logout
+// GET Logout (for simple redirects)
+router.get('/logout', requireAuth, (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Logout error:', err);
+      return res.redirect('/?error=logout_failed');
+    }
+
+    res.clearCookie('connect.sid');
+    res.clearCookie('tuifly.sid'); // Clear the custom session cookie name
+    res.redirect('/auth/login?message=logged_out');
+  });
+});
 router.post('/logout', requireAuth, (req, res) => {
   req.session.destroy((err) => {
     if (err) {
