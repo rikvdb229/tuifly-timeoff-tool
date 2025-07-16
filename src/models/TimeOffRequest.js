@@ -1,3 +1,4 @@
+// src/models/TimeOffRequest.js
 const { DataTypes } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
 
@@ -9,6 +10,15 @@ function defineTimeOffRequest(sequelize) {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
+      },
+      userId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'users',
+          key: 'id',
+        },
+        onDelete: 'CASCADE',
       },
       groupId: {
         type: DataTypes.STRING,
@@ -58,18 +68,30 @@ function defineTimeOffRequest(sequelize) {
         type: DataTypes.DATE,
         allowNull: true,
       },
-      employeeId: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        references: {
-          model: 'employees',
-          key: 'id',
-        },
+      approvedBy: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        comment: 'Email of approver',
+      },
+      denialReason: {
+        type: DataTypes.TEXT,
+        allowNull: true,
       },
     },
     {
       tableName: 'time_off_requests',
       timestamps: true,
+      indexes: [
+        {
+          fields: ['userId', 'startDate'],
+        },
+        {
+          fields: ['userId', 'status'],
+        },
+        {
+          fields: ['groupId'],
+        },
+      ],
       validate: {
         endDateAfterStartDate() {
           if (this.endDate < this.startDate) {
@@ -93,21 +115,61 @@ function defineTimeOffRequest(sequelize) {
     }
   );
 
-  // Static method to create group requests
-  TimeOffRequest.createGroupRequest = async function (requestData) {
-    const { dates, customMessage, employeeId } = requestData;
+  // Instance methods
+  TimeOffRequest.prototype.isEditable = function () {
+    return this.status === 'PENDING';
+  };
+
+  TimeOffRequest.prototype.canBeDeleted = function () {
+    return this.status === 'PENDING' || this.status === 'DENIED';
+  };
+
+  TimeOffRequest.prototype.getDisplayType = function () {
+    const typeMap = {
+      REQ_DO: 'Day Off',
+      PM_OFF: 'PM Off',
+      AM_OFF: 'AM Off',
+      FLIGHT: 'Flight',
+    };
+    return typeMap[this.type] || this.type;
+  };
+
+  // Class methods for user isolation
+  TimeOffRequest.findAllByUser = async function (userId, options = {}) {
+    return await this.findAll({
+      where: { userId, ...options.where },
+      ...options,
+      order: options.order || [['createdAt', 'DESC']],
+    });
+  };
+
+  TimeOffRequest.findByPkAndUser = async function (id, userId) {
+    return await this.findOne({
+      where: { id, userId },
+    });
+  };
+
+  TimeOffRequest.createForUser = async function (userId, requestData) {
+    return await this.create({
+      ...requestData,
+      userId,
+    });
+  };
+
+  TimeOffRequest.createGroupRequest = async function (userId, requestData) {
+    const { dates, customMessage } = requestData;
     const groupId = uuidv4();
     const requests = [];
 
     for (const dateInfo of dates) {
       const request = await this.create({
+        userId,
         groupId,
         startDate: dateInfo.date,
         endDate: dateInfo.date,
         type: dateInfo.type,
         flightNumber: dateInfo.flightNumber || null,
         customMessage,
-        employeeId,
       });
       requests.push(request);
     }
@@ -115,12 +177,96 @@ function defineTimeOffRequest(sequelize) {
     return requests;
   };
 
-  // Static method to get requests by group
-  TimeOffRequest.getByGroupId = async function (groupId) {
+  TimeOffRequest.getByGroupIdAndUser = async function (groupId, userId) {
     return await this.findAll({
-      where: { groupId },
+      where: { groupId, userId },
       order: [['startDate', 'ASC']],
     });
+  };
+
+  TimeOffRequest.getConflictsForUser = async function (
+    userId,
+    startDate,
+    endDate,
+    excludeGroupId
+  ) {
+    const { Op } = require('sequelize');
+
+    const whereClause = {
+      userId,
+      [Op.and]: [
+        {
+          startDate: {
+            [Op.lte]: endDate,
+          },
+        },
+        {
+          endDate: {
+            [Op.gte]: startDate,
+          },
+        },
+        {
+          status: {
+            [Op.in]: ['PENDING', 'APPROVED'],
+          },
+        },
+      ],
+    };
+
+    if (excludeGroupId) {
+      whereClause[Op.and].push({
+        groupId: {
+          [Op.ne]: excludeGroupId,
+        },
+      });
+    }
+
+    return await this.findAll({
+      where: whereClause,
+      order: [['startDate', 'ASC']],
+    });
+  };
+
+  TimeOffRequest.getStatusCountsForUser = async function (userId) {
+    const { Op } = require('sequelize');
+
+    const counts = await this.findAll({
+      where: { userId },
+      attributes: [
+        'status',
+        [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
+      ],
+      group: ['status'],
+      raw: true,
+    });
+
+    const result = {
+      PENDING: 0,
+      APPROVED: 0,
+      DENIED: 0,
+      TOTAL: 0,
+    };
+
+    counts.forEach((count) => {
+      result[count.status] = parseInt(count.count);
+      result.TOTAL += parseInt(count.count);
+    });
+
+    return result;
+  };
+
+  TimeOffRequest.deleteByIdAndUser = async function (id, userId) {
+    const request = await this.findByPkAndUser(id, userId);
+    if (!request) {
+      throw new Error('Request not found');
+    }
+
+    if (!request.canBeDeleted()) {
+      throw new Error('Request cannot be deleted');
+    }
+
+    await request.destroy();
+    return request;
   };
 
   return TimeOffRequest;

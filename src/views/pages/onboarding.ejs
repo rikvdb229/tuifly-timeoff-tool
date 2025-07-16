@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %></title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --tuifly-blue: #007bff;
+        --tuifly-yellow: #ffc107;
+      }
+
+      body {
+        background: linear-gradient(
+          135deg,
+          var(--tuifly-blue) 0%,
+          #0056b3 100%
+        );
+        min-height: 100vh;
+        padding: 20px 0;
+      }
+
+      .onboarding-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+      }
+
+      .onboarding-header {
+        background: linear-gradient(
+          135deg,
+          var(--tuifly-blue) 0%,
+          #0056b3 100%
+        );
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .onboarding-header i {
+        font-size: 3rem;
+        margin-bottom: 10px;
+      }
+
+      .onboarding-body {
+        padding: 40px;
+      }
+
+      .form-control {
+        border-radius: 10px;
+        padding: 12px 15px;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+      }
+
+      .form-control:focus {
+        border-color: var(--tuifly-blue);
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+      }
+
+      .form-label {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 8px;
+      }
+
+      .btn-primary {
+        background: var(--tuifly-blue);
+        border-color: var(--tuifly-blue);
+        padding: 12px 30px;
+        border-radius: 10px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+      }
+
+      .btn-primary:hover {
+        background: #0056b3;
+        border-color: #0056b3;
+        transform: translateY(-2px);
+      }
+
+      .progress {
+        height: 8px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+      }
+
+      .progress-bar {
+        background: var(--tuifly-blue);
+        border-radius: 10px;
+      }
+
+      .step {
+        display: none;
+      }
+
+      .step.active {
+        display: block;
+        animation: fadeIn 0.5s ease-in;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .welcome-info {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 30px;
+        border-left: 4px solid var(--tuifly-blue);
+      }
+
+      .input-group-text {
+        border-radius: 10px 0 0 10px;
+        border: 2px solid #e9ecef;
+        border-right: none;
+        background: #f8f9fa;
+      }
+
+      .input-group .form-control {
+        border-left: none;
+        border-radius: 0 10px 10px 0;
+      }
+
+      .input-group .form-control:focus {
+        border-left: none;
+      }
+
+      .code-input {
+        text-transform: uppercase;
+        font-weight: bold;
+        font-size: 1.1rem;
+        text-align: center;
+      }
+
+      .validation-feedback {
+        font-size: 0.875rem;
+        margin-top: 5px;
+      }
+
+      .system-info {
+        background: #e3f2fd;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+      }
+
+      .system-info h6 {
+        color: var(--tuifly-blue);
+        margin-bottom: 15px;
+      }
+
+      .system-info ul {
+        margin-bottom: 0;
+      }
+
+      .loading {
+        display: none;
+        text-align: center;
+        padding: 20px;
+      }
+
+      .loading .spinner-border {
+        color: var(--tuifly-blue);
+      }
+
+      @media (max-width: 768px) {
+        .onboarding-container {
+          margin: 0 15px;
+        }
+
+        .onboarding-body {
+          padding: 30px 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="onboarding-container">
+      <div class="onboarding-header">
+        <i class="bi bi-person-plus"></i>
+        <h2>Welcome to TUIfly Time-Off</h2>
+        <p class="mb-0">Let's set up your profile</p>
+      </div>
+
+      <div class="onboarding-body">
+        <!-- Progress bar -->
+        <div class="progress">
+          <div class="progress-bar" role="progressbar" style="width: 33%"></div>
+        </div>
+
+        <!-- Welcome Step -->
+        <div class="step active" id="step1">
+          <div class="welcome-info">
+            <h4>
+              <i class="bi bi-info-circle text-primary me-2"></i>Welcome, <%=
+              user.email %>!
+            </h4>
+            <p class="mb-0">
+              To get started, we need to set up your pilot profile. This
+              information will be used for your time-off requests and email
+              signatures.
+            </p>
+          </div>
+
+          <div class="text-center">
+            <button type="button" class="btn btn-primary" onclick="nextStep(2)">
+              Get Started <i class="bi bi-arrow-right ms-2"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Profile Setup Step -->
+        <div class="step" id="step2">
+          <form id="onboardingForm">
+            <div class="mb-4">
+              <label for="name" class="form-label">
+                <i class="bi bi-person me-2"></i>Full Name
+              </label>
+              <input
+                type="text"
+                class="form-control"
+                id="name"
+                name="name"
+                required
+              />
+              <div class="invalid-feedback"></div>
+            </div>
+
+            <div class="mb-4">
+              <label for="code" class="form-label">
+                <i class="bi bi-badge me-2"></i>3-Letter Pilot Code
+              </label>
+              <div class="input-group">
+                <span class="input-group-text">TB</span>
+                <input
+                  type="text"
+                  class="form-control code-input"
+                  id="code"
+                  name="code"
+                  maxlength="3"
+                  placeholder="ABC"
+                  required
+                />
+              </div>
+              <div class="form-text">
+                Your unique 3-letter pilot identification code
+              </div>
+              <div class="invalid-feedback"></div>
+            </div>
+
+            <div class="mb-4">
+              <label for="signature" class="form-label">
+                <i class="bi bi-pencil me-2"></i>Email Signature
+              </label>
+              <input
+                type="text"
+                class="form-control"
+                id="signature"
+                name="signature"
+                placeholder="e.g., Capt. John Smith"
+                required
+              />
+              <div class="form-text">How you want to sign your emails</div>
+              <div class="invalid-feedback"></div>
+            </div>
+
+            <div class="text-center">
+              <button
+                type="button"
+                class="btn btn-outline-secondary me-2"
+                onclick="prevStep(1)"
+              >
+                <i class="bi bi-arrow-left me-2"></i>Back
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary"
+                onclick="nextStep(3)"
+              >
+                Continue <i class="bi bi-arrow-right ms-2"></i>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Review Step -->
+        <div class="step" id="step3">
+          <h4>Review Your Information</h4>
+          <p class="text-muted">
+            Please review your profile information before completing setup.
+          </p>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-body">
+                  <h6 class="card-title">Profile Information</h6>
+                  <p><strong>Name:</strong> <span id="reviewName"></span></p>
+                  <p><strong>Code:</strong> <span id="reviewCode"></span></p>
+                  <p>
+                    <strong>Signature:</strong>
+                    <span id="reviewSignature"></span>
+                  </p>
+                  <p><strong>Email:</strong> <%= user.email %></p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="system-info">
+                <h6><i class="bi bi-gear me-2"></i>System Settings</h6>
+                <ul class="list-unstyled">
+                  <li>
+                    <strong>Min Advance:</strong> <%=
+                    globalSettings.MIN_ADVANCE_DAYS %> days
+                  </li>
+                  <li>
+                    <strong>Max Advance:</strong> <%=
+                    globalSettings.MAX_ADVANCE_DAYS %> days
+                  </li>
+                  <li>
+                    <strong>Max Days/Request:</strong> <%=
+                    globalSettings.MAX_DAYS_PER_REQUEST %>
+                  </li>
+                  <li>
+                    <strong>Approver:</strong> <%=
+                    globalSettings.TUIFLY_APPROVER_EMAIL %>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-center mt-4">
+            <button
+              type="button"
+              class="btn btn-outline-secondary me-2"
+              onclick="prevStep(2)"
+            >
+              <i class="bi bi-arrow-left me-2"></i>Back
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick="completeOnboarding()"
+            >
+              Complete Setup <i class="bi bi-check-circle ms-2"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading" id="loadingSpinner">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-2 text-muted">Setting up your account...</p>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      let currentStep = 1;
+      const totalSteps = 3;
+
+      function updateProgress() {
+        const progress = (currentStep / totalSteps) * 100;
+        document.querySelector('.progress-bar').style.width = progress + '%';
+      }
+
+      function showStep(step) {
+        document
+          .querySelectorAll('.step')
+          .forEach((s) => s.classList.remove('active'));
+        document.getElementById(`step${step}`).classList.add('active');
+        updateProgress();
+      }
+
+      function nextStep(step) {
+        if (step === 3) {
+          if (validateForm()) {
+            updateReview();
+            currentStep = step;
+            showStep(step);
+          }
+        } else {
+          currentStep = step;
+          showStep(step);
+        }
+      }
+
+      function prevStep(step) {
+        currentStep = step;
+        showStep(step);
+      }
+
+      function validateForm() {
+        const name = document.getElementById('name').value.trim();
+        const code = document.getElementById('code').value.trim().toUpperCase();
+        const signature = document.getElementById('signature').value.trim();
+
+        let isValid = true;
+
+        // Clear previous errors
+        document
+          .querySelectorAll('.is-invalid')
+          .forEach((el) => el.classList.remove('is-invalid'));
+
+        // Validate name
+        if (!name || name.length < 2) {
+          showError('name', 'Name must be at least 2 characters');
+          isValid = false;
+        }
+
+        // Validate code
+        if (!code || code.length !== 3 || !/^[A-Z]{3}$/.test(code)) {
+          showError('code', 'Code must be exactly 3 uppercase letters');
+          isValid = false;
+        }
+
+        // Validate signature
+        if (!signature || signature.length < 2) {
+          showError('signature', 'Signature must be at least 2 characters');
+          isValid = false;
+        }
+
+        return isValid;
+      }
+
+      function showError(fieldId, message) {
+        const field = document.getElementById(fieldId);
+        field.classList.add('is-invalid');
+        field.nextElementSibling.textContent = message;
+      }
+
+      function updateReview() {
+        document.getElementById('reviewName').textContent =
+          document.getElementById('name').value;
+        document.getElementById('reviewCode').textContent = document
+          .getElementById('code')
+          .value.toUpperCase();
+        document.getElementById('reviewSignature').textContent =
+          document.getElementById('signature').value;
+      }
+
+      async function completeOnboarding() {
+        const formData = {
+          name: document.getElementById('name').value.trim(),
+          code: document.getElementById('code').value.trim().toUpperCase(),
+          signature: document.getElementById('signature').value.trim(),
+        };
+
+        try {
+          // Show loading
+          document.getElementById('step3').style.display = 'none';
+          document.getElementById('loadingSpinner').style.display = 'block';
+
+          const response = await fetch('/onboarding/complete', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            // Redirect to dashboard
+            window.location.href = result.redirect || '/';
+          } else {
+            // Show errors
+            document.getElementById('loadingSpinner').style.display = 'none';
+            document.getElementById('step3').style.display = 'block';
+
+            if (result.details) {
+              result.details.forEach((detail) => {
+                showError(detail.field, detail.message);
+              });
+            } else {
+              alert('Error: ' + result.error);
+            }
+          }
+        } catch (error) {
+          console.error('Onboarding error:', error);
+          document.getElementById('loadingSpinner').style.display = 'none';
+          document.getElementById('step3').style.display = 'block';
+          alert('An error occurred. Please try again.');
+        }
+      }
+
+      // Real-time code validation
+      document.getElementById('code').addEventListener('input', function (e) {
+        e.target.value = e.target.value.toUpperCase();
+      });
+
+      // Check code availability on blur
+      document
+        .getElementById('code')
+        .addEventListener('blur', async function (e) {
+          const code = e.target.value.trim();
+          if (code.length === 3) {
+            try {
+              const response = await fetch('/onboarding/check-code', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ code }),
+              });
+
+              const result = await response.json();
+
+              if (!result.available) {
+                showError('code', result.message);
+              } else {
+                // Clear any existing error
+                e.target.classList.remove('is-invalid');
+              }
+            } catch (error) {
+              console.error('Code check error:', error);
+            }
+          }
+        });
+
+      // Initialize
+      updateProgress();
+    </script>
+  </body>
+</html>

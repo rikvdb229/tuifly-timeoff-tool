@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --tuifly-blue: #007bff;
+            --tuifly-yellow: #ffc107;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--tuifly-blue) 0%, #0056b3 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .login-header {
+            background: linear-gradient(135deg, var(--tuifly-blue) 0%, #0056b3 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .login-header i {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .login-body {
+            padding: 40px 30px;
+        }
+
+        .google-btn {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+        }
+
+        .google-btn:hover {
+            background: #357ae8;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(66, 133, 244, 0.3);
+            color: white;
+        }
+
+        .alert {
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .features-list {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+
+        .features-list li {
+            padding: 8px 0;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .features-list i {
+            color: var(--tuifly-blue);
+            margin-right: 10px;
+        }
+
+        .footer-text {
+            text-align: center;
+            margin-top: 20px;
+            color: #888;
+            font-size: 12px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading .spinner-border {
+            color: var(--tuifly-blue);
+        }
+
+        @media (max-width: 768px) {
+            .login-container {
+                margin: 20px;
+                max-width: calc(100% - 40px);
+            }
+            
+            .login-header {
+                padding: 20px;
+            }
+            
+            .login-body {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <i class="bi bi-airplane"></i>
+            <h2>TUIfly Time-Off</h2>
+            <p class="mb-0">Pilot Request System</p>
+        </div>
+        
+        <div class="login-body">
+            <% if (typeof error !== 'undefined' && error) { %>
+                <div class="alert alert-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <% if (error === 'oauth_failed') { %>
+                        Login failed. Please try again.
+                    <% } else if (error === 'callback_error') { %>
+                        Authentication error. Please try again.
+                    <% } else { %>
+                        <%= error %>
+                    <% } %>
+                </div>
+            <% } %>
+
+            <% if (typeof message !== 'undefined' && message) { %>
+                <div class="alert alert-info" role="alert">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <% if (message === 'logged_out') { %>
+                        You have been logged out successfully.
+                    <% } else if (message === 'account_deleted') { %>
+                        Your account has been deleted successfully.
+                    <% } else { %>
+                        <%= message %>
+                    <% } %>
+                </div>
+            <% } %>
+
+            <div class="text-center mb-4">
+                <h4>Welcome Back</h4>
+                <p class="text-muted">Sign in with your Google account to continue</p>
+            </div>
+
+            <div id="loginForm">
+                <a href="/auth/google" class="google-btn" id="googleLoginBtn">
+                    <i class="bi bi-google me-2"></i>
+                    Continue with Google
+                </a>
+            </div>
+
+            <div class="loading" id="loadingSpinner">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Authenticating...</p>
+            </div>
+
+            <ul class="features-list">
+                <li><i class="bi bi-calendar-check"></i> Interactive calendar interface</li>
+                <li><i class="bi bi-clock"></i> Real-time conflict detection</li>
+                <li><i class="bi bi-envelope"></i> Automated email notifications</li>
+                <li><i class="bi bi-shield-check"></i> Secure Google authentication</li>
+            </ul>
+
+            <div class="footer-text">
+                Secure login powered by Google OAuth<br>
+                <small>Version 2.0.0 - Multi-User System</small>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Handle Google login button click
+        document.getElementById('googleLoginBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Show loading spinner
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('loadingSpinner').style.display = 'block';
+            
+            // Redirect to Google OAuth
+            window.location.href = '/auth/google';
+        });
+
+        // Handle browser back button
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                // Reset UI if page is loaded from cache
+                document.getElementById('loginForm').style.display = 'block';
+                document.getElementById('loadingSpinner').style.display = 'none';
+            }
+        });
+
+        // Auto-dismiss alerts after 5 seconds
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function(alert) {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+    </script>
+</body>
+</html>

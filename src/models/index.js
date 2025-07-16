@@ -1,25 +1,30 @@
-// FILE: src/models/index.js
+// src/models/index.js
 const { sequelize } = require('../../config/database');
-const defineEmployee = require('./Employee');
+const defineUser = require('./User');
 const defineTimeOffRequest = require('./TimeOffRequest');
 const defineEmailTemplate = require('./EmailTemplate');
+const defineUserSetting = require('./UserSetting');
 
 // Initialize models
-const Employee = defineEmployee(sequelize);
+const User = defineUser(sequelize);
 const TimeOffRequest = defineTimeOffRequest(sequelize);
 const EmailTemplate = defineEmailTemplate(sequelize);
+const UserSetting = defineUserSetting(sequelize);
 
 // Define associations
-Employee.hasMany(TimeOffRequest, { foreignKey: 'employeeId' });
-TimeOffRequest.belongsTo(Employee, { foreignKey: 'employeeId' });
+User.hasMany(TimeOffRequest, { foreignKey: 'userId', onDelete: 'CASCADE' });
+TimeOffRequest.belongsTo(User, { foreignKey: 'userId' });
 
-// Sync database and seed initial data
+User.hasMany(UserSetting, { foreignKey: 'userId', onDelete: 'CASCADE' });
+UserSetting.belongsTo(User, { foreignKey: 'userId' });
+
+// Initialize database and seed data
 async function initializeDatabase() {
   try {
     await sequelize.sync({ force: false });
     console.log('✅ Database synchronized');
 
-    await seedInitialData();
+    await seedGlobalData();
     console.log('✅ Database initialization complete');
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
@@ -27,76 +32,117 @@ async function initializeDatabase() {
   }
 }
 
-async function seedInitialData() {
-  // Check if employee exists
-  const employeeCount = await Employee.count();
-  if (employeeCount === 0) {
-    const employee = await Employee.create({
-      name: process.env.EMPLOYEE_NAME || 'Rik',
-      code: process.env.EMPLOYEE_CODE || 'RVB',
-      email: process.env.GMAIL_USER || 'rik@example.com',
-      approverEmail:
-        process.env.TUIFLY_APPROVER_EMAIL || 'scheduling@tuifly.be',
-      signature: process.env.EMPLOYEE_NAME || 'Rik',
-      minAdvanceDays: parseInt(process.env.MIN_ADVANCE_DAYS) || 60,
-      maxAdvanceDays: parseInt(process.env.MAX_ADVANCE_DAYS) || 120,
-    });
-    console.log('✅ Initial employee data created:', employee.name);
-  }
-
-  // Check if email template exists
+async function seedGlobalData() {
+  // Check if email templates exist
   const templateCount = await EmailTemplate.count();
   if (templateCount === 0) {
-    await EmailTemplate.create({
-      type: 'REQUEST',
-      subjectTemplate: '{3LTR_CODE} CREW REQUEST - {YEAR} - {MONTH_NAME}',
-      bodyTemplate: 'Dear,\n\n{REQUEST_LINES}\n\nBrgds,\n{EMPLOYEE_NAME}',
-    });
-    console.log('✅ Initial email template created');
+    await EmailTemplate.bulkCreate([
+      {
+        type: 'REQUEST',
+        subjectTemplate: '{3LTR_CODE} CREW REQUEST - {YEAR} - {MONTH_NAME}',
+        bodyTemplate: 'Dear,\n\n{REQUEST_LINES}\n\nBrgds,\n{EMPLOYEE_NAME}',
+        isActive: true,
+      },
+      {
+        type: 'REMINDER',
+        subjectTemplate:
+          '{3LTR_CODE} CREW REQUEST REMINDER - {YEAR} - {MONTH_NAME}',
+        bodyTemplate:
+          'Dear,\n\nThis is a reminder for:\n\n{REQUEST_LINES}\n\nBrgds,\n{EMPLOYEE_NAME}',
+        isActive: true,
+      },
+    ]);
+    console.log('✅ Global email templates created');
   }
+}
 
-  // Add some sample requests for testing
-  const requestCount = await TimeOffRequest.count();
-  if (requestCount === 0) {
-    const employee = await Employee.findOne();
+// User management functions
+async function createUser(userData) {
+  try {
+    const user = await User.create(userData);
 
-    // Create some sample requests
-    await TimeOffRequest.create({
-      startDate: '2025-02-15',
-      endDate: '2025-02-15',
-      type: 'REQ_DO',
-      status: 'PENDING',
-      customMessage: 'Birthday celebration',
-      employeeId: employee.id,
+    // Create default user settings
+    await UserSetting.bulkCreate([
+      { userId: user.id, settingKey: 'theme', settingValue: 'light' },
+      { userId: user.id, settingKey: 'notifications', settingValue: 'true' },
+      {
+        userId: user.id,
+        settingKey: 'timezone',
+        settingValue: 'Europe/Brussels',
+      },
+      { userId: user.id, settingKey: 'language', settingValue: 'en' },
+    ]);
+
+    return user;
+  } catch (error) {
+    console.error('Error creating user:', error);
+    throw error;
+  }
+}
+
+async function getUserByGoogleId(googleId) {
+  return await User.findOne({ where: { googleId } });
+}
+
+async function getUserById(id) {
+  return await User.findByPk(id, {
+    include: [
+      {
+        model: UserSetting,
+        as: 'UserSettings',
+      },
+    ],
+  });
+}
+
+async function updateUserOnboarding(userId, onboardingData) {
+  try {
+    const user = await User.findByPk(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    await user.update({
+      name: onboardingData.name,
+      code: onboardingData.code,
+      signature: onboardingData.signature,
+      onboardedAt: new Date(),
     });
 
-    await TimeOffRequest.create({
-      startDate: '2025-02-20',
-      endDate: '2025-02-20',
-      type: 'FLIGHT',
-      status: 'APPROVED',
-      flightNumber: 'TB123',
-      customMessage: 'Training flight',
-      employeeId: employee.id,
-    });
+    return user;
+  } catch (error) {
+    console.error('Error updating user onboarding:', error);
+    throw error;
+  }
+}
 
-    await TimeOffRequest.create({
-      startDate: '2025-03-01',
-      endDate: '2025-03-01',
-      type: 'PM_OFF',
-      status: 'DENIED',
-      customMessage: 'Doctor appointment',
-      employeeId: employee.id,
-    });
+async function deleteUserAccount(userId) {
+  try {
+    const user = await User.findByPk(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
 
-    console.log('✅ Sample requests created');
+    // Delete all associated data (cascading)
+    await user.destroy();
+
+    return true;
+  } catch (error) {
+    console.error('Error deleting user account:', error);
+    throw error;
   }
 }
 
 module.exports = {
   sequelize,
-  Employee,
+  User,
   TimeOffRequest,
   EmailTemplate,
+  UserSetting,
   initializeDatabase,
+  createUser,
+  getUserByGoogleId,
+  getUserById,
+  updateUserOnboarding,
+  deleteUserAccount,
 };

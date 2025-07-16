@@ -1,15 +1,58 @@
+// src/routes/api.js
 const express = require('express');
-const router = express.Router();
-const { TimeOffRequest, Employee } = require('../models');
+const { requireAuth, requireOnboarding } = require('../middleware/auth');
+const { TimeOffRequest, User } = require('../models');
 const { Op } = require('sequelize');
+const Joi = require('joi');
+
+const router = express.Router();
+
+// Apply authentication middleware to all API routes
+router.use(requireAuth);
+router.use(requireOnboarding);
+
+// Validation schemas
+const createRequestSchema = Joi.object({
+  startDate: Joi.date().iso().required(),
+  endDate: Joi.date().iso().min(Joi.ref('startDate')).required(),
+  type: Joi.string().valid('REQ_DO', 'PM_OFF', 'AM_OFF', 'FLIGHT').required(),
+  flightNumber: Joi.string().when('type', {
+    is: 'FLIGHT',
+    then: Joi.string().pattern(/^TB/).required(),
+    otherwise: Joi.string().allow(null, ''),
+  }),
+  customMessage: Joi.string().allow(null, '').max(500),
+});
+
+const groupRequestSchema = Joi.object({
+  dates: Joi.array()
+    .items(
+      Joi.object({
+        date: Joi.date().iso().required(),
+        type: Joi.string()
+          .valid('REQ_DO', 'PM_OFF', 'AM_OFF', 'FLIGHT')
+          .required(),
+        flightNumber: Joi.string().when('type', {
+          is: 'FLIGHT',
+          then: Joi.string().pattern(/^TB/).required(),
+          otherwise: Joi.string().allow(null, ''),
+        }),
+      })
+    )
+    .min(1)
+    .max(parseInt(process.env.MAX_DAYS_PER_REQUEST) || 4)
+    .required(),
+  customMessage: Joi.string().allow(null, '').max(500),
+});
 
 // API Info endpoint
 router.get('/', (req, res) => {
   res.json({
     message: 'TUIfly Time-Off API',
-    version: '1.0.0',
+    version: '2.0.0',
+    user: req.user.toSafeObject(),
     endpoints: {
-      'GET /api/requests': 'Get all time-off requests',
+      'GET /api/requests': 'Get all time-off requests for current user',
       'POST /api/requests': 'Create new time-off request',
       'POST /api/requests/group': 'Create group time-off request',
       'PUT /api/requests/:id': 'Update time-off request',
@@ -17,29 +60,48 @@ router.get('/', (req, res) => {
       'GET /api/requests/:id': 'Get specific time-off request',
       'GET /api/requests/group/:groupId': 'Get requests by group ID',
       'GET /api/requests/conflicts': 'Check for date conflicts',
+      'GET /api/requests/stats': 'Get request statistics',
     },
   });
 });
 
-// GET all time-off requests
+// GET all time-off requests for current user
 router.get('/requests', async (req, res) => {
   try {
-    const requests = await TimeOffRequest.findAll({
+    const { status, limit, offset } = req.query;
+    const options = {
       include: [
         {
-          model: Employee,
+          model: User,
           attributes: ['name', 'code'],
         },
       ],
       order: [['createdAt', 'DESC']],
-    });
+    };
+
+    // Add status filter if provided
+    if (status) {
+      options.where = { status: status.toUpperCase() };
+    }
+
+    // Add pagination if provided
+    if (limit) {
+      options.limit = parseInt(limit);
+    }
+    if (offset) {
+      options.offset = parseInt(offset);
+    }
+
+    const requests = await TimeOffRequest.findAllByUser(req.user.id, options);
 
     res.json({
       success: true,
       data: requests,
       count: requests.length,
+      user: req.user.toSafeObject(),
     });
   } catch (error) {
+    console.error('Error fetching requests:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch requests',
@@ -48,10 +110,33 @@ router.get('/requests', async (req, res) => {
   }
 });
 
-// GET requests by group ID
+// GET request statistics for current user
+router.get('/requests/stats', async (req, res) => {
+  try {
+    const stats = await TimeOffRequest.getStatusCountsForUser(req.user.id);
+
+    res.json({
+      success: true,
+      data: stats,
+      user: req.user.toSafeObject(),
+    });
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch statistics',
+      message: error.message,
+    });
+  }
+});
+
+// GET requests by group ID for current user
 router.get('/requests/group/:groupId', async (req, res) => {
   try {
-    const requests = await TimeOffRequest.getByGroupId(req.params.groupId);
+    const requests = await TimeOffRequest.getByGroupIdAndUser(
+      req.params.groupId,
+      req.user.id
+    );
 
     if (requests.length === 0) {
       return res.status(404).json({
@@ -66,6 +151,7 @@ router.get('/requests/group/:groupId', async (req, res) => {
       count: requests.length,
     });
   } catch (error) {
+    console.error('Error fetching group requests:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch group requests',
@@ -74,7 +160,7 @@ router.get('/requests/group/:groupId', async (req, res) => {
   }
 });
 
-// Check for date conflicts
+// Check for date conflicts for current user
 router.get('/requests/conflicts', async (req, res) => {
   try {
     const { startDate, endDate, excludeGroupId } = req.query;
@@ -86,44 +172,12 @@ router.get('/requests/conflicts', async (req, res) => {
       });
     }
 
-    const whereClause = {
-      [Op.and]: [
-        {
-          startDate: {
-            [Op.lte]: endDate,
-          },
-        },
-        {
-          endDate: {
-            [Op.gte]: startDate,
-          },
-        },
-        {
-          status: {
-            [Op.in]: ['PENDING', 'APPROVED'],
-          },
-        },
-      ],
-    };
-
-    // Exclude specific group if provided
-    if (excludeGroupId) {
-      whereClause[Op.and].push({
-        groupId: {
-          [Op.ne]: excludeGroupId,
-        },
-      });
-    }
-
-    const conflicts = await TimeOffRequest.findAll({
-      where: whereClause,
-      include: [
-        {
-          model: Employee,
-          attributes: ['name', 'code'],
-        },
-      ],
-    });
+    const conflicts = await TimeOffRequest.getConflictsForUser(
+      req.user.id,
+      startDate,
+      endDate,
+      excludeGroupId
+    );
 
     res.json({
       success: true,
@@ -131,6 +185,7 @@ router.get('/requests/conflicts', async (req, res) => {
       hasConflicts: conflicts.length > 0,
     });
   } catch (error) {
+    console.error('Error checking conflicts:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to check conflicts',
@@ -142,88 +197,27 @@ router.get('/requests/conflicts', async (req, res) => {
 // POST create group time-off request
 router.post('/requests/group', async (req, res) => {
   try {
-    const { dates, customMessage, employeeId = 1 } = req.body;
+    const { error, value } = groupRequestSchema.validate(req.body);
 
-    // Validation
-    if (!dates || !Array.isArray(dates) || dates.length === 0) {
+    if (error) {
       return res.status(400).json({
         success: false,
-        error: 'Dates array is required',
+        error: 'Validation failed',
+        details: error.details,
       });
     }
 
-    if (dates.length > (parseInt(process.env.MAX_DAYS_PER_REQUEST) || 4)) {
-      return res.status(400).json({
-        success: false,
-        error: `Maximum ${process.env.MAX_DAYS_PER_REQUEST || 4} days per request`,
-      });
-    }
-
-    // Validate each date entry
-    for (const dateInfo of dates) {
-      if (!dateInfo.date || !dateInfo.type) {
-        return res.status(400).json({
-          success: false,
-          error: 'Each date must have date and type fields',
-        });
-      }
-
-      const validTypes = ['REQ_DO', 'PM_OFF', 'AM_OFF', 'FLIGHT'];
-      if (!validTypes.includes(dateInfo.type)) {
-        return res.status(400).json({
-          success: false,
-          error:
-            'Invalid request type. Must be one of: ' + validTypes.join(', '),
-        });
-      }
-
-      if (dateInfo.type === 'FLIGHT' && !dateInfo.flightNumber) {
-        return res.status(400).json({
-          success: false,
-          error: 'Flight number is required for flight requests',
-        });
-      }
-
-      if (
-        dateInfo.type === 'FLIGHT' &&
-        dateInfo.flightNumber &&
-        !dateInfo.flightNumber.startsWith('TB')
-      ) {
-        return res.status(400).json({
-          success: false,
-          error: 'TUIfly flight numbers must start with TB',
-        });
-      }
-    }
+    const { dates, customMessage } = value;
 
     // Check for conflicts
     const startDate = dates[0].date;
     const endDate = dates[dates.length - 1].date;
 
-    const conflicts = await TimeOffRequest.findAll({
-      where: {
-        [Op.and]: [
-          {
-            startDate: {
-              [Op.lte]: endDate,
-            },
-          },
-          {
-            endDate: {
-              [Op.gte]: startDate,
-            },
-          },
-          {
-            status: {
-              [Op.in]: ['PENDING', 'APPROVED'],
-            },
-          },
-          {
-            employeeId,
-          },
-        ],
-      },
-    });
+    const conflicts = await TimeOffRequest.getConflictsForUser(
+      req.user.id,
+      startDate,
+      endDate
+    );
 
     if (conflicts.length > 0) {
       return res.status(409).json({
@@ -238,10 +232,9 @@ router.post('/requests/group', async (req, res) => {
     }
 
     // Create group request
-    const requests = await TimeOffRequest.createGroupRequest({
+    const requests = await TimeOffRequest.createGroupRequest(req.user.id, {
       dates,
       customMessage,
-      employeeId,
     });
 
     res.status(201).json({
@@ -251,6 +244,7 @@ router.post('/requests/group', async (req, res) => {
       message: `Group request created successfully (${requests.length} days)`,
     });
   } catch (error) {
+    console.error('Error creating group request:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to create group request',
@@ -259,75 +253,27 @@ router.post('/requests/group', async (req, res) => {
   }
 });
 
-// POST create single time-off request (updated)
+// POST create single time-off request
 router.post('/requests', async (req, res) => {
   try {
-    const {
-      startDate,
-      endDate,
-      type,
-      flightNumber,
-      customMessage,
-      employeeId = 1,
-    } = req.body;
+    const { error, value } = createRequestSchema.validate(req.body);
 
-    // Basic validation
-    if (!startDate || !endDate || !type) {
+    if (error) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: startDate, endDate, type',
+        error: 'Validation failed',
+        details: error.details,
       });
     }
 
-    // Validate request type
-    const validTypes = ['REQ_DO', 'PM_OFF', 'AM_OFF', 'FLIGHT'];
-    if (!validTypes.includes(type)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid request type. Must be one of: ' + validTypes.join(', '),
-      });
-    }
-
-    // Validate flight number for flight requests
-    if (type === 'FLIGHT' && !flightNumber) {
-      return res.status(400).json({
-        success: false,
-        error: 'Flight number is required for flight requests',
-      });
-    }
-
-    if (type === 'FLIGHT' && flightNumber && !flightNumber.startsWith('TB')) {
-      return res.status(400).json({
-        success: false,
-        error: 'TUIfly flight numbers must start with TB',
-      });
-    }
+    const { startDate, endDate, type, flightNumber, customMessage } = value;
 
     // Check for conflicts
-    const conflicts = await TimeOffRequest.findAll({
-      where: {
-        [Op.and]: [
-          {
-            startDate: {
-              [Op.lte]: endDate,
-            },
-          },
-          {
-            endDate: {
-              [Op.gte]: startDate,
-            },
-          },
-          {
-            status: {
-              [Op.in]: ['PENDING', 'APPROVED'],
-            },
-          },
-          {
-            employeeId,
-          },
-        ],
-      },
-    });
+    const conflicts = await TimeOffRequest.getConflictsForUser(
+      req.user.id,
+      startDate,
+      endDate
+    );
 
     if (conflicts.length > 0) {
       return res.status(409).json({
@@ -342,14 +288,13 @@ router.post('/requests', async (req, res) => {
     }
 
     // Create new request
-    const newRequest = await TimeOffRequest.create({
+    const newRequest = await TimeOffRequest.createForUser(req.user.id, {
       startDate,
       endDate,
       type,
       status: 'PENDING',
       flightNumber: type === 'FLIGHT' ? flightNumber : null,
       customMessage: customMessage || null,
-      employeeId,
     });
 
     res.status(201).json({
@@ -358,6 +303,7 @@ router.post('/requests', async (req, res) => {
       message: 'Time-off request created successfully',
     });
   } catch (error) {
+    console.error('Error creating request:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to create request',
@@ -366,18 +312,14 @@ router.post('/requests', async (req, res) => {
   }
 });
 
-// GET specific time-off request
+// GET specific time-off request for current user
 router.get('/requests/:id', async (req, res) => {
   try {
     const requestId = parseInt(req.params.id);
-    const request = await TimeOffRequest.findByPk(requestId, {
-      include: [
-        {
-          model: Employee,
-          attributes: ['name', 'code'],
-        },
-      ],
-    });
+    const request = await TimeOffRequest.findByPkAndUser(
+      requestId,
+      req.user.id
+    );
 
     if (!request) {
       return res.status(404).json({
@@ -391,6 +333,7 @@ router.get('/requests/:id', async (req, res) => {
       data: request,
     });
   } catch (error) {
+    console.error('Error fetching request:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch request',
@@ -399,11 +342,14 @@ router.get('/requests/:id', async (req, res) => {
   }
 });
 
-// PUT update time-off request
+// PUT update time-off request for current user
 router.put('/requests/:id', async (req, res) => {
   try {
     const requestId = parseInt(req.params.id);
-    const request = await TimeOffRequest.findByPk(requestId);
+    const request = await TimeOffRequest.findByPkAndUser(
+      requestId,
+      req.user.id
+    );
 
     if (!request) {
       return res.status(404).json({
@@ -412,15 +358,27 @@ router.put('/requests/:id', async (req, res) => {
       });
     }
 
+    if (!request.isEditable()) {
+      return res.status(403).json({
+        success: false,
+        error: 'Request cannot be edited',
+      });
+    }
+
     const { startDate, endDate, type, status, flightNumber, customMessage } =
       req.body;
 
-    // Update only provided fields
+    // Build updates object
     const updates = {};
     if (startDate) updates.startDate = startDate;
     if (endDate) updates.endDate = endDate;
     if (type) updates.type = type;
-    if (status) updates.status = status;
+    if (status && ['PENDING', 'APPROVED', 'DENIED'].includes(status)) {
+      updates.status = status;
+      if (status !== 'PENDING') {
+        updates.approvalDate = new Date();
+      }
+    }
     if (flightNumber !== undefined) updates.flightNumber = flightNumber;
     if (customMessage !== undefined) updates.customMessage = customMessage;
 
@@ -432,6 +390,7 @@ router.put('/requests/:id', async (req, res) => {
       message: 'Time-off request updated successfully',
     });
   } catch (error) {
+    console.error('Error updating request:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to update request',
@@ -440,20 +399,14 @@ router.put('/requests/:id', async (req, res) => {
   }
 });
 
-// DELETE time-off request
+// DELETE time-off request for current user
 router.delete('/requests/:id', async (req, res) => {
   try {
     const requestId = parseInt(req.params.id);
-    const request = await TimeOffRequest.findByPk(requestId);
-
-    if (!request) {
-      return res.status(404).json({
-        success: false,
-        error: 'Request not found',
-      });
-    }
-
-    await request.destroy();
+    const request = await TimeOffRequest.deleteByIdAndUser(
+      requestId,
+      req.user.id
+    );
 
     res.json({
       success: true,
@@ -461,48 +414,25 @@ router.delete('/requests/:id', async (req, res) => {
       message: 'Time-off request deleted successfully',
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to delete request',
-      message: error.message,
-    });
-  }
-});
+    console.error('Error deleting request:', error);
 
-// GET requests by status
-router.get('/requests/status/:status', async (req, res) => {
-  try {
-    const status = req.params.status.toUpperCase();
-    const validStatuses = ['PENDING', 'APPROVED', 'DENIED'];
-
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
+    if (error.message === 'Request not found') {
+      return res.status(404).json({
         success: false,
-        error: 'Invalid status. Must be one of: ' + validStatuses.join(', '),
+        error: 'Request not found',
       });
     }
 
-    const filteredRequests = await TimeOffRequest.findAll({
-      where: { status },
-      include: [
-        {
-          model: Employee,
-          attributes: ['name', 'code'],
-        },
-      ],
-      order: [['createdAt', 'DESC']],
-    });
+    if (error.message === 'Request cannot be deleted') {
+      return res.status(403).json({
+        success: false,
+        error: 'Request cannot be deleted',
+      });
+    }
 
-    res.json({
-      success: true,
-      data: filteredRequests,
-      count: filteredRequests.length,
-      status: status,
-    });
-  } catch (error) {
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch requests by status',
+      error: 'Failed to delete request',
       message: error.message,
     });
   }
