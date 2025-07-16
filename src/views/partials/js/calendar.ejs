@@ -345,19 +345,49 @@
         // Deselect date
         selectedDates.splice(index, 1);
       } else {
-        // Select date (check max limit)
-        if (selectedDates.length >= CONFIG.MAX_DAYS_PER_REQUEST) {
-          showToast(
-            `Maximum ${CONFIG.MAX_DAYS_PER_REQUEST} dates allowed`,
-            'warning'
-          );
+        // Check if this date can be added (consecutive rule)
+        if (!this.canAddDate(dateStr)) {
           return;
         }
         selectedDates.push({ date: dateStr, type: 'REQ_DO' });
       }
 
+      // Sort dates chronologically
+      selectedDates.sort((a, b) => new Date(a.date) - new Date(b.date));
+
       this.updateDateSelection();
       this.updateFloatingButton();
+    }
+
+    canAddDate(newDateStr) {
+      if (selectedDates.length === 0) {
+        return true; // First date is always allowed
+      }
+
+      if (selectedDates.length >= CONFIG.MAX_DAYS_PER_REQUEST) {
+        showToast(
+          `Maximum ${CONFIG.MAX_DAYS_PER_REQUEST} consecutive days allowed`,
+          'warning'
+        );
+        return false;
+      }
+
+      // Check if new date would maintain consecutive sequence
+      const allDates = [...selectedDates.map((d) => d.date), newDateStr].sort();
+
+      // Check if dates are consecutive
+      for (let i = 1; i < allDates.length; i++) {
+        const prevDate = new Date(allDates[i - 1]);
+        const currentDate = new Date(allDates[i]);
+        const dayDiff = (currentDate - prevDate) / (1000 * 60 * 60 * 24);
+
+        if (dayDiff !== 1) {
+          showToast('Selected dates must be consecutive', 'warning');
+          return false;
+        }
+      }
+
+      return true;
     }
 
     updateDateSelection() {
@@ -588,6 +618,12 @@
       }
     }
 
+    // Validate consecutive dates
+    if (!validateConsecutiveDates(selectedDates.map((d) => d.date))) {
+      showToast('Selected dates must be consecutive', 'error');
+      return;
+    }
+
     if (selectedDates.length === 0) return;
 
     try {
@@ -671,5 +707,23 @@
       month: 'short',
       day: 'numeric',
     });
+  }
+
+  function validateConsecutiveDates(dates) {
+    if (dates.length <= 1) return true;
+
+    const sortedDates = dates.sort();
+
+    for (let i = 1; i < sortedDates.length; i++) {
+      const prevDate = new Date(sortedDates[i - 1]);
+      const currentDate = new Date(sortedDates[i]);
+      const dayDiff = (currentDate - prevDate) / (1000 * 60 * 60 * 24);
+
+      if (dayDiff !== 1) {
+        return false;
+      }
+    }
+
+    return true;
   }
 </script>
