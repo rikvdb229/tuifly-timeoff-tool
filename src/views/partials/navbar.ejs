@@ -57,6 +57,9 @@
                   <% if (locals.user.code) { %>
                     <br><small class="text-muted">Code: <%= locals.user.code %></small>
                   <% } %>
+                  <% if (locals.user.isAdmin) { %>
+                    <br><small class="text-warning"><i class="bi bi-shield-check"></i> Admin</small>
+                  <% } %>
                 </h6>
               </li>
               <li><hr class="dropdown-divider"></li>
@@ -68,6 +71,17 @@
                   Settings
                 </a>
               </li>
+              
+              <!-- 🚨 NEW: Admin Panel Link (only for admins) -->
+              <% if (locals.user.isAdmin) { %>
+                <li>
+                  <a class="dropdown-item" href="/admin/users">
+                    <i class="bi bi-shield-check me-2 text-warning"></i>
+                    Admin Panel
+                  </a>
+                </li>
+              <% } %>
+              
               <li><hr class="dropdown-divider"></li>
               <li>
                 <a class="dropdown-item text-danger" 

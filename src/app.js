@@ -120,6 +120,10 @@ try {
   const onboardingRoutes = require('./routes/onboarding');
   app.use('/onboarding', onboardingRoutes);
 
+  // ADMIN ROUTES (NEW) - Add this line
+  const adminRoutes = require('./routes/admin');
+  app.use('/admin', adminRoutes);
+
   // Main routes (auth + onboarding required) - NOW PROPERLY PROTECTED
   const indexRoutes = require('./routes/index');
   app.use('/', indexRoutes);

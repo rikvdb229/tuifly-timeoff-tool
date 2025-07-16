@@ -87,45 +87,19 @@ async function createUser(userData) {
       { userId: user.id, settingKey: 'language', settingValue: 'en' },
     ]);
 
-    // If this is an admin user, send notification to other admins (if any exist)
+    // 🚨 FIXED: Only log user creation, don't send email yet
     if (user.isAdmin) {
       console.log(`✅ Admin user created: ${user.email}`);
     } else {
-      // Notify admins about new user registration
-      await notifyAdminsOfNewUser(user);
+      console.log(
+        `👤 New user created: ${user.email} - waiting for onboarding completion`
+      );
     }
 
     return user;
   } catch (error) {
     console.error('Error creating user:', error);
     throw error;
-  }
-}
-
-// NEW: Notify admins when a new user registers
-async function notifyAdminsOfNewUser(newUser) {
-  try {
-    const admins = await User.getAdmins();
-
-    if (admins.length === 0) {
-      console.log('ℹ️ No admins found to notify about new user registration');
-      return;
-    }
-
-    console.log(
-      `📧 New user registered: ${newUser.email} - Sending admin notification`
-    );
-
-    // Send email notification to admin
-    const emailNotificationService = require('../services/emailNotificationService');
-    await emailNotificationService.initialize();
-    await emailNotificationService.notifyAdminOfNewUser(newUser);
-
-    return true;
-  } catch (error) {
-    console.error('Error notifying admins:', error);
-    // Don't throw error - this is non-critical
-    return false;
   }
 }
 
@@ -144,6 +118,7 @@ async function getUserById(id) {
   });
 }
 
+// 🚨 FIXED: Add email notification after onboarding completion
 async function updateUserOnboarding(userId, onboardingData) {
   try {
     const user = await User.findByPk(userId);
@@ -157,6 +132,14 @@ async function updateUserOnboarding(userId, onboardingData) {
       signature: onboardingData.signature,
       onboardedAt: new Date(),
     });
+
+    // 🚨 NEW: Send admin notification AFTER onboarding completion
+    if (!user.isAdmin) {
+      console.log(
+        `📧 User completed onboarding: ${user.email} - Sending admin notification`
+      );
+      await notifyAdminsOfNewUser(user);
+    }
 
     return user;
   } catch (error) {
@@ -182,7 +165,7 @@ async function deleteUserAccount(userId) {
   }
 }
 
-// NEW: Admin management functions
+// Admin management functions
 async function approveUser(adminId, userIdToApprove) {
   try {
     const admin = await User.findByPk(adminId);
@@ -273,6 +256,33 @@ async function getAllUsers() {
   }
 }
 
+// 🚨 MOVED: Notify admins when a user completes onboarding (not when account is created)
+async function notifyAdminsOfNewUser(newUser) {
+  try {
+    const admins = await User.getAdmins();
+
+    if (admins.length === 0) {
+      console.log('ℹ️ No admins found to notify about new user registration');
+      return;
+    }
+
+    console.log(
+      `📧 Notifying admins about completed onboarding: ${newUser.email}`
+    );
+
+    // Send email notification to admin
+    const emailNotificationService = require('../services/emailNotificationService');
+    await emailNotificationService.initialize();
+    await emailNotificationService.notifyAdminOfNewUser(newUser);
+
+    return true;
+  } catch (error) {
+    console.error('Error notifying admins:', error);
+    // Don't throw error - this is non-critical
+    return false;
+  }
+}
+
 module.exports = {
   sequelize,
   User,
@@ -285,7 +295,7 @@ module.exports = {
   getUserById,
   updateUserOnboarding,
   deleteUserAccount,
-  // NEW ADMIN FUNCTIONS
+  // Admin functions
   approveUser,
   makeUserAdmin,
   getPendingApprovals,

@@ -1,4 +1,4 @@
-// src/middleware/auth.js
+// src/middleware/auth.js - FIXED VERSION
 const { User } = require('../models');
 const rateLimit = require('express-rate-limit');
 
@@ -17,7 +17,7 @@ const requireAuth = (req, res, next) => {
   next();
 };
 
-// Middleware to ensure user has completed onboarding
+// Middleware to ensure user has completed onboarding AND has admin approval
 const requireOnboarding = async (req, res, next) => {
   try {
     if (!req.session || !req.session.userId) {
@@ -30,6 +30,7 @@ const requireOnboarding = async (req, res, next) => {
       return res.redirect('/auth/login');
     }
 
+    // Check if user completed onboarding first
     if (!user.isOnboarded()) {
       if (req.xhr || req.headers.accept?.includes('application/json')) {
         return res.status(403).json({
@@ -39,6 +40,25 @@ const requireOnboarding = async (req, res, next) => {
         });
       }
       return res.redirect('/onboarding');
+    }
+
+    // 🚨 NEW: Check if user has admin approval to use the app
+    if (!user.canUseApp()) {
+      // Show waiting for approval screen
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(403).json({
+          success: false,
+          error: 'Admin approval required',
+          message: 'Your account is pending admin approval',
+          needsApproval: true,
+        });
+      }
+
+      // Render waiting for approval page
+      return res.render('pages/waiting-approval', {
+        title: 'Waiting for Approval',
+        user: user.toSafeObject(),
+      });
     }
 
     req.user = user;
