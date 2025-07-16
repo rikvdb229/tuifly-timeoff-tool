@@ -1,22 +1,18 @@
+// src/routes/index.js
 const express = require('express');
+const { requireAuth, requireOnboarding } = require('../middleware/auth');
+
 const router = express.Router();
 
-// Calendar Dashboard - Main page
+// Apply authentication and onboarding middleware to all routes
+router.use(requireAuth);
+router.use(requireOnboarding);
+
+// Calendar Dashboard - Main page (now protected)
 router.get('/', (req, res) => {
   res.render('pages/calendar-dashboard', {
     title: 'TUIfly Time-Off Calendar',
-  });
-});
-
-// Health check
-router.get('/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    uptime: process.uptime(),
-    version: '2.0.0',
-    features: ['calendar-interface', 'group-requests', 'real-time-validation'],
+    user: req.user.toSafeObject(),
   });
 });
 
@@ -25,11 +21,12 @@ router.get('/dashboard', (req, res) => {
   res.redirect('/');
 });
 
-// API documentation page (optional)
+// API documentation page (protected)
 router.get('/api-docs', (req, res) => {
   res.json({
     message: 'TUIfly Time-Off API Documentation',
     baseUrl: '/api',
+    user: req.user.toSafeObject(),
     endpoints: {
       'GET /api/requests': 'Get all time-off requests',
       'POST /api/requests': 'Create single time-off request',

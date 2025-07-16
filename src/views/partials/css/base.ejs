@@ -1,0 +1,142 @@
+/* src/views/partials/css/base.ejs */
+<style>
+  :root {
+    --tuifly-blue: #007bff;
+    --tuifly-yellow: #ffc107;
+    --pending-color: #fff3cd;
+    --approved-color: #d1edff;
+    --denied-color: #f8d7da;
+    --selected-color: #e3f2fd;
+    --unavailable-color: #f8f9fa;
+  }
+
+  body {
+    background-color: #f8f9fa;
+  }
+
+  /* Navbar Styles */
+  .navbar {
+    background: linear-gradient(135deg, var(--tuifly-blue) 0%, #0056b3 100%);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .navbar-brand {
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+
+  .navbar-nav .nav-link {
+    transition: color 0.3s ease;
+    font-weight: 500;
+  }
+
+  .navbar-nav .nav-link:hover {
+    color: var(--tuifly-yellow) !important;
+  }
+
+  /* User dropdown styles */
+  .dropdown-menu {
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    min-width: 200px;
+  }
+
+  .dropdown-header {
+    font-weight: bold;
+    color: var(--tuifly-blue);
+  }
+
+  .dropdown-item {
+    padding: 8px 16px;
+    transition: background-color 0.2s ease;
+  }
+
+  .dropdown-item:hover {
+    background-color: #f8f9fa;
+  }
+
+  .dropdown-item.text-danger:hover {
+    background-color: #f8d7da;
+  }
+
+  /* Statistics Cards */
+  .stats-card {
+    transition: transform 0.2s ease-in-out;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Loading animation */
+  .loading {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--tuifly-blue);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Toast Notifications */
+  .toast-container {
+    position: fixed;
+    top: 80px; /* Below navbar */
+    right: 20px;
+    z-index: 9999;
+  }
+
+  .toast {
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Form enhancements */
+  .form-control:focus {
+    border-color: var(--tuifly-blue);
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  }
+
+  .btn-primary {
+    background-color: var(--tuifly-blue);
+    border-color: var(--tuifly-blue);
+  }
+
+  .btn-primary:hover,
+  .btn-primary:focus {
+    background-color: #0056b3;
+    border-color: #0056b3;
+  }
+
+  /* Main content spacing */
+  main {
+    padding-top: 20px;
+    min-height: calc(100vh - 76px); /* Adjust for navbar height */
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .navbar-brand span {
+      display: none;
+    }
+
+    main {
+      padding-top: 15px;
+    }
+  }
+</style>

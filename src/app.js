@@ -90,32 +90,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Routes
-try {
-  // Authentication routes (no auth required)
-  const authRoutes = require('./routes/auth');
-  app.use('/auth', authRoutes);
-
-  // Onboarding routes (auth required)
-  const onboardingRoutes = require('./routes/onboarding');
-  app.use('/onboarding', onboardingRoutes);
-
-  // Main routes (auth + onboarding required)
-  const indexRoutes = require('./routes/index');
-  app.use('/', indexRoutes);
-
-  // API routes (auth + onboarding required)
-  const apiRoutes = require('./routes/api');
-  app.use('/api', apiRoutes);
-
-  // Settings routes (auth + onboarding required)
-  const settingsRoutes = require('./routes/settings');
-  app.use('/settings', settingsRoutes);
-} catch (err) {
-  console.error('Error loading routes:', err);
-}
-
-// Health check endpoint (no auth required)
+// Health check endpoint (no auth required) - MOVED TO TOP
 app.get('/health', (req, res) => {
   res.json({
     status: 'OK',
@@ -128,6 +103,31 @@ app.get('/health', (req, res) => {
     redis: redisClient.isReady ? 'connected' : 'disconnected',
   });
 });
+
+// Routes
+try {
+  // Authentication routes (no auth required)
+  const authRoutes = require('./routes/auth');
+  app.use('/auth', authRoutes);
+
+  // Onboarding routes (auth required, but not onboarding)
+  const onboardingRoutes = require('./routes/onboarding');
+  app.use('/onboarding', onboardingRoutes);
+
+  // Main routes (auth + onboarding required) - NOW PROPERLY PROTECTED
+  const indexRoutes = require('./routes/index');
+  app.use('/', indexRoutes);
+
+  // API routes (auth + onboarding required) - ALREADY PROTECTED
+  const apiRoutes = require('./routes/api');
+  app.use('/api', apiRoutes);
+
+  // Settings routes (auth + onboarding required) - ALREADY PROTECTED
+  const settingsRoutes = require('./routes/settings');
+  app.use('/settings', settingsRoutes);
+} catch (err) {
+  console.error('Error loading routes:', err);
+}
 
 // 404 handler
 app.use((req, res) => {
