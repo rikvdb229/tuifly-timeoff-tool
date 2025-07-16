@@ -56,10 +56,43 @@ function defineTimeOffRequest(sequelize) {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      // NEW EMAIL TRACKING FIELDS
       emailSent: {
         type: DataTypes.DATE,
         allowNull: true,
+        comment: 'Timestamp when email was sent',
       },
+      gmailMessageId: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        comment: 'Gmail message ID for tracking replies',
+      },
+      gmailThreadId: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        comment: 'Gmail thread ID for reply tracking',
+      },
+      lastReplyCheck: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'Last time we checked for replies',
+      },
+      replyReceived: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'Timestamp when reply was received',
+      },
+      replyContent: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Content of the reply for reference',
+      },
+      autoApproved: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        comment: 'Whether status was auto-updated from reply',
+      },
+      // EXISTING FIELDS
       threadId: {
         type: DataTypes.STRING,
         allowNull: true,
@@ -90,6 +123,12 @@ function defineTimeOffRequest(sequelize) {
         },
         {
           fields: ['groupId'],
+        },
+        {
+          fields: ['gmailMessageId'],
+        },
+        {
+          fields: ['gmailThreadId'],
         },
       ],
       validate: {
@@ -132,6 +171,66 @@ function defineTimeOffRequest(sequelize) {
       FLIGHT: 'Flight',
     };
     return typeMap[this.type] || this.type;
+  };
+
+  // NEW EMAIL METHODS
+  TimeOffRequest.prototype.isEmailSent = function () {
+    return this.emailSent !== null;
+  };
+
+  TimeOffRequest.prototype.hasReply = function () {
+    return this.replyReceived !== null;
+  };
+
+  TimeOffRequest.prototype.needsReplyCheck = function () {
+    // Check for replies if email was sent but no reply received
+    // and last check was more than 1 hour ago
+    if (!this.isEmailSent() || this.hasReply()) {
+      return false;
+    }
+
+    if (!this.lastReplyCheck) {
+      return true;
+    }
+
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    return this.lastReplyCheck < oneHourAgo;
+  };
+
+  TimeOffRequest.prototype.markEmailSent = function (
+    gmailMessageId,
+    gmailThreadId
+  ) {
+    return this.update({
+      emailSent: new Date(),
+      gmailMessageId,
+      gmailThreadId,
+    });
+  };
+
+  TimeOffRequest.prototype.markReplyReceived = function (
+    replyContent,
+    autoStatus = null
+  ) {
+    const updates = {
+      replyReceived: new Date(),
+      replyContent,
+      lastReplyCheck: new Date(),
+    };
+
+    if (autoStatus && ['APPROVED', 'DENIED'].includes(autoStatus)) {
+      updates.status = autoStatus;
+      updates.approvalDate = new Date();
+      updates.autoApproved = true;
+    }
+
+    return this.update(updates);
+  };
+
+  TimeOffRequest.prototype.updateReplyCheckTime = function () {
+    return this.update({
+      lastReplyCheck: new Date(),
+    });
   };
 
   // Class methods for user isolation
@@ -194,31 +293,28 @@ function defineTimeOffRequest(sequelize) {
 
     const whereClause = {
       userId,
-      [Op.and]: [
+      [Op.or]: [
         {
           startDate: {
-            [Op.lte]: endDate,
+            [Op.between]: [startDate, endDate],
           },
         },
         {
           endDate: {
-            [Op.gte]: startDate,
+            [Op.between]: [startDate, endDate],
           },
         },
         {
-          status: {
-            [Op.in]: ['PENDING', 'APPROVED'],
-          },
+          [Op.and]: [
+            { startDate: { [Op.lte]: startDate } },
+            { endDate: { [Op.gte]: endDate } },
+          ],
         },
       ],
     };
 
     if (excludeGroupId) {
-      whereClause[Op.and].push({
-        groupId: {
-          [Op.ne]: excludeGroupId,
-        },
-      });
+      whereClause.groupId = { [Op.ne]: excludeGroupId };
     }
 
     return await this.findAll({
@@ -234,39 +330,76 @@ function defineTimeOffRequest(sequelize) {
       where: { userId },
       attributes: [
         'status',
-        [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
+        [sequelize.fn('COUNT', sequelize.col('status')), 'count'],
       ],
       group: ['status'],
       raw: true,
     });
 
     const result = {
-      PENDING: 0,
-      APPROVED: 0,
-      DENIED: 0,
-      TOTAL: 0,
+      total: 0,
+      pending: 0,
+      approved: 0,
+      denied: 0,
+      emailSent: 0,
+      awaitingReply: 0,
     };
 
     counts.forEach((count) => {
-      result[count.status] = parseInt(count.count);
-      result.TOTAL += parseInt(count.count);
+      result[count.status.toLowerCase()] = parseInt(count.count);
+      result.total += parseInt(count.count);
     });
+
+    // NEW EMAIL STATS
+    const emailStats = await this.findAll({
+      where: {
+        userId,
+        emailSent: { [Op.ne]: null },
+      },
+      attributes: [
+        [sequelize.fn('COUNT', sequelize.col('id')), 'emailSentCount'],
+      ],
+      raw: true,
+    });
+
+    const awaitingReplyStats = await this.findAll({
+      where: {
+        userId,
+        emailSent: { [Op.ne]: null },
+        replyReceived: null,
+        status: 'PENDING',
+      },
+      attributes: [
+        [sequelize.fn('COUNT', sequelize.col('id')), 'awaitingReplyCount'],
+      ],
+      raw: true,
+    });
+
+    result.emailSent = parseInt(emailStats[0]?.emailSentCount || 0);
+    result.awaitingReply = parseInt(
+      awaitingReplyStats[0]?.awaitingReplyCount || 0
+    );
 
     return result;
   };
 
-  TimeOffRequest.deleteByIdAndUser = async function (id, userId) {
-    const request = await this.findByPkAndUser(id, userId);
-    if (!request) {
-      throw new Error('Request not found');
-    }
+  // NEW METHOD: Get requests that need reply checking
+  TimeOffRequest.getRequestsNeedingReplyCheck = async function (userId) {
+    const { Op } = require('sequelize');
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-    if (!request.canBeDeleted()) {
-      throw new Error('Request cannot be deleted');
-    }
-
-    await request.destroy();
-    return request;
+    return await this.findAll({
+      where: {
+        userId,
+        emailSent: { [Op.ne]: null },
+        replyReceived: null,
+        [Op.or]: [
+          { lastReplyCheck: null },
+          { lastReplyCheck: { [Op.lt]: oneHourAgo } },
+        ],
+      },
+      order: [['emailSent', 'ASC']],
+    });
   };
 
   return TimeOffRequest;

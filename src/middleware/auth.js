@@ -1,5 +1,6 @@
 // src/middleware/auth.js
 const { User } = require('../models');
+const rateLimit = require('express-rate-limit');
 
 // Middleware to ensure user is authenticated
 const requireAuth = (req, res, next) => {
@@ -40,7 +41,6 @@ const requireOnboarding = async (req, res, next) => {
       return res.redirect('/onboarding');
     }
 
-    // Add user to request object for convenience
     req.user = user;
     next();
   } catch (error) {
@@ -51,6 +51,29 @@ const requireOnboarding = async (req, res, next) => {
     });
   }
 };
+
+// Middleware to check if user is already authenticated (for login pages)
+const requireGuest = (req, res, next) => {
+  if (req.session && req.session.userId) {
+    return res.redirect('/');
+  }
+  next();
+};
+
+// Rate limiting middleware for authentication attempts
+const authRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 auth attempts per windowMs
+  message: {
+    success: false,
+    error: 'Too many authentication attempts, please try again later',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    return process.env.NODE_ENV === 'development';
+  },
+});
 
 // Middleware to load user data (for authenticated routes)
 const loadUser = async (req, res, next) => {
@@ -75,32 +98,6 @@ const loadUser = async (req, res, next) => {
   next();
 };
 
-// Middleware to check if user is already authenticated (for login pages)
-const requireGuest = (req, res, next) => {
-  if (req.session && req.session.userId) {
-    return res.redirect('/');
-  }
-  next();
-};
-
-// Rate limiting middleware for authentication attempts
-const rateLimit = require('express-rate-limit');
-
-const authRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 auth attempts per windowMs
-  message: {
-    success: false,
-    error: 'Too many authentication attempts, please try again later',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => {
-    // Skip rate limiting in development
-    return process.env.NODE_ENV === 'development';
-  },
-});
-
 // Middleware to update last login time
 const updateLastLogin = async (req, res, next) => {
   if (req.user) {
@@ -116,8 +113,8 @@ const updateLastLogin = async (req, res, next) => {
 module.exports = {
   requireAuth,
   requireOnboarding,
-  loadUser,
   requireGuest,
   authRateLimit,
+  loadUser,
   updateLastLogin,
 };

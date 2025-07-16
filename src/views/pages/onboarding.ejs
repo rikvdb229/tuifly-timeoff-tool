@@ -150,6 +150,13 @@
         font-weight: bold;
         font-size: 1.1rem;
         text-align: center;
+        border-radius: 10px !important;
+        border: 2px solid #e9ecef;
+      }
+
+      .code-input:focus {
+        border-color: var(--tuifly-blue);
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
       }
 
       .validation-feedback {
@@ -229,6 +236,10 @@
           </div>
         </div>
 
+        <!-- Updated Profile Setup Step in src/views/pages/onboarding.ejs -->
+
+        <!-- Updated Profile Setup Step in src/views/pages/onboarding.ejs -->
+
         <!-- Profile Setup Step -->
         <div class="step" id="step2">
           <form id="onboardingForm">
@@ -241,8 +252,13 @@
                 class="form-control"
                 id="name"
                 name="name"
+                value="<%= user.name || '' %>"
+                placeholder="Enter your full name"
                 required
               />
+              <div class="form-text">
+                This will be used in your email signatures and official requests
+              </div>
               <div class="invalid-feedback"></div>
             </div>
 
@@ -250,20 +266,18 @@
               <label for="code" class="form-label">
                 <i class="bi bi-badge me-2"></i>3-Letter Pilot Code
               </label>
-              <div class="input-group">
-                <span class="input-group-text">TB</span>
-                <input
-                  type="text"
-                  class="form-control code-input"
-                  id="code"
-                  name="code"
-                  maxlength="3"
-                  placeholder="ABC"
-                  required
-                />
-              </div>
+              <input
+                type="text"
+                class="form-control code-input"
+                id="code"
+                name="code"
+                maxlength="3"
+                placeholder="ABC"
+                required
+              />
               <div class="form-text">
-                Your unique 3-letter pilot identification code
+                Your unique 3-letter pilot identification code (e.g., RVB, ABC,
+                XYZ)
               </div>
               <div class="invalid-feedback"></div>
             </div>
@@ -272,15 +286,20 @@
               <label for="signature" class="form-label">
                 <i class="bi bi-pencil me-2"></i>Email Signature
               </label>
-              <input
-                type="text"
+              <textarea
                 class="form-control"
                 id="signature"
                 name="signature"
-                placeholder="e.g., Capt. John Smith"
+                rows="4"
+                placeholder="Brgds,
+<%= user.name || 'Your Name' %>"
                 required
-              />
-              <div class="form-text">How you want to sign your emails</div>
+              ></textarea>
+              <div class="form-text">
+                Your email signature will be automatically added to time-off
+                request emails. Use line breaks to format your signature
+                properly.
+              </div>
               <div class="invalid-feedback"></div>
             </div>
 
@@ -310,61 +329,63 @@
             Please review your profile information before completing setup.
           </p>
 
-          <div class="row">
-            <div class="col-md-6">
+          <div class="row justify-content-center">
+            <div class="col-md-8">
               <div class="card">
                 <div class="card-body">
-                  <h6 class="card-title">Profile Information</h6>
-                  <p><strong>Name:</strong> <span id="reviewName"></span></p>
-                  <p><strong>Code:</strong> <span id="reviewCode"></span></p>
-                  <p>
-                    <strong>Signature:</strong>
-                    <span id="reviewSignature"></span>
-                  </p>
-                  <p><strong>Email:</strong> <%= user.email %></p>
+                  <h6 class="card-title">
+                    <i class="bi bi-person-check me-2"></i>Profile Information
+                  </h6>
+                  <div class="row">
+                    <div class="col-md-6">
+                      <p>
+                        <strong>Full Name:</strong><br /><span
+                          id="reviewName"
+                          class="text-muted"
+                        ></span>
+                      </p>
+                      <p>
+                        <strong>Email:</strong><br /><span class="text-muted"
+                          ><%= user.email %></span
+                        >
+                      </p>
+                    </div>
+                    <div class="col-md-6">
+                      <p>
+                        <strong>Pilot Code:</strong><br /><span
+                          id="reviewCode"
+                          class="text-muted"
+                        ></span>
+                      </p>
+                      <p>
+                        <strong>Email Signature:</strong><br /><span
+                          id="reviewSignature"
+                          class="text-muted"
+                          style="white-space: pre-wrap"
+                        ></span>
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="col-md-6">
-              <div class="system-info">
-                <h6><i class="bi bi-gear me-2"></i>System Settings</h6>
-                <ul class="list-unstyled">
-                  <li>
-                    <strong>Min Advance:</strong> <%=
-                    globalSettings.MIN_ADVANCE_DAYS %> days
-                  </li>
-                  <li>
-                    <strong>Max Advance:</strong> <%=
-                    globalSettings.MAX_ADVANCE_DAYS %> days
-                  </li>
-                  <li>
-                    <strong>Max Days/Request:</strong> <%=
-                    globalSettings.MAX_DAYS_PER_REQUEST %>
-                  </li>
-                  <li>
-                    <strong>Approver:</strong> <%=
-                    globalSettings.TUIFLY_APPROVER_EMAIL %>
-                  </li>
-                </ul>
+
+              <div class="text-center mt-4">
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary me-2"
+                  onclick="prevStep(2)"
+                >
+                  <i class="bi bi-arrow-left me-2"></i>Back
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  onclick="completeOnboarding()"
+                >
+                  Complete Setup <i class="bi bi-check-circle ms-2"></i>
+                </button>
               </div>
             </div>
-          </div>
-
-          <div class="text-center mt-4">
-            <button
-              type="button"
-              class="btn btn-outline-secondary me-2"
-              onclick="prevStep(2)"
-            >
-              <i class="bi bi-arrow-left me-2"></i>Back
-            </button>
-            <button
-              type="button"
-              class="btn btn-primary"
-              onclick="completeOnboarding()"
-            >
-              Complete Setup <i class="bi bi-check-circle ms-2"></i>
-            </button>
           </div>
         </div>
 
@@ -414,7 +435,24 @@
         showStep(step);
       }
 
+      // Auto-fill signature with placeholder if empty
+      function autoFillSignature() {
+        const signatureField = document.getElementById('signature');
+        const placeholderText = signatureField.getAttribute('placeholder');
+
+        // If signature is empty, use the placeholder as default value
+        if (!signatureField.value.trim() && placeholderText) {
+          signatureField.value = placeholderText;
+        }
+      }
+
       function validateForm() {
+        // Auto-fill signature if empty before validation
+        const signatureField = document.getElementById('signature');
+        if (!signatureField.value.trim()) {
+          autoFillSignature();
+        }
+
         const name = document.getElementById('name').value.trim();
         const code = document.getElementById('code').value.trim().toUpperCase();
         const signature = document.getElementById('signature').value.trim();
@@ -438,7 +476,7 @@
           isValid = false;
         }
 
-        // Validate signature
+        // Validate signature (now should always pass since we auto-fill)
         if (!signature || signature.length < 2) {
           showError('signature', 'Signature must be at least 2 characters');
           isValid = false;
@@ -545,6 +583,13 @@
 
       // Initialize
       updateProgress();
+      document
+        .getElementById('signature')
+        .addEventListener('focus', function () {
+          if (!this.value.trim()) {
+            autoFillSignature();
+          }
+        });
     </script>
   </body>
 </html>

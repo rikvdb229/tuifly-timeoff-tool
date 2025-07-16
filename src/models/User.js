@@ -65,6 +65,52 @@ function defineUser(sequelize) {
         defaultValue: 'en',
         comment: 'User locale preference',
       },
+      // NEW ADMIN & APPROVAL FIELDS
+      isAdmin: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        comment: 'Whether user has admin privileges',
+      },
+      adminApproved: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        comment: 'Whether user has been approved by an admin',
+      },
+      adminApprovedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'When user was approved by admin',
+      },
+      adminApprovedBy: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: 'users',
+          key: 'id',
+        },
+        comment: 'ID of admin who approved this user',
+      },
+      // NEW GMAIL API FIELDS
+      gmailAccessToken: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Encrypted Gmail access token',
+      },
+      gmailRefreshToken: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Encrypted Gmail refresh token',
+      },
+      gmailTokenExpiry: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'When Gmail access token expires',
+      },
+      gmailScopeGranted: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        comment: 'Whether user granted Gmail send permission',
+      },
     },
     {
       tableName: 'users',
@@ -87,6 +133,12 @@ function defineUser(sequelize) {
             },
           },
         },
+        {
+          fields: ['isAdmin'],
+        },
+        {
+          fields: ['adminApproved'],
+        },
       ],
     }
   );
@@ -102,6 +154,68 @@ function defineUser(sequelize) {
     return this.name || this.email.split('@')[0];
   };
 
+  // NEW ADMIN METHODS
+  User.prototype.isApprovedAdmin = function () {
+    return this.isAdmin && this.adminApproved;
+  };
+
+  User.prototype.canUseApp = function () {
+    // User can use app if they are admin or have been approved by admin
+    return this.isAdmin || this.adminApproved;
+  };
+
+  User.prototype.needsAdminApproval = function () {
+    return !this.isAdmin && !this.adminApproved;
+  };
+
+  User.prototype.canSendEmails = function () {
+    return this.canUseApp() && this.gmailScopeGranted && this.isOnboarded();
+  };
+
+  User.prototype.hasValidGmailToken = function () {
+    if (!this.gmailAccessToken || !this.gmailTokenExpiry) {
+      return false;
+    }
+    return new Date() < this.gmailTokenExpiry;
+  };
+
+  User.prototype.approveUser = async function (approvingAdminId) {
+    return await this.update({
+      adminApproved: true,
+      adminApprovedAt: new Date(),
+      adminApprovedBy: approvingAdminId,
+    });
+  };
+
+  User.prototype.makeAdmin = async function (approvingAdminId) {
+    return await this.update({
+      isAdmin: true,
+      adminApproved: true,
+      adminApprovedAt: new Date(),
+      adminApprovedBy: approvingAdminId,
+    });
+  };
+
+  User.prototype.updateGmailTokens = async function (tokens) {
+    const updates = {
+      gmailScopeGranted: true,
+    };
+
+    if (tokens.access_token) {
+      updates.gmailAccessToken = tokens.access_token; // TODO: Encrypt in production
+    }
+
+    if (tokens.refresh_token) {
+      updates.gmailRefreshToken = tokens.refresh_token; // TODO: Encrypt in production
+    }
+
+    if (tokens.expiry_date) {
+      updates.gmailTokenExpiry = new Date(tokens.expiry_date);
+    }
+
+    return await this.update(updates);
+  };
+
   User.prototype.toSafeObject = function () {
     const user = this.toJSON();
     return {
@@ -115,6 +229,12 @@ function defineUser(sequelize) {
       locale: user.locale,
       createdAt: user.createdAt,
       lastLoginAt: user.lastLoginAt,
+      isAdmin: user.isAdmin,
+      adminApproved: user.adminApproved,
+      canUseApp: this.canUseApp(),
+      needsAdminApproval: this.needsAdminApproval(),
+      canSendEmails: this.canSendEmails(),
+      gmailScopeGranted: user.gmailScopeGranted,
     };
   };
 
@@ -140,6 +260,58 @@ function defineUser(sequelize) {
       },
       order: [['createdAt', 'DESC']],
     });
+  };
+
+  // NEW ADMIN METHODS
+  User.getAdmins = async function () {
+    return await this.findAll({
+      where: { isAdmin: true },
+      order: [['createdAt', 'ASC']],
+    });
+  };
+
+  User.getPendingApprovals = async function () {
+    return await this.findAll({
+      where: {
+        isAdmin: false,
+        adminApproved: false,
+        onboardedAt: { [sequelize.Sequelize.Op.ne]: null }, // Only show onboarded users
+      },
+      order: [['createdAt', 'ASC']],
+    });
+  };
+
+  User.getApprovedUsers = async function () {
+    return await this.findAll({
+      where: {
+        [sequelize.Sequelize.Op.or]: [
+          { isAdmin: true },
+          { adminApproved: true },
+        ],
+      },
+      order: [['createdAt', 'DESC']],
+    });
+  };
+
+  User.isEmailAdmin = function (email) {
+    const adminEmails = (process.env.ADMIN_EMAILS || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase());
+    return adminEmails.includes(email.toLowerCase());
+  };
+
+  User.setupAdminUser = async function (userData) {
+    // Check if this email should be admin
+    const isAdminEmail = this.isEmailAdmin(userData.email);
+
+    const user = await this.create({
+      ...userData,
+      isAdmin: isAdminEmail,
+      adminApproved: isAdminEmail, // Admins auto-approve themselves
+      adminApprovedAt: isAdminEmail ? new Date() : null,
+    });
+
+    return user;
   };
 
   return User;

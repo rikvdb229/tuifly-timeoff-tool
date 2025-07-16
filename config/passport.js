@@ -18,20 +18,39 @@ passport.use(
         let user = await User.findByGoogleId(profile.id);
 
         if (user) {
-          // Update user's profile picture if it changed
+          // Update user's profile picture and name if they changed
+          const updates = {};
+
           if (user.profilePicture !== profile.photos[0]?.value) {
-            await user.update({
-              profilePicture: profile.photos[0]?.value || null,
-              lastLoginAt: new Date(),
-            });
+            updates.profilePicture = profile.photos[0]?.value || null;
           }
+
+          // Update name from Google profile if not set yet
+          const googleName =
+            profile.displayName ||
+            `${profile.name?.givenName || ''} ${profile.name?.familyName || ''}`.trim();
+          if (!user.name && googleName) {
+            updates.name = googleName;
+          }
+
+          updates.lastLoginAt = new Date();
+
+          if (Object.keys(updates).length > 0) {
+            await user.update(updates);
+          }
+
           return done(null, user);
         }
 
-        // Create new user
+        // Create new user with Google profile name
+        const googleName =
+          profile.displayName ||
+          `${profile.name?.givenName || ''} ${profile.name?.familyName || ''}`.trim();
+
         const userData = {
           googleId: profile.id,
           email: profile.emails[0].value,
+          name: googleName || null, // Store the Google profile name
           profilePicture: profile.photos[0]?.value || null,
           lastLoginAt: new Date(),
         };
