@@ -1,4 +1,6 @@
+// config/database.js
 const { Sequelize } = require('sequelize');
+const { createClient } = require('redis');
 
 // PostgreSQL configuration
 const getDatabaseConfig = () => {
@@ -39,6 +41,33 @@ const getDatabaseConfig = () => {
 const config = getDatabaseConfig();
 const sequelize = new Sequelize(config.url, config);
 
+// Create Redis client immediately when module loads
+const redisClient = createClient({
+  url: process.env.REDIS_URL || 'redis://localhost:6379',
+  password: process.env.REDIS_PASSWORD || undefined,
+});
+
+// Add Redis error handling
+redisClient.on('error', (err) => {
+  console.error('❌ Redis Client Error:', err);
+});
+
+redisClient.on('connect', () => {
+  console.log('🔴 Redis connecting...');
+});
+
+redisClient.on('ready', () => {
+  console.log('✅ Redis client ready');
+});
+
+redisClient.on('reconnecting', () => {
+  console.log('🔄 Redis reconnecting...');
+});
+
+redisClient.on('end', () => {
+  console.log('🔴 Redis connection ended');
+});
+
 // Test database connection
 async function testConnection() {
   try {
@@ -77,6 +106,48 @@ async function testConnection() {
   }
 }
 
+// Initialize Redis connection
+async function initializeRedis() {
+  try {
+    if (!redisClient.isReady) {
+      await redisClient.connect();
+    }
+
+    // Test Redis connection
+    await redisClient.ping();
+    console.log('✅ Redis connected successfully');
+
+    // Get Redis info
+    const redisInfo = await redisClient.info('server');
+    const redisVersion =
+      redisInfo.match(/redis_version:([^\r\n]+)/)?.[1] || 'Unknown';
+    console.log(`🔴 Redis Version: ${redisVersion}`);
+
+    return true;
+  } catch (error) {
+    console.error('❌ Redis connection failed:', error.message);
+
+    // Provide helpful error messages
+    if (error.code === 'ECONNREFUSED') {
+      console.error(
+        '💡 Redis server is not running. Please start Redis: redis-server'
+      );
+    } else if (error.code === 'ENOTFOUND') {
+      console.error('💡 Redis host not found. Check your REDIS_URL.');
+    } else if (error.message.includes('WRONGPASS')) {
+      console.error(
+        '💡 Redis authentication failed. Check your REDIS_PASSWORD.'
+      );
+    } else if (error.message.includes('timeout')) {
+      console.error(
+        '💡 Redis connection timeout. Check if Redis is responsive.'
+      );
+    }
+
+    return false;
+  }
+}
+
 // Initialize database with proper error handling
 async function initializeDatabase() {
   try {
@@ -90,8 +161,8 @@ async function initializeDatabase() {
 
     // Sync database (create tables if they don't exist)
     await sequelize.sync({
-      alter: process.env.NODE_ENV === 'development', // Only alter in development
-      force: false, // Never drop tables
+      force: false, // Never drop tables after initial setup
+      alter: false, // Disable alter to prevent SQL syntax errors
     });
 
     console.log('✅ PostgreSQL tables synchronized successfully');
@@ -146,11 +217,28 @@ async function closeDatabase() {
   }
 }
 
+// Close Redis connection
+async function closeRedis() {
+  try {
+    if (redisClient.isReady) {
+      await redisClient.disconnect();
+    }
+    console.log('✅ Redis connection closed successfully');
+  } catch (error) {
+    console.error('❌ Error closing Redis connection:', error.message);
+  }
+}
+
+// Close all connections
+async function closeConnections() {
+  await Promise.all([closeDatabase(), closeRedis()]);
+}
+
 // Health check function
 async function healthCheck() {
   try {
+    // Check PostgreSQL
     await sequelize.authenticate();
-
     const dbName = sequelize.getDatabaseName();
 
     // Get connection pool info
@@ -163,11 +251,28 @@ async function healthCheck() {
         }
       : null;
 
+    // Check Redis
+    let redisStatus = 'disconnected';
+    try {
+      if (redisClient.isReady) {
+        await redisClient.ping();
+        redisStatus = 'connected';
+      }
+    } catch (redisError) {
+      redisStatus = 'error';
+    }
+
     return {
       status: 'healthy',
-      database: dbName,
-      dialect: 'postgres',
-      connectionPool: poolInfo,
+      database: {
+        name: dbName,
+        dialect: 'postgres',
+        connectionPool: poolInfo,
+      },
+      redis: {
+        status: redisStatus,
+        isReady: redisClient.isReady,
+      },
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
@@ -182,29 +287,39 @@ async function healthCheck() {
 // Export configuration and functions
 module.exports = {
   sequelize,
+  redisClient,
   testConnection,
   initializeDatabase,
+  initializeRedis,
   closeDatabase,
+  closeRedis,
+  closeConnections,
   healthCheck,
 
   // Utility functions
   getConnectionInfo: () => ({
-    dialect: 'postgres',
-    database: sequelize.getDatabaseName(),
-    host: sequelize.config.host,
-    port: sequelize.config.port,
+    postgres: {
+      dialect: 'postgres',
+      database: sequelize.getDatabaseName(),
+      host: sequelize.config.host,
+      port: sequelize.config.port,
+    },
+    redis: {
+      url: process.env.REDIS_URL || 'redis://localhost:6379',
+      isReady: redisClient.isReady,
+    },
   }),
 };
 
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\n🛑 Received SIGINT, closing PostgreSQL connection...');
-  await closeDatabase();
+  console.log('\n🛑 Received SIGINT, closing connections...');
+  await closeConnections();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('\n🛑 Received SIGTERM, closing PostgreSQL connection...');
-  await closeDatabase();
+  console.log('\n🛑 Received SIGTERM, closing connections...');
+  await closeConnections();
   process.exit(0);
 });
