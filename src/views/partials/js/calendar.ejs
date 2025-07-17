@@ -1,56 +1,175 @@
-<!-- src/views/partials/js/calendar.ejs -->
+<!-- src/views/partials/js/calendar.ejs - Complete Updated JavaScript -->
 <script>
-  // Configuration from meta tags
-  const CONFIG = {
-    MIN_ADVANCE_DAYS: parseInt(
-      document.querySelector('meta[name="min-advance-days"]')?.content || 60
-    ),
-    MAX_ADVANCE_DAYS: parseInt(
-      document.querySelector('meta[name="max-advance-days"]')?.content || 120
-    ),
-    MAX_DAYS_PER_REQUEST: parseInt(
-      document.querySelector('meta[name="max-days-per-request"]')?.content || 4
-    ),
-    REQUEST_TYPES: {
-      REQ_DO: 'Day Off',
-      PM_OFF: 'PM Off',
-      AM_OFF: 'AM Off',
-      FLIGHT: 'Flight',
-    },
+  // Calendar-specific JavaScript
+
+  // Global variables
+  let selectedDates = [];
+  let existingRequests = [];
+  let calendar;
+
+  // Global configuration from environment
+  window.TUIFLY_CONFIG = {
+    APPROVER_EMAIL:
+      '<%= typeof env !== "undefined" ? env.TUIFLY_APPROVER_EMAIL : "scheduling@tuifly.be" %>',
+    EMPLOYEE_CODE:
+      '<%= typeof env !== "undefined" ? env.EMPLOYEE_CODE : (typeof user !== "undefined" ? user.code : "XXX") %>',
+    EMPLOYEE_NAME:
+      '<%= typeof env !== "undefined" ? env.EMPLOYEE_NAME : (typeof user !== "undefined" ? user.name : "User") %>',
+    MIN_ADVANCE_DAYS:
+      '<%= typeof env !== "undefined" ? env.MIN_ADVANCE_DAYS : 60 %>',
+    MAX_ADVANCE_DAYS:
+      '<%= typeof env !== "undefined" ? env.MAX_ADVANCE_DAYS : 120 %>',
+    MAX_DAYS_PER_REQUEST:
+      '<%= typeof env !== "undefined" ? env.MAX_DAYS_PER_REQUEST : 4 %>',
   };
 
-  // Global state
-  let existingRequests = [];
-  let selectedDates = [];
-
-  // Calendar Management Class
+  // Calendar Manager Class
   class CalendarManager {
     constructor() {
+      // Get today's date and reset time to midnight
       this.today = new Date();
-      this.minDate = this.addDays(this.today, CONFIG.MIN_ADVANCE_DAYS);
-      this.maxDate = this.addDays(this.today, CONFIG.MAX_ADVANCE_DAYS);
+      this.today.setHours(0, 0, 0, 0);
 
-      // Allow viewing past requests - start from 3 months before today
-      this.viewMinDate = this.addDays(this.today, -90);
-      this.viewMaxDate = this.maxDate;
+      // Debug: Log the configuration values
+      console.log('=== CALENDAR DATE DEBUG ===');
+      console.log('TUIFLY_CONFIG:', window.TUIFLY_CONFIG);
 
+      // Parse configuration with proper fallbacks and validation
+      const minAdvanceDays = this.parseIntSafe(
+        window.TUIFLY_CONFIG?.MIN_ADVANCE_DAYS,
+        60
+      );
+      const maxAdvanceDays = this.parseIntSafe(
+        window.TUIFLY_CONFIG?.MAX_ADVANCE_DAYS,
+        120
+      );
+
+      console.log('Parsed minAdvanceDays:', minAdvanceDays);
+      console.log('Parsed maxAdvanceDays:', maxAdvanceDays);
+
+      // Calculate date ranges properly
+      this.viewMinDate = new Date(this.today);
+      this.viewMinDate.setDate(this.today.getDate() + minAdvanceDays);
+
+      this.viewMaxDate = new Date(this.today);
+      this.viewMaxDate.setDate(this.today.getDate() + maxAdvanceDays);
+
+      console.log('Today:', this.today.toISOString().split('T')[0]);
+      console.log('viewMinDate:', this.viewMinDate.toISOString().split('T')[0]);
+      console.log('viewMaxDate:', this.viewMaxDate.toISOString().split('T')[0]);
+
+      // Set current view to start from the minimum date month
       this.currentViewStart = new Date(
-        this.minDate.getFullYear(),
-        this.minDate.getMonth(),
+        this.viewMinDate.getFullYear(),
+        this.viewMinDate.getMonth(),
         1
       );
-      this.monthsToShow = 3;
+
+      console.log(
+        'currentViewStart:',
+        this.currentViewStart.toISOString().split('T')[0]
+      );
+      console.log('=== END CALENDAR DATE DEBUG ===');
+
+      // Responsive months display
+      this.monthsToShow = window.innerWidth >= 768 ? 3 : 1;
+
+      // Listen for window resize
+      window.addEventListener('resize', () => {
+        const newMonthsToShow = window.innerWidth >= 768 ? 3 : 1;
+        if (newMonthsToShow !== this.monthsToShow) {
+          this.monthsToShow = newMonthsToShow;
+          this.generateCalendar();
+        }
+      });
     }
 
-    addDays(date, days) {
-      const result = new Date(date);
-      result.setDate(result.getDate() + days);
-      return result;
+    // Helper method to safely parse integers with validation
+    parseIntSafe(value, defaultValue) {
+      // Handle various input types
+      if (typeof value === 'number' && !isNaN(value)) {
+        return Math.floor(value);
+      }
+
+      if (typeof value === 'string') {
+        const parsed = parseInt(value, 10);
+        if (!isNaN(parsed) && parsed > 0 && parsed < 1000) {
+          // Reasonable bounds
+          return parsed;
+        }
+      }
+
+      console.warn(
+        `Invalid value for date calculation: ${value}, using default: ${defaultValue}`
+      );
+      return defaultValue;
     }
 
-    getMonthsToDisplay() {
+    // Date validation methods (keep existing logic)
+    isDateSelectable(date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      return (
+        date >= this.viewMinDate &&
+        date <= this.viewMaxDate &&
+        date >= today &&
+        !this.hasExistingRequest(date)
+      );
+    }
+
+    hasExistingRequest(date) {
+      const dateStr = date.toISOString().split('T')[0];
+      return existingRequests.some((request) => request.startDate === dateStr);
+    }
+
+    // Date selection methods
+    toggleDateSelection(date) {
+      const dateStr = date.toISOString().split('T')[0];
+      const existingIndex = selectedDates.findIndex((d) => d.date === dateStr);
+
+      if (existingIndex >= 0) {
+        // Remove from selection
+        selectedDates.splice(existingIndex, 1);
+      } else {
+        // Add to selection with default type
+        selectedDates.push({
+          date: dateStr,
+          type: 'REQ_DO',
+          flightNumber: '',
+        });
+      }
+
+      // Sort dates chronologically
+      selectedDates.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      this.updateDateSelection();
+      this.updateFloatingButton();
+    }
+
+    // Generate calendar
+    generateCalendar() {
+      const container = document.getElementById('calendarGrid');
+      container.innerHTML = '';
+
+      const months = this.getMonthsInView();
+
+      months.forEach((monthStart) => {
+        const monthContainer = this.createMonthContainer(monthStart);
+        container.appendChild(monthContainer);
+      });
+
+      this.updateNavigationButtons();
+
+      // Update selection after DOM is ready
+      requestAnimationFrame(() => {
+        this.updateDateSelection();
+      });
+    }
+
+    getMonthsInView() {
       const months = [];
-      let current = new Date(this.currentViewStart);
+      const current = new Date(this.currentViewStart);
 
       for (let i = 0; i < this.monthsToShow; i++) {
         months.push(new Date(current));
@@ -60,6 +179,149 @@
       return months;
     }
 
+    createMonthContainer(monthStart) {
+      const monthContainer = document.createElement('div');
+      monthContainer.className = 'month-container';
+
+      // Month header
+      const monthHeader = document.createElement('div');
+      monthHeader.className = 'month-header';
+      monthHeader.textContent = monthStart.toLocaleDateString('en-US', {
+        month: 'long',
+        year: 'numeric',
+      });
+
+      // Weekday headers
+      const weekdayHeader = document.createElement('div');
+      weekdayHeader.className = 'weekday-header';
+      ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach((day) => {
+        const dayElement = document.createElement('div');
+        dayElement.className = 'weekday';
+        dayElement.textContent = day;
+        weekdayHeader.appendChild(dayElement);
+      });
+
+      // Days grid
+      const daysGrid = document.createElement('div');
+      daysGrid.className = 'days-grid';
+
+      const firstDay = new Date(
+        monthStart.getFullYear(),
+        monthStart.getMonth(),
+        1
+      );
+      const lastDay = new Date(
+        monthStart.getFullYear(),
+        monthStart.getMonth() + 1,
+        0
+      );
+
+      // Calculate start date for Monday-based week
+      const startDate = new Date(firstDay);
+      let dayOfWeek = firstDay.getDay();
+      dayOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert to Monday = 0
+      startDate.setDate(startDate.getDate() - dayOfWeek);
+
+      // Generate 6 weeks of days
+      for (let week = 0; week < 6; week++) {
+        for (let day = 0; day < 7; day++) {
+          const currentDate = new Date(startDate);
+          currentDate.setDate(startDate.getDate() + week * 7 + day);
+
+          const dayCell = this.createDayCell(currentDate, monthStart);
+          daysGrid.appendChild(dayCell);
+        }
+      }
+
+      monthContainer.appendChild(monthHeader);
+      monthContainer.appendChild(weekdayHeader);
+      monthContainer.appendChild(daysGrid);
+
+      return monthContainer;
+    }
+
+    createDayCell(date, monthStart) {
+      const dayCell = document.createElement('div');
+      dayCell.className = 'day-cell';
+
+      const isCurrentMonth = date.getMonth() === monthStart.getMonth();
+      const isSelectable = this.isDateSelectable(date);
+      const dateStr = date.toISOString().split('T')[0];
+
+      dayCell.setAttribute('data-date', dateStr);
+
+      if (!isCurrentMonth) {
+        dayCell.style.visibility = 'hidden';
+        return dayCell;
+      }
+
+      if (!isSelectable) {
+        dayCell.classList.add('unavailable');
+      }
+
+      // Day number
+      const dayNumber = document.createElement('div');
+      dayNumber.className = 'day-number';
+      dayNumber.textContent = date.getDate();
+      dayCell.appendChild(dayNumber);
+
+      // Check for existing requests
+      const existingRequest = existingRequests.find(
+        (r) => r.startDate === dateStr
+      );
+      if (existingRequest) {
+        const requestIndicator = document.createElement('div');
+        requestIndicator.className = `day-request request-${existingRequest.status.toLowerCase()}`;
+        requestIndicator.textContent = existingRequest.type;
+        dayCell.appendChild(requestIndicator);
+      }
+
+      // Click handler for selectable dates
+      if (isSelectable) {
+        dayCell.style.cursor = 'pointer';
+        dayCell.addEventListener('click', () => {
+          this.toggleDateSelection(date);
+        });
+      }
+
+      return dayCell;
+    }
+
+    updateDateSelection() {
+      // Clear all selections
+      document.querySelectorAll('.day-cell.selected').forEach((cell) => {
+        cell.classList.remove('selected');
+      });
+
+      // Apply current selections
+      selectedDates.forEach(({ date }) => {
+        const cells = document.querySelectorAll(`[data-date="${date}"]`);
+        cells.forEach((cell) => {
+          if (cell.style.visibility !== 'hidden') {
+            cell.classList.add('selected');
+          }
+        });
+      });
+    }
+
+    updateFloatingButton() {
+      const button = document.getElementById('createRequestBtn');
+      const buttonText = document.getElementById('requestBtnText');
+
+      if (selectedDates.length > 0) {
+        button.classList.add('show');
+        if (buttonText) {
+          buttonText.textContent = `Create Request (${selectedDates.length} day${selectedDates.length > 1 ? 's' : ''})`;
+        }
+      } else {
+        button.classList.remove('show');
+        if (buttonText) {
+          buttonText.textContent = 'New Request';
+        }
+      }
+    }
+
+    // Navigation methods
     canNavigatePrevious() {
       const previousMonth = new Date(this.currentViewStart);
       previousMonth.setMonth(previousMonth.getMonth() - 1);
@@ -88,7 +350,6 @@
       if (this.canNavigatePrevious()) {
         this.currentViewStart.setMonth(this.currentViewStart.getMonth() - 1);
         this.generateCalendar();
-        this.updateNavigationButtons();
       }
     }
 
@@ -96,7 +357,6 @@
       if (this.canNavigateNext()) {
         this.currentViewStart.setMonth(this.currentViewStart.getMonth() + 1);
         this.generateCalendar();
-        this.updateNavigationButtons();
       }
     }
 
@@ -105,387 +365,370 @@
       const nextBtn = document.getElementById('nextMonthBtn');
       const currentDisplay = document.getElementById('currentMonthDisplay');
 
-      prevBtn.disabled = !this.canNavigatePrevious();
-      nextBtn.disabled = !this.canNavigateNext();
+      if (prevBtn) prevBtn.disabled = !this.canNavigatePrevious();
+      if (nextBtn) nextBtn.disabled = !this.canNavigateNext();
 
-      // Update current month display
-      const months = this.getMonthsToDisplay();
-      const startMonth = months[0].toLocaleDateString('en-US', {
-        month: 'short',
-        year: 'numeric',
-      });
-      const endMonth = months[months.length - 1].toLocaleDateString('en-US', {
-        month: 'short',
-        year: 'numeric',
-      });
-      currentDisplay.textContent = `${startMonth} - ${endMonth}`;
-    }
+      if (currentDisplay) {
+        const endMonth = new Date(this.currentViewStart);
+        endMonth.setMonth(endMonth.getMonth() + this.monthsToShow - 1);
 
-    isDateAvailable(date) {
-      return date >= this.minDate && date <= this.maxDate;
-    }
-
-    isWeekend(date) {
-      const day = date.getDay();
-      // Saturday = 6, Sunday = 0
-      return day === 0 || day === 6;
-    }
-
-    formatDate(date) {
-      return date.toISOString().split('T')[0];
-    }
-
-    generateCalendar() {
-      console.log('=== GENERATING CALENDAR ===');
-      const calendarGrid = document.getElementById('calendarGrid');
-      calendarGrid.innerHTML = '';
-
-      const months = this.getMonthsToDisplay();
-      console.log(
-        'Displaying months:',
-        months.map((m) =>
-          m.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-        )
-      );
-
-      // Create month containers with consistent logic
-      months.forEach((monthStart, index) => {
-        console.log(
-          `Creating month ${index + 1}:`,
-          monthStart.toLocaleDateString('en-US', {
-            month: 'long',
-            year: 'numeric',
-          })
-        );
-        const monthContainer = this.createMonthContainer(monthStart, null);
-        calendarGrid.appendChild(monthContainer);
-      });
-
-      this.updateNavigationButtons();
-
-      // Use requestAnimationFrame for better timing
-      requestAnimationFrame(() => {
-        console.log('Running delayed selection update...');
-        this.updateDateSelection();
-      });
-
-      console.log('=== CALENDAR GENERATION COMPLETE ===');
-    }
-
-    createMonthContainer(monthStart, allDatesInView) {
-      const monthContainer = document.createElement('div');
-      monthContainer.className = 'month-container';
-
-      // Month header
-      const monthHeader = document.createElement('div');
-      monthHeader.className = 'month-header';
-      monthHeader.textContent = monthStart.toLocaleDateString('en-US', {
-        month: 'long',
-        year: 'numeric',
-      });
-
-      // Weekday headers - MONDAY START
-      const weekdayHeader = document.createElement('div');
-      weekdayHeader.className = 'weekday-header';
-      ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach((day) => {
-        const dayElement = document.createElement('div');
-        dayElement.className = 'weekday';
-        dayElement.textContent = day;
-        weekdayHeader.appendChild(dayElement);
-      });
-
-      // Days grid
-      const daysGrid = document.createElement('div');
-      daysGrid.className = 'days-grid';
-
-      const firstDay = new Date(
-        monthStart.getFullYear(),
-        monthStart.getMonth(),
-        1
-      );
-
-      // Calculate start date for Monday-based week
-      const startDate = new Date(firstDay);
-      // Get day of week (0 = Sunday, 1 = Monday, etc.)
-      let dayOfWeek = firstDay.getDay();
-      // Convert to Monday-based (0 = Monday, 1 = Tuesday, etc.)
-      dayOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      // Go back to the Monday of the week containing the 1st
-      startDate.setDate(startDate.getDate() - dayOfWeek);
-
-      for (let i = 0; i < 42; i++) {
-        const currentDate = new Date(startDate);
-        currentDate.setDate(startDate.getDate() + i);
-
-        // Only show dates that belong to this specific month
-        const isCurrentMonth = currentDate.getMonth() === monthStart.getMonth();
-
-        const dayCell = this.createDayCell(
-          currentDate,
-          monthStart,
-          isCurrentMonth
-        );
-        daysGrid.appendChild(dayCell);
-      }
-
-      monthContainer.appendChild(monthHeader);
-      monthContainer.appendChild(weekdayHeader);
-      monthContainer.appendChild(daysGrid);
-
-      return monthContainer;
-    }
-
-    createDayCell(date, monthStart, shouldShowDate) {
-      const dayCell = document.createElement('div');
-      dayCell.className = 'day-cell';
-      dayCell.dataset.date = this.formatDate(date);
-
-      if (!shouldShowDate) {
-        // Make cell invisible but keep in DOM for grid layout
-        dayCell.style.visibility = 'hidden';
-        dayCell.style.pointerEvents = 'none';
-        return dayCell;
-      }
-
-      // Day number
-      const dayNumber = document.createElement('div');
-      dayNumber.className = 'day-number';
-      dayNumber.textContent = date.getDate();
-
-      // Determine cell state
-      const isCurrentMonth = date.getMonth() === monthStart.getMonth();
-      const isAvailable = this.isDateAvailable(date);
-      const isWeekend = this.isWeekend(date);
-
-      if (!isCurrentMonth) {
-        dayCell.classList.add('other-month');
-      }
-
-      // Add weekend class BEFORE availability check
-      if (isWeekend) {
-        dayCell.classList.add('weekend');
-      }
-
-      if (!isAvailable) {
-        dayCell.classList.add('unavailable');
-      } else {
-        dayCell.addEventListener('click', () => this.handleDateClick(date));
-      }
-
-      // Check for existing requests
-      const existingRequest = this.getExistingRequest(date);
-      if (existingRequest) {
-        const requestElement = document.createElement('div');
-        requestElement.className = `day-request request-${existingRequest.status.toLowerCase()}`;
-        requestElement.textContent = CONFIG.REQUEST_TYPES[existingRequest.type];
-
-        // Add tooltip
-        dayCell.setAttribute('data-bs-toggle', 'tooltip');
-        dayCell.setAttribute('data-bs-placement', 'top');
-        dayCell.setAttribute(
-          'title',
-          `${this.formatDate(date)}: ${existingRequest.type} (${existingRequest.status})${
-            existingRequest.customMessage
-              ? ' - ' + existingRequest.customMessage
-              : ''
-          }`
-        );
-
-        dayCell.appendChild(requestElement);
-      }
-
-      dayCell.appendChild(dayNumber);
-      return dayCell;
-    }
-    getExistingRequest(date) {
-      const dateStr = this.formatDate(date);
-      return existingRequests.find(
-        (request) =>
-          request.startDate === dateStr || request.endDate === dateStr
-      );
-    }
-    handleDateClick(date) {
-      if (!this.isDateAvailable(date)) return;
-
-      const dateStr = this.formatDate(date);
-      const existingRequest = this.getExistingRequest(date);
-
-      if (existingRequest) {
-        showToast(`Request already exists for ${dateStr}`, 'info');
-        return;
-      }
-
-      // Handle smart date selection
-      const index = selectedDates.findIndex((d) => d.date === dateStr);
-
-      if (index > -1) {
-        // Date is already selected - deselect it
-        selectedDates.splice(index, 1);
-        console.log('Deselected:', dateStr);
-      } else {
-        // Date is not selected - check if we should add or start fresh
-        if (selectedDates.length === 0) {
-          // First date - always allow
-          selectedDates.push({ date: dateStr, type: 'REQ_DO' });
-          console.log('First selection:', dateStr);
-        } else {
-          // Check if new date extends the consecutive range
-          if (this.isConsecutiveToSelection(dateStr)) {
-            // Check if we're at the limit
-            if (selectedDates.length >= CONFIG.MAX_DAYS_PER_REQUEST) {
-              showToast(
-                `Maximum ${CONFIG.MAX_DAYS_PER_REQUEST} consecutive days allowed`,
-                'warning'
-              );
-              return;
+        if (this.monthsToShow === 1) {
+          currentDisplay.textContent = this.currentViewStart.toLocaleDateString(
+            'en-US',
+            {
+              month: 'long',
+              year: 'numeric',
             }
-            // Add to existing selection
-            selectedDates.push({ date: dateStr, type: 'REQ_DO' });
-            console.log(
-              'Extended selection:',
-              dateStr,
-              'Total:',
-              selectedDates.length
-            );
-          } else {
-            // Start fresh selection - clear previous dates and select new one
-            selectedDates = [{ date: dateStr, type: 'REQ_DO' }];
-            showToast('Started new selection', 'info');
-            console.log('Fresh selection:', dateStr);
-          }
-        }
-      }
-
-      // Sort dates chronologically
-      selectedDates.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-      // Force update after a small delay to ensure DOM is ready
-      setTimeout(() => {
-        this.updateDateSelection();
-        this.updateFloatingButton();
-      }, 10);
-    }
-    // New method to check if a date is consecutive to current selection
-    isConsecutiveToSelection(newDateStr) {
-      if (selectedDates.length === 0) return true;
-
-      // Get all selected dates sorted
-      const selectedDateStrings = selectedDates.map((d) => d.date).sort();
-      const newDate = new Date(newDateStr);
-
-      // Get min and max dates from current selection
-      const minDateStr = selectedDateStrings[0];
-      const maxDateStr = selectedDateStrings[selectedDateStrings.length - 1];
-
-      const minDate = new Date(minDateStr);
-      const maxDate = new Date(maxDateStr);
-
-      // Calculate one day before min and one day after max
-      const dayBefore = new Date(minDate);
-      dayBefore.setDate(dayBefore.getDate() - 1);
-
-      const dayAfter = new Date(maxDate);
-      dayAfter.setDate(dayAfter.getDate() + 1);
-
-      // Check if new date extends the range consecutively
-      const isConsecutive =
-        newDate.getTime() === dayBefore.getTime() ||
-        newDate.getTime() === dayAfter.getTime();
-
-      console.log('Consecutive check:', {
-        newDate: newDateStr,
-        minDate: minDateStr,
-        maxDate: maxDateStr,
-        dayBefore: this.formatDate(dayBefore),
-        dayAfter: this.formatDate(dayAfter),
-        isConsecutive: isConsecutive,
-      });
-
-      return isConsecutive;
-    }
-
-    // Updated canAddDate method (can be simplified now)
-    canAddDate(newDateStr) {
-      // This method is now mainly used for validation in other contexts
-      if (selectedDates.length === 0) {
-        return true;
-      }
-
-      if (selectedDates.length >= CONFIG.MAX_DAYS_PER_REQUEST) {
-        return false;
-      }
-
-      // Check if new date would maintain consecutive sequence
-      const allDates = [...selectedDates.map((d) => d.date), newDateStr].sort();
-
-      // Check if dates are consecutive
-      for (let i = 1; i < allDates.length; i++) {
-        const prevDate = new Date(allDates[i - 1]);
-        const currentDate = new Date(allDates[i]);
-        const dayDiff = (currentDate - prevDate) / (1000 * 60 * 60 * 24);
-
-        if (dayDiff !== 1) {
-          return false;
-        }
-      }
-
-      return true;
-    }
-
-    // Enhanced updateDateSelection with better debugging
-    updateDateSelection() {
-      console.log('=== UPDATE SELECTION ===');
-      console.log(
-        'Selected dates:',
-        selectedDates.map((d) => d.date)
-      );
-
-      // Clear all selections first
-      const allSelected = document.querySelectorAll('.day-cell.selected');
-      console.log('Clearing', allSelected.length, 'previously selected cells');
-      allSelected.forEach((cell) => {
-        cell.classList.remove('selected');
-      });
-
-      // Apply current selections
-      selectedDates.forEach(({ date }) => {
-        // Find all cells with this date (should be only one, but let's be thorough)
-        const cells = document.querySelectorAll(`[data-date="${date}"]`);
-        console.log(`Looking for date ${date}: found ${cells.length} cell(s)`);
-
-        cells.forEach((cell, index) => {
-          if (cell.style.visibility !== 'hidden') {
-            cell.classList.add('selected');
-            console.log(`  - Highlighted cell ${index + 1} for ${date}`);
-          } else {
-            console.log(`  - Skipped hidden cell ${index + 1} for ${date}`);
-          }
-        });
-      });
-
-      console.log('=== SELECTION UPDATE COMPLETE ===');
-    }
-
-    updateFloatingButton() {
-      const button = document.getElementById('createRequestBtn');
-      const buttonText = document.getElementById('requestBtnText');
-
-      if (selectedDates.length > 0) {
-        button.classList.add('show');
-        if (buttonText) {
-          buttonText.textContent = `Create Request (${selectedDates.length} day${selectedDates.length > 1 ? 's' : ''})`;
-        }
-      } else {
-        button.classList.remove('show');
-        if (buttonText) {
-          buttonText.textContent = 'Make Request';
+          );
+        } else {
+          currentDisplay.textContent = `${this.currentViewStart.toLocaleDateString(
+            'en-US',
+            {
+              month: 'short',
+            }
+          )} - ${endMonth.toLocaleDateString('en-US', {
+            month: 'short',
+            year: 'numeric',
+          })}`;
         }
       }
     }
   }
 
-  // Initialize calendar
-  const calendar = new CalendarManager();
+  // Modal Management Functions
+  window.updateDateType = function (index, newType) {
+    if (selectedDates[index]) {
+      selectedDates[index].type = newType;
+
+      // Show/hide flight number input based on type
+      const flightInput = document.querySelector(
+        `input[data-index="${index}"]`
+      );
+      if (flightInput) {
+        if (newType === 'FLIGHT') {
+          flightInput.style.display = 'block';
+          flightInput.required = true;
+          if (!flightInput.value) {
+            flightInput.placeholder = 'TB###';
+          }
+        } else {
+          flightInput.style.display = 'none';
+          flightInput.required = false;
+          flightInput.value = '';
+          selectedDates[index].flightNumber = '';
+        }
+      }
+
+      updateSubmitButton();
+    }
+  };
+
+  window.updateFlightNumber = function (index, flightNumber) {
+    if (selectedDates[index]) {
+      selectedDates[index].flightNumber = flightNumber;
+      updateSubmitButton();
+    }
+  };
+
+  function populateModalDates() {
+    const container = document.getElementById('selectedDatesList');
+
+    if (!container) {
+      console.error('selectedDatesList container not found!');
+      return;
+    }
+
+    if (selectedDates.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-3 text-muted">
+          <i class="bi bi-calendar-x fs-1 mb-2 d-block"></i>
+          No dates selected yet
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = '';
+
+    selectedDates.forEach((dateObj, index) => {
+      const date = new Date(dateObj.date);
+      const dateStr = date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      });
+
+      const dateRow = document.createElement('div');
+      dateRow.className = 'row mb-3 align-items-center border-bottom pb-2';
+      dateRow.innerHTML = `
+        <div class="col-md-5">
+          <span class="fw-bold">${dateStr}</span>
+          <br><small class="text-muted">${dateObj.date}</small>
+        </div>
+        <div class="col-md-4">
+          <select class="form-select form-select-sm" onchange="updateDateType(${index}, this.value)">
+            <option value="REQ_DO" ${dateObj.type === 'REQ_DO' ? 'selected' : ''}>Full Day Off</option>
+            <option value="PM_OFF" ${dateObj.type === 'PM_OFF' ? 'selected' : ''}>PM Off</option>
+            <option value="AM_OFF" ${dateObj.type === 'AM_OFF' ? 'selected' : ''}>AM Off</option>
+            <option value="FLIGHT" ${dateObj.type === 'FLIGHT' ? 'selected' : ''}>Flight</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <input
+            type="text"
+            class="form-control form-control-sm"
+            placeholder="TB###"
+            value="${dateObj.flightNumber || ''}"
+            data-index="${index}"
+            onchange="updateFlightNumber(${index}, this.value)"
+            style="display: ${dateObj.type === 'FLIGHT' ? 'block' : 'none'}"
+            ${dateObj.type === 'FLIGHT' ? 'required' : ''}
+          />
+        </div>
+      `;
+
+      container.appendChild(dateRow);
+    });
+
+    // Enable/disable submit button based on validation
+    updateSubmitButton();
+  }
+
+  function updateSubmitButton() {
+    const submitBtn = document.getElementById('submitGroupRequest');
+    if (!submitBtn) return;
+
+    const isValid =
+      selectedDates.length > 0 &&
+      selectedDates.every((date) => {
+        if (date.type === 'FLIGHT') {
+          return date.flightNumber && date.flightNumber.startsWith('TB');
+        }
+        return true;
+      });
+
+    submitBtn.disabled = !isValid;
+  }
+
+  function openGroupRequestModal() {
+    console.log('openGroupRequestModal called, selectedDates:', selectedDates);
+
+    if (selectedDates.length === 0) {
+      showToast(
+        'Please select dates first by clicking on the calendar',
+        'warning'
+      );
+      return;
+    }
+
+    // Ensure modal exists in DOM
+    let modal = document.getElementById('groupRequestModal');
+    if (!modal) {
+      console.error('Group request modal not found in DOM!');
+      showToast('Modal not available. Please refresh the page.', 'error');
+      return;
+    }
+
+    // Populate dates in modal
+    populateModalDates();
+
+    // Clear custom message
+    const customMessageField = document.getElementById('customMessage');
+    if (customMessageField) {
+      customMessageField.value = '';
+      updateMessageCounter(0);
+    }
+
+    // Show modal
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+  }
+
+  async function submitGroupRequest() {
+    console.log('submitGroupRequest called');
+
+    // Validate all flight requests have flight numbers
+    const invalidFlights = selectedDates.filter(
+      (date) =>
+        date.type === 'FLIGHT' &&
+        (!date.flightNumber || !date.flightNumber.startsWith('TB'))
+    );
+
+    if (invalidFlights.length > 0) {
+      showToast(
+        'All flight requests must have valid TB flight numbers',
+        'error'
+      );
+      return;
+    }
+
+    // Check if dates are consecutive
+    if (!validateConsecutiveDates(selectedDates.map((d) => d.date))) {
+      showToast('Selected dates must be consecutive', 'error');
+      return;
+    }
+
+    if (selectedDates.length === 0) {
+      showToast('Please select at least one date', 'warning');
+      return;
+    }
+
+    const customMessage = document.getElementById('customMessage')?.value || '';
+
+    try {
+      showLoading('Creating request...');
+
+      const response = await fetch('/api/requests/group', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dates: selectedDates,
+          customMessage: customMessage || null,
+        }),
+      });
+
+      const result = await response.json();
+
+      hideLoading();
+
+      if (result.success) {
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(
+          document.getElementById('groupRequestModal')
+        );
+        if (modal) {
+          modal.hide();
+        }
+
+        // Clear selection
+        selectedDates = [];
+        calendar.updateDateSelection();
+        calendar.updateFloatingButton();
+
+        // Reload data
+        await loadExistingRequests();
+
+        showToast(result.message || 'Request created successfully', 'success');
+      } else {
+        showToast(result.error || 'Failed to create request', 'error');
+      }
+    } catch (error) {
+      hideLoading();
+      console.error('Error creating group request:', error);
+      showToast('Failed to create request', 'error');
+    }
+  }
+
+  // Utility Functions
+  function updateMessageCounter(length) {
+    const counter = document.getElementById('messageCounter');
+    if (counter) {
+      counter.textContent = length;
+    }
+  }
+
+  function updateRequestPreview() {
+    // This can be enhanced later to show real-time email preview
+    console.log('Request preview updated');
+  }
+
+  function validateConsecutiveDates(dates) {
+    if (dates.length <= 1) return true;
+
+    const sortedDates = dates.sort();
+
+    for (let i = 1; i < sortedDates.length; i++) {
+      const prevDate = new Date(sortedDates[i - 1]);
+      const currentDate = new Date(sortedDates[i]);
+      const dayDiff = (currentDate - prevDate) / (1000 * 60 * 60 * 24);
+
+      if (dayDiff !== 1) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  function formatDateForDisplay(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+  }
+
+  // Loading utilities
+  function showLoading(message = 'Loading...') {
+    let loader = document.getElementById('globalLoader');
+    if (!loader) {
+      loader = document.createElement('div');
+      loader.id = 'globalLoader';
+      loader.className =
+        'position-fixed top-50 start-50 translate-middle bg-white p-4 rounded shadow';
+      loader.style.zIndex = '9999';
+      document.body.appendChild(loader);
+    }
+
+    loader.innerHTML = `
+      <div class="text-center">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <div class="mt-2">${message}</div>
+      </div>
+    `;
+    loader.style.display = 'block';
+  }
+
+  function hideLoading() {
+    const loader = document.getElementById('globalLoader');
+    if (loader) {
+      loader.style.display = 'none';
+    }
+  }
+
+  // Enhanced toast function
+  function showToast(message, type = 'info') {
+    // Create toast container if it doesn't exist
+    let toastContainer = document.getElementById('toastContainer');
+    if (!toastContainer) {
+      toastContainer = document.createElement('div');
+      toastContainer.id = 'toastContainer';
+      toastContainer.className =
+        'toast-container position-fixed top-0 end-0 p-3';
+      toastContainer.style.zIndex = '9999';
+      document.body.appendChild(toastContainer);
+    }
+
+    // Create toast
+    const toastId = 'toast_' + Date.now();
+    const toastHtml = `
+      <div id="${toastId}" class="toast show" role="alert">
+        <div class="toast-header">
+          <i class="bi bi-${type === 'success' ? 'check-circle text-success' : type === 'error' ? 'exclamation-triangle text-danger' : 'info-circle text-info'} me-2"></i>
+          <strong class="me-auto">${type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Info'}</strong>
+          <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+          ${message}
+        </div>
+      </div>
+    `;
+
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      const toastElement = document.getElementById(toastId);
+      if (toastElement) {
+        toastElement.remove();
+      }
+    }, 5000);
+  }
 
   // API Functions
   async function loadExistingRequests() {
@@ -525,210 +768,12 @@
     );
   }
 
-  // Group Request Modal Functions
-  function openGroupRequestModal() {
-    if (selectedDates.length === 0) {
-      showToast('Please select dates first', 'warning');
-      return;
-    }
-
-    // Create modal if it doesn't exist
-    let modal = document.getElementById('groupRequestModal');
-    if (!modal) {
-      createGroupRequestModal();
-      modal = document.getElementById('groupRequestModal');
-    }
-
-    // Populate dates in modal
-    populateModalDates();
-
-    const bootstrapModal = new bootstrap.Modal(modal);
-    bootstrapModal.show();
-  }
-
-  function createGroupRequestModal() {
-    const modalHTML = `
-    <div class="modal fade" id="groupRequestModal" tabindex="-1">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">
-              <i class="bi bi-calendar-plus"></i> Create Time-Off Request
-            </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <form id="groupRequestForm">
-              <div class="mb-3">
-                <label class="form-label">Selected Dates</label>
-                <div id="selectedDatesList" class="border rounded p-3 bg-light">
-                  <!-- Dates will be populated here -->
-                </div>
-              </div>
-              
-              <div class="mb-3">
-                <label for="customMessage" class="form-label">Custom Message (Optional)</label>
-                <textarea 
-                  class="form-control" 
-                  id="customMessage" 
-                  rows="3" 
-                  placeholder="Additional information or reason for time-off...">
-                </textarea>
-              </div>
-              
-              <div class="alert alert-info">
-                <i class="bi bi-info-circle me-2"></i>
-                <small>
-                  Request will be sent to scheduling@tuifly.be for approval.
-                  You can edit individual date types above if needed.
-                </small>
-              </div>
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-              Cancel
-            </button>
-            <button type="button" class="btn btn-primary" id="submitGroupRequest">
-              <i class="bi bi-send me-1"></i>
-              Submit Request
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-  }
-
-  function populateModalDates() {
-    const container = document.getElementById('selectedDatesList');
-    container.innerHTML = '';
-
-    selectedDates.forEach((dateObj, index) => {
-      const date = new Date(dateObj.date);
-      const dateStr = date.toLocaleDateString('en-US', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-      });
-
-      const dateRow = document.createElement('div');
-      dateRow.className = 'row mb-2 align-items-center';
-      dateRow.innerHTML = `
-      <div class="col-md-6">
-        <span class="fw-bold">${dateStr}</span>
-      </div>
-      <div class="col-md-4">
-        <select class="form-select form-select-sm" onchange="updateDateType(${index}, this.value)">
-          <option value="REQ_DO" ${dateObj.type === 'REQ_DO' ? 'selected' : ''}>Full Day Off</option>
-          <option value="PM_OFF" ${dateObj.type === 'PM_OFF' ? 'selected' : ''}>PM Off</option>
-          <option value="AM_OFF" ${dateObj.type === 'AM_OFF' ? 'selected' : ''}>AM Off</option>
-          <option value="FLIGHT" ${dateObj.type === 'FLIGHT' ? 'selected' : ''}>Flight</option>
-        </select>
-      </div>
-      <div class="col-md-2">
-        <input 
-          type="text" 
-          class="form-control form-control-sm" 
-          placeholder="TB###"
-          value="${dateObj.flightNumber || ''}"
-          ${dateObj.type === 'FLIGHT' ? '' : 'disabled style="display:none;"'}
-          onchange="updateFlightNumber(${index}, this.value)"
-          id="flight-${index}"
-        />
-      </div>
-    `;
-
-      container.appendChild(dateRow);
-    });
-  }
-
-  function updateDateType(index, type) {
-    selectedDates[index].type = type;
-
-    // Show/hide flight number input
-    const flightInput = document.getElementById(`flight-${index}`);
-    if (type === 'FLIGHT') {
-      flightInput.style.display = 'block';
-      flightInput.disabled = false;
-      flightInput.required = true;
-    } else {
-      flightInput.style.display = 'none';
-      flightInput.disabled = true;
-      flightInput.required = false;
-      selectedDates[index].flightNumber = '';
-    }
-  }
-
-  function updateFlightNumber(index, flightNumber) {
-    selectedDates[index].flightNumber = flightNumber;
-  }
-
-  async function submitGroupRequest() {
-    const customMessage = document.getElementById('customMessage').value.trim();
-
-    // Validate flight numbers
-    const flightDates = selectedDates.filter((d) => d.type === 'FLIGHT');
-    for (const date of flightDates) {
-      if (!date.flightNumber || !date.flightNumber.startsWith('TB')) {
-        showToast('Flight numbers must start with "TB"', 'error');
-        return;
-      }
-    }
-
-    // Validate consecutive dates
-    if (!validateConsecutiveDates(selectedDates.map((d) => d.date))) {
-      showToast('Selected dates must be consecutive', 'error');
-      return;
-    }
-
-    if (selectedDates.length === 0) return;
-
-    try {
-      const response = await fetch('/api/requests/group', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          dates: selectedDates,
-          customMessage: customMessage || null,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        // Close modal
-        const modal = bootstrap.Modal.getInstance(
-          document.getElementById('groupRequestModal')
-        );
-        modal.hide();
-
-        // Clear selection
-        selectedDates = [];
-        calendar.updateDateSelection();
-        calendar.updateFloatingButton();
-
-        // Reload data
-        await loadExistingRequests();
-
-        showToast(result.message, 'success');
-      } else {
-        showToast(result.error, 'error');
-      }
-    } catch (error) {
-      console.error('Error creating group request:', error);
-      showToast('Failed to create request', 'error');
-    }
-  }
-
   // Event Listeners
   document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize application
+    // Initialize calendar
+    calendar = new CalendarManager();
+
+    // Load initial data
     await loadExistingRequests();
 
     // Setup event listeners
@@ -755,36 +800,19 @@
     // Clear form when modal is hidden
     document.addEventListener('hidden.bs.modal', (e) => {
       if (e.target.id === 'groupRequestModal') {
-        document.getElementById('groupRequestForm')?.reset();
-        document.getElementById('customMessage').value = '';
+        const form = document.getElementById('groupRequestForm');
+        const customMessage = document.getElementById('customMessage');
+
+        if (form) form.reset();
+        if (customMessage) customMessage.value = '';
+        updateMessageCounter(0);
       }
+    });
+
+    // Handle custom message input
+    document.getElementById('customMessage')?.addEventListener('input', (e) => {
+      updateMessageCounter(e.target.value.length);
+      updateRequestPreview();
     });
   });
-
-  // Utility Functions
-  function formatDateForDisplay(dateStr) {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
-  }
-
-  function validateConsecutiveDates(dates) {
-    if (dates.length <= 1) return true;
-
-    const sortedDates = dates.sort();
-
-    for (let i = 1; i < sortedDates.length; i++) {
-      const prevDate = new Date(sortedDates[i - 1]);
-      const currentDate = new Date(sortedDates[i]);
-      const dayDiff = (currentDate - prevDate) / (1000 * 60 * 60 * 24);
-
-      if (dayDiff !== 1) {
-        return false;
-      }
-    }
-
-    return true;
-  }
 </script>

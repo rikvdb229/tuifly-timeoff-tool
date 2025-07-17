@@ -1,15 +1,28 @@
-<!-- src/views/partials/group-request-modal.ejs -->
+<!-- src/views/partials/group-request-modal.ejs - Updated to use environment variable -->
+
 <!-- Group Request Modal -->
-<div class="modal fade" id="groupRequestModal" tabindex="-1" aria-labelledby="groupRequestModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
+<div
+  class="modal fade"
+  id="groupRequestModal"
+  tabindex="-1"
+  aria-labelledby="groupRequestModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-xl">
     <div class="modal-content">
-      <div class="modal-header">
+      <div class="modal-header bg-primary text-white">
         <h5 class="modal-title" id="groupRequestModalLabel">
           <i class="bi bi-calendar-plus me-2"></i>
-          Create Time-Off Request
+          Create Group Time-Off Request
         </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button
+          type="button"
+          class="btn-close btn-close-white"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
       </div>
+
       <div class="modal-body">
         <form id="groupRequestForm">
           <!-- Selected Dates Section -->
@@ -25,7 +38,8 @@
               </div>
             </div>
             <small class="form-text text-muted">
-              Click on available calendar dates to select them, then click "New Request" to open this form.
+              Click on available calendar dates to select them, then click "New
+              Request" to open this form.
             </small>
           </div>
 
@@ -33,16 +47,17 @@
           <div class="mb-4">
             <label for="customMessage" class="form-label fw-bold">
               <i class="bi bi-chat-text me-1"></i>
-              Additional Message 
+              Additional Message
               <small class="text-muted fw-normal">(Optional)</small>
             </label>
-            <textarea 
-              class="form-control" 
-              id="customMessage" 
-              rows="4" 
+            <textarea
+              class="form-control"
+              id="customMessage"
+              rows="4"
               maxlength="500"
-              placeholder="Enter any additional information about your time-off request (e.g., vacation, wedding, medical appointment, etc.)">
-            </textarea>
+              placeholder="Enter any additional information about your time-off request (e.g., vacation, wedding, medical appointment, etc.)"
+              oninput="updateMessageCounter(this.value.length); updateRequestPreview()"
+            ></textarea>
             <div class="form-text">
               <span id="messageCounter">0</span>/500 characters
             </div>
@@ -58,17 +73,36 @@
               <div class="card-body">
                 <h6 class="card-title">Email that will be sent:</h6>
                 <div class="bg-light p-3 rounded">
-                  <p class="mb-2"><strong>To:</strong> <span id="approverEmail">scheduling@tuifly.be</span></p>
-                  <p class="mb-2"><strong>Subject:</strong> <span id="emailSubject">RVB CREW REQUEST - 2025 - January</span></p>
+                  <p class="mb-2">
+                    <strong>To:</strong>
+                    <span id="approverEmail"
+                      ><%= env.TUIFLY_APPROVER_EMAIL %></span
+                    >
+                  </p>
+                  <p class="mb-2">
+                    <strong>Subject:</strong>
+                    <span id="emailSubject"
+                      ><%= env.EMPLOYEE_CODE %> CREW REQUEST - 2025 -
+                      January</span
+                    >
+                  </p>
                   <div class="border-top pt-2 mt-2">
                     <p class="mb-1">Dear,</p>
                     <div id="requestLines" class="my-2">
                       <!-- Request lines will be generated here -->
                     </div>
-                    <p class="mb-1" id="customMessagePreview" style="display: none;">
+                    <p
+                      class="mb-1"
+                      id="customMessagePreview"
+                      style="display: none"
+                    >
                       <!-- Custom message will appear here -->
                     </p>
-                    <p class="mb-0">Brgds,<br><span id="userSignature">Rik</span></p>
+                    <p class="mb-0">
+                      Brgds,<br /><span id="userSignature"
+                        ><%= user.signature || user.name || 'User' %></span
+                      >
+                    </p>
                   </div>
                 </div>
               </div>
@@ -92,33 +126,74 @@
               <div class="col-md-6">
                 <h6 class="alert-heading">
                   <i class="bi bi-clock me-1"></i>
-                  Request Limits
+                  Timing Requirements
                 </h6>
                 <ul class="mb-0 small">
-                  <li><strong>Min advance:</strong> <span id="minAdvanceDays">60</span> days</li>
-                  <li><strong>Max advance:</strong> <span id="maxAdvanceDays">120</span> days</li>
-                  <li><strong>Max days per request:</strong> <span id="maxDaysPerRequest">4</span></li>
+                  <li>
+                    Minimum <%= env.MIN_ADVANCE_DAYS %> days advance notice
+                    required
+                  </li>
+                  <li>Maximum <%= env.MAX_ADVANCE_DAYS %> days in advance</li>
+                  <li>
+                    Up to <%= env.MAX_DAYS_PER_REQUEST %> consecutive days per
+                    request
+                  </li>
                 </ul>
               </div>
             </div>
           </div>
         </form>
       </div>
+
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-          <i class="bi bi-x-lg me-1"></i>
+          <i class="bi bi-x-circle me-1"></i>
           Cancel
         </button>
-        <button type="button" class="btn btn-primary" id="submitGroupRequest" disabled>
+        <button
+          type="button"
+          class="btn btn-primary"
+          onclick="submitGroupRequest()"
+          id="submitGroupRequest"
+          disabled
+        >
           <i class="bi bi-send me-1"></i>
-          <span id="submitButtonText">Submit Request</span>
+          Create Request
         </button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Toast Container for Notifications -->
-<div class="toast-container position-fixed top-0 end-0 p-3">
-  <!-- Toasts will be dynamically added here -->
-</div>
+<script>
+  // Update global JavaScript variables with environment values
+  window.TUIFLY_CONFIG = {
+    APPROVER_EMAIL: '<%= env.TUIFLY_APPROVER_EMAIL %>',
+    EMPLOYEE_CODE: '<%= env.EMPLOYEE_CODE %>',
+    EMPLOYEE_NAME: '<%= env.EMPLOYEE_NAME %>',
+    MIN_ADVANCE_DAYS: '<%= env.MIN_ADVANCE_DAYS %>',
+    MAX_ADVANCE_DAYS: '<%= env.MAX_ADVANCE_DAYS %>',
+    MAX_DAYS_PER_REQUEST: '<%= env.MAX_DAYS_PER_REQUEST %>',
+  };
+
+  // Update message counter
+  function updateMessageCounter(length) {
+    document.getElementById('messageCounter').textContent = length;
+  }
+
+  // Update request preview based on current form data
+  function updateRequestPreview() {
+    // This function will be expanded in the calendar JavaScript to show real preview
+    console.log('Request preview updated');
+  }
+
+  // Submit group request
+  async function submitGroupRequest() {
+    try {
+      // Implementation will be in calendar.js
+      console.log('Submitting group request...');
+    } catch (error) {
+      console.error('Error submitting group request:', error);
+    }
+  }
+</script>

@@ -1,4 +1,5 @@
-// src/services/gmailService.js
+// src/services/gmailService.js - Updated to use environment variable for approver email
+
 const { google } = require('googleapis');
 const nodemailer = require('nodemailer');
 
@@ -35,7 +36,7 @@ class GmailService {
       EMAIL_PM_OFF_LABEL = 'REQ PM OFF',
       EMAIL_AM_OFF_LABEL = 'REQ AM OFF',
       EMAIL_FLIGHT_LABEL = 'FLIGHT',
-      TUIFLY_APPROVER_EMAIL = 'scheduling@tuifly.be',
+      TUIFLY_APPROVER_EMAIL = 'scheduling@tuifly.be', // Use environment variable
     } = process.env;
 
     // Group requests by month for subject line
@@ -59,8 +60,11 @@ class GmailService {
     const monthName = monthNames[startDate.getMonth()];
     const year = startDate.getFullYear();
 
+    // Use user's code or fallback to environment variable
+    const employeeCode = user.code || process.env.EMPLOYEE_CODE || 'XXX';
+
     // Generate subject
-    const subject = `${user.code} - CREW REQUEST - ${year} - ${monthName}`;
+    const subject = `${employeeCode} - CREW REQUEST - ${year} - ${monthName}`;
 
     // Generate request lines
     const requestLines = requests
@@ -71,42 +75,43 @@ class GmailService {
         let line = '';
         switch (request.type) {
           case 'REQ_DO':
-            line = `${EMAIL_REQ_DO_LABEL} - ${formattedDate}`;
+            line = `${formattedDate} ${EMAIL_REQ_DO_LABEL}`;
             break;
           case 'PM_OFF':
-            line = `${EMAIL_PM_OFF_LABEL} - ${formattedDate}`;
+            line = `${formattedDate} ${EMAIL_PM_OFF_LABEL}`;
             break;
           case 'AM_OFF':
-            line = `${EMAIL_AM_OFF_LABEL} - ${formattedDate}`;
+            line = `${formattedDate} ${EMAIL_AM_OFF_LABEL}`;
             break;
           case 'FLIGHT':
-            line = `${EMAIL_FLIGHT_LABEL} ${request.flightNumber} - ${formattedDate}`;
+            line = `${formattedDate} ${EMAIL_FLIGHT_LABEL} ${request.flightNumber || ''}`;
             break;
           default:
-            line = `${request.type} - ${formattedDate}`;
+            line = `${formattedDate} ${request.type}`;
         }
 
-        return line;
+        return line.trim();
       })
       .join('\n');
 
-    // Generate body
-    let body = 'Dear,\n\n';
-    body += requestLines;
+    // Generate email body
+    const customMessage = requests[0]?.customMessage || '';
+    let body = `Dear,\n\n${requestLines}`;
 
-    // Add custom message if provided
-    if (firstRequest.customMessage) {
-      body += '\n\n' + firstRequest.customMessage;
+    if (customMessage) {
+      body += `\n\n${customMessage}`;
     }
 
-    body += '\n\nBrgds,\n';
-    body += user.signature || user.name;
+    // Use user's signature or fallback
+    const signature =
+      user.signature || `Brgds,\n${user.name || user.email.split('@')[0]}`;
+    body += `\n\n${signature}`;
 
     return {
       to: TUIFLY_APPROVER_EMAIL,
-      subject,
-      body,
-      requestLines,
+      subject: subject,
+      text: body,
+      html: body.replace(/\n/g, '<br>'),
     };
   }
 
@@ -125,15 +130,12 @@ class GmailService {
       // Create Gmail API client
       const gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
 
-      // Create email message with user's email as sender
+      // Create email message
       const message = [
-        `From: ${user.name || user.email} <${user.email}>`,
         `To: ${emailContent.to}`,
-        `Reply-To: ${user.email}`,
         `Subject: ${emailContent.subject}`,
-        'Content-Type: text/plain; charset=utf-8',
         '',
-        emailContent.body,
+        emailContent.text,
       ].join('\n');
 
       // Encode message
@@ -151,24 +153,17 @@ class GmailService {
         },
       });
 
-      // Get thread ID for tracking replies
-      const messageDetails = await gmail.users.messages.get({
-        userId: 'me',
-        id: response.data.id,
-      });
-
       return {
         success: true,
         messageId: response.data.id,
-        threadId: messageDetails.data.threadId,
+        threadId: response.data.threadId,
+        to: emailContent.to,
         subject: emailContent.subject,
-        body: emailContent.body,
-        sentAt: new Date(),
       };
     } catch (error) {
       console.error('Gmail send error:', error);
 
-      // Handle specific error cases
+      // Handle specific error types
       if (error.code === 401) {
         throw new Error('Gmail authentication failed. Please re-authorize.');
       } else if (error.code === 403) {
@@ -270,10 +265,14 @@ class GmailService {
 
   // Analyze reply content for approval/denial keywords
   analyzeReplyContent(replyBody) {
-    const approvalKeywords = (process.env.APPROVAL_KEYWORDS || '')
+    const approvalKeywords = (
+      process.env.APPROVAL_KEYWORDS || 'approved,approve,yes,ok,confirmed'
+    )
       .split(',')
       .map((k) => k.trim().toLowerCase());
-    const denialKeywords = (process.env.DENIAL_KEYWORDS || '')
+    const denialKeywords = (
+      process.env.DENIAL_KEYWORDS || 'denied,deny,no,rejected,decline'
+    )
       .split(',')
       .map((k) => k.trim().toLowerCase());
 

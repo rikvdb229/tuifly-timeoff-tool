@@ -1,4 +1,4 @@
-// src/routes/index.js - Updated to use layout system
+// src/routes/index.js - Updated to pass environment variables to templates
 
 const express = require('express');
 const { requireAuth, requireOnboarding } = require('../middleware/auth');
@@ -18,14 +18,27 @@ router.get('/', (req, res) => {
     <meta name="max-days-per-request" content="${process.env.MAX_DAYS_PER_REQUEST || 4}">
   `;
 
-  res.render('layouts/base', {
+  // Pass environment variables to template
+  const templateData = {
     title: 'TUIfly Time-Off Calendar',
     body: '../pages/calendar-dashboard',
     additionalCSS: 'calendar',
     additionalJS: 'calendar',
     metaTags: metaTags,
     user: req.user.toSafeObject(),
-  });
+    // Environment variables for templates
+    env: {
+      TUIFLY_APPROVER_EMAIL:
+        process.env.TUIFLY_APPROVER_EMAIL || 'scheduling@tuifly.be',
+      MIN_ADVANCE_DAYS: parseInt(process.env.MIN_ADVANCE_DAYS || '60'),
+      MAX_ADVANCE_DAYS: parseInt(process.env.MAX_ADVANCE_DAYS || '120'),
+      MAX_DAYS_PER_REQUEST: parseInt(process.env.MAX_DAYS_PER_REQUEST || '4'),
+      EMPLOYEE_CODE: req.user.code || process.env.EMPLOYEE_CODE || 'XXX',
+      EMPLOYEE_NAME: req.user.name || process.env.EMPLOYEE_NAME || 'User',
+    },
+  };
+
+  res.render('layouts/base', templateData);
 });
 
 // Legacy dashboard redirect (for bookmarks)
@@ -59,6 +72,12 @@ router.get('/api-docs', (req, res) => {
         { date: '2025-02-17', type: 'FLIGHT', flightNumber: 'TB123' },
       ],
       customMessage: 'Wedding weekend',
+    },
+    configuration: {
+      approverEmail:
+        process.env.TUIFLY_APPROVER_EMAIL || 'scheduling@tuifly.be',
+      minAdvanceDays: parseInt(process.env.MIN_ADVANCE_DAYS || '60'),
+      maxAdvanceDays: parseInt(process.env.MAX_ADVANCE_DAYS || '120'),
     },
   });
 });
