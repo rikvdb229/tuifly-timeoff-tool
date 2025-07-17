@@ -90,31 +90,16 @@
     position: relative;
   }
 
-  /* Add subtle striped pattern to unavailable days */
-  .day-cell.unavailable::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 2px,
-      rgba(108, 117, 125, 0.1) 2px,
-      rgba(108, 117, 125, 0.1) 4px
-    );
-    pointer-events: none;
-  }
+  /* REMOVED: Remove the striped pattern from unavailable days - no more crossed-out effect */
+  /* .day-cell.unavailable::before { ... } */
 
   .day-cell.other-month {
     color: #adb5bd;
   }
 
-  /* Only apply weekend styling to AVAILABLE days */
-  .day-cell.weekend:not(.unavailable) {
-    background-color: #f1f8ff; /* Very light blue tint */
+  /* Weekend styling - apply light blue to available weekend days */
+  .day-cell.weekend:not(.unavailable):not(.other-month) {
+    background-color: #f1f8ff !important; /* Light blue tint */
   }
 
   .day-cell.selected {
@@ -126,6 +111,22 @@
   .day-cell.conflict {
     background-color: #f8d7da !important;
     border: 2px solid #dc3545 !important;
+  }
+
+  /* Request Status Colors */
+  .request-pending {
+    background-color: var(--tuifly-yellow);
+    color: #856404;
+  }
+
+  .request-approved {
+    background-color: #28a745;
+    color: white;
+  }
+
+  .request-denied {
+    background-color: #dc3545;
+    color: white;
   }
 
   /* Request Status Colors */

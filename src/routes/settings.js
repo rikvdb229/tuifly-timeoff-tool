@@ -1,85 +1,210 @@
-// src/routes/settings.js - Updated to include environment variables
-
+// src/routes/settings.js - FIXED VERSION
 const express = require('express');
 const { requireAuth, requireOnboarding } = require('../middleware/auth');
+const { User, UserSetting } = require('../models');
 
 const router = express.Router();
 
-// Apply middleware
+// Apply authentication middleware
 router.use(requireAuth);
 router.use(requireOnboarding);
 
-// Get all settings and environment variables
+// Basic validation functions (replacing Joi for now)
+function validateProfile(data) {
+  const errors = [];
+
+  if (!data.name || data.name.length < 2 || data.name.length > 100) {
+    errors.push({
+      field: 'name',
+      message: 'Name must be between 2 and 100 characters',
+    });
+  }
+
+  if (!data.code || data.code.length !== 3 || !/^[A-Z]{3}$/.test(data.code)) {
+    errors.push({
+      field: 'code',
+      message: 'Code must be exactly 3 uppercase letters',
+    });
+  }
+
+  if (
+    !data.signature ||
+    data.signature.length < 2 ||
+    data.signature.length > 200
+  ) {
+    errors.push({
+      field: 'signature',
+      message: 'Signature must be between 2 and 200 characters',
+    });
+  }
+
+  return errors;
+}
+
+function validateSettings(data) {
+  const errors = [];
+  const validKeys = [
+    'theme',
+    'notifications',
+    'timezone',
+    'language',
+    'autoSave',
+    'emailFrequency',
+  ];
+
+  Object.keys(data).forEach((key) => {
+    if (!validKeys.includes(key)) {
+      errors.push({ field: key, message: 'Invalid setting key' });
+    }
+  });
+
+  if (data.theme && !['light', 'dark'].includes(data.theme)) {
+    errors.push({ field: 'theme', message: 'Theme must be light or dark' });
+  }
+
+  if (data.language && !['en', 'nl', 'fr', 'de'].includes(data.language)) {
+    errors.push({ field: 'language', message: 'Invalid language code' });
+  }
+
+  if (
+    data.emailFrequency &&
+    !['immediate', 'daily', 'weekly', 'never'].includes(data.emailFrequency)
+  ) {
+    errors.push({
+      field: 'emailFrequency',
+      message: 'Invalid email frequency',
+    });
+  }
+
+  return errors;
+}
+
+// Settings page
 router.get('/', async (req, res) => {
   try {
-    const { UserSetting } = require('../models');
-
-    // Get user settings
     const userSettings = await UserSetting.getUserSettings(req.user.id);
 
-    // Include environment variables for frontend
-    const globalSettings = {
-      TUIFLY_APPROVER_EMAIL:
-        process.env.TUIFLY_APPROVER_EMAIL || 'scheduling@tuifly.be',
-      MIN_ADVANCE_DAYS: parseInt(process.env.MIN_ADVANCE_DAYS || '60'),
-      MAX_ADVANCE_DAYS: parseInt(process.env.MAX_ADVANCE_DAYS || '120'),
-      MAX_DAYS_PER_REQUEST: parseInt(process.env.MAX_DAYS_PER_REQUEST || '4'),
-      EMPLOYEE_CODE: process.env.EMPLOYEE_CODE || req.user.code || 'XXX',
-      EMPLOYEE_NAME: process.env.EMPLOYEE_NAME || req.user.name || 'User',
-    };
-
-    res.json({
-      success: true,
-      data: {
-        userSettings,
-        globalSettings,
-        user: req.user.toSafeObject(),
+    res.render('pages/settings', {
+      title: 'Settings - TUIfly Time-Off',
+      user: req.user.toSafeObject(),
+      userSettings,
+      globalSettings: {
+        MIN_ADVANCE_DAYS: process.env.MIN_ADVANCE_DAYS || 60,
+        MAX_ADVANCE_DAYS: process.env.MAX_ADVANCE_DAYS || 120,
+        MAX_DAYS_PER_REQUEST: process.env.MAX_DAYS_PER_REQUEST || 4,
+        TUIFLY_APPROVER_EMAIL: process.env.TUIFLY_APPROVER_EMAIL,
       },
     });
   } catch (error) {
-    console.error('Settings fetch error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch settings',
+    console.error('Settings page error:', error);
+    res.status(500).render('pages/error', {
+      title: 'Error',
+      error: 'Failed to load settings page',
     });
   }
 });
 
-// Update profile information
-router.post('/profile', async (req, res) => {
+// Get settings (API endpoint) - FIXED
+router.get('/api', async (req, res) => {
+  console.log('📊 Settings API called by user:', req.user?.id);
+
   try {
+    // Validate user is authenticated
+    if (!req.user || !req.user.id) {
+      console.error('❌ No authenticated user found');
+      return res.status(401).json({
+        success: false,
+        error: 'User not authenticated',
+      });
+    }
+
+    console.log('🔍 Fetching settings for user ID:', req.user.id);
+
+    // Get user settings with error handling
+    let userSettings = {};
+    try {
+      userSettings = await UserSetting.getUserSettings(req.user.id);
+      console.log('✅ User settings loaded:', Object.keys(userSettings));
+    } catch (settingsError) {
+      console.error('⚠️ Error loading user settings:', settingsError);
+      // Continue with empty settings if user settings fail
+      userSettings = {};
+    }
+
+    // Prepare safe user object
+    const safeUser = req.user.toSafeObject
+      ? req.user.toSafeObject()
+      : {
+          id: req.user.id,
+          name: req.user.name,
+          email: req.user.email,
+          code: req.user.code,
+          signature: req.user.signature,
+        };
+
+    console.log('✅ Sending settings response');
+    res.json({
+      success: true,
+      data: {
+        user: safeUser,
+        settings: userSettings,
+        globalSettings: {
+          MIN_ADVANCE_DAYS: process.env.MIN_ADVANCE_DAYS || 60,
+          MAX_ADVANCE_DAYS: process.env.MAX_ADVANCE_DAYS || 120,
+          MAX_DAYS_PER_REQUEST: process.env.MAX_DAYS_PER_REQUEST || 4,
+          TUIFLY_APPROVER_EMAIL: process.env.TUIFLY_APPROVER_EMAIL,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('❌ Settings API error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch settings',
+      details:
+        process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+// Update profile
+router.put('/profile', async (req, res) => {
+  try {
+    const errors = validateProfile(req.body);
+
+    if (errors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: errors,
+      });
+    }
+
     const { name, code, signature } = req.body;
 
-    // Validation
-    if (!name || !code || !signature) {
-      return res.status(400).json({
-        success: false,
-        error: 'All fields are required',
-      });
-    }
-
-    if (code.length !== 3 || !/^[A-Z]{3}$/.test(code)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Code must be exactly 3 uppercase letters',
-      });
-    }
-
     // Check if code is already taken by another user
-    const { User } = require('../models');
-    const existingUser = await User.findByCode(code);
+    const existingUser = await User.findOne({
+      where: { code: code.toUpperCase() },
+    });
     if (existingUser && existingUser.id !== req.user.id) {
       return res.status(400).json({
         success: false,
-        error: 'This code is already taken by another user',
+        error: 'Code already taken',
+        details: [
+          {
+            field: 'code',
+            message: 'This 3-letter code is already in use',
+          },
+        ],
       });
     }
 
     // Update user profile
     await req.user.update({
-      name: name.trim(),
+      name,
       code: code.toUpperCase(),
-      signature: signature.trim(),
+      signature,
     });
 
     res.json({
@@ -96,68 +221,65 @@ router.post('/profile', async (req, res) => {
   }
 });
 
-// Update user settings (bulk update)
-router.post('/', async (req, res) => {
+// Update user settings
+router.put('/preferences', async (req, res) => {
   try {
-    const { UserSetting } = require('../models');
-    const settings = req.body;
+    const errors = validateSettings(req.body);
 
-    // Validate settings format
-    if (!settings || typeof settings !== 'object') {
+    if (errors.length > 0) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid settings format',
+        error: 'Validation failed',
+        details: errors,
       });
     }
 
     // Update each setting
-    const allowedSettings = UserSetting.getAllowedSettings();
     const updatedSettings = {};
-
-    for (const [key, value] of Object.entries(settings)) {
-      if (allowedSettings.includes(key)) {
-        const settingType = typeof value === 'boolean' ? 'boolean' : 'string';
-        await UserSetting.updateUserSetting(
-          req.user.id,
-          key,
-          value,
-          settingType
-        );
-        updatedSettings[key] = value;
+    for (const [key, val] of Object.entries(req.body)) {
+      if (val !== undefined) {
+        const settingType = typeof val === 'boolean' ? 'boolean' : 'string';
+        await UserSetting.updateUserSetting(req.user.id, key, val, settingType);
+        updatedSettings[key] = val;
       }
     }
 
     res.json({
       success: true,
-      message: 'Settings updated successfully',
+      message: 'Preferences updated successfully',
       settings: updatedSettings,
     });
   } catch (error) {
     console.error('Settings update error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to update settings',
+      error: 'Failed to update preferences',
     });
   }
 });
 
 // Update single setting
-router.post('/:key', async (req, res) => {
+router.put('/preferences/:key', async (req, res) => {
   try {
-    const { UserSetting } = require('../models');
     const { key } = req.params;
     const { value } = req.body;
 
-    // Validate setting key
-    const allowedSettings = UserSetting.getAllowedSettings();
-    if (!allowedSettings.includes(key)) {
+    const validKeys = [
+      'theme',
+      'notifications',
+      'timezone',
+      'language',
+      'autoSave',
+      'emailFrequency',
+    ];
+
+    if (!validKeys.includes(key)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid setting key',
       });
     }
 
-    // Update setting
     const settingType = typeof value === 'boolean' ? 'boolean' : 'string';
     await UserSetting.updateUserSetting(req.user.id, key, value, settingType);
 
@@ -178,7 +300,6 @@ router.post('/:key', async (req, res) => {
 // Reset settings to default
 router.post('/reset', async (req, res) => {
   try {
-    const { UserSetting } = require('../models');
     const defaultSettings = UserSetting.getDefaultSettings();
 
     // Update all settings to defaults
@@ -214,8 +335,9 @@ router.post('/check-code', async (req, res) => {
     }
 
     const normalizedCode = code.toUpperCase();
-    const { User } = require('../models');
-    const existingUser = await User.findByCode(normalizedCode);
+    const existingUser = await User.findOne({
+      where: { code: normalizedCode },
+    });
 
     if (existingUser && existingUser.id !== req.user.id) {
       return res.json({
@@ -235,23 +357,6 @@ router.post('/check-code', async (req, res) => {
       message: 'Error checking code availability',
     });
   }
-});
-
-// Get environment configuration (read-only)
-router.get('/environment', (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      TUIFLY_APPROVER_EMAIL:
-        process.env.TUIFLY_APPROVER_EMAIL || 'scheduling@tuifly.be',
-      MIN_ADVANCE_DAYS: parseInt(process.env.MIN_ADVANCE_DAYS || '60'),
-      MAX_ADVANCE_DAYS: parseInt(process.env.MAX_ADVANCE_DAYS || '120'),
-      MAX_DAYS_PER_REQUEST: parseInt(process.env.MAX_DAYS_PER_REQUEST || '4'),
-      // Don't expose sensitive environment variables
-      NODE_ENV: process.env.NODE_ENV || 'development',
-      VERSION: '2.0.0',
-    },
-  });
 });
 
 module.exports = router;

@@ -1,175 +1,64 @@
-<!-- src/views/partials/js/calendar.ejs - Complete Updated JavaScript -->
+<!-- src/views/partials/js/calendar.ejs -->
 <script>
-  // Calendar-specific JavaScript
-
-  // Global variables
-  let selectedDates = [];
-  let existingRequests = [];
-  let calendar;
-
-  // Global configuration from environment
-  window.TUIFLY_CONFIG = {
-    APPROVER_EMAIL:
-      '<%= typeof env !== "undefined" ? env.TUIFLY_APPROVER_EMAIL : "scheduling@tuifly.be" %>',
-    EMPLOYEE_CODE:
-      '<%= typeof env !== "undefined" ? env.EMPLOYEE_CODE : (typeof user !== "undefined" ? user.code : "XXX") %>',
-    EMPLOYEE_NAME:
-      '<%= typeof env !== "undefined" ? env.EMPLOYEE_NAME : (typeof user !== "undefined" ? user.name : "User") %>',
-    MIN_ADVANCE_DAYS:
-      '<%= typeof env !== "undefined" ? env.MIN_ADVANCE_DAYS : 60 %>',
-    MAX_ADVANCE_DAYS:
-      '<%= typeof env !== "undefined" ? env.MAX_ADVANCE_DAYS : 120 %>',
-    MAX_DAYS_PER_REQUEST:
-      '<%= typeof env !== "undefined" ? env.MAX_DAYS_PER_REQUEST : 4 %>',
+  // Configuration from meta tags
+  const CONFIG = {
+    MIN_ADVANCE_DAYS: parseInt(
+      document.querySelector('meta[name="min-advance-days"]')?.content || 60
+    ),
+    MAX_ADVANCE_DAYS: parseInt(
+      document.querySelector('meta[name="max-advance-days"]')?.content || 120
+    ),
+    MAX_DAYS_PER_REQUEST: parseInt(
+      document.querySelector('meta[name="max-days-per-request"]')?.content || 4
+    ),
+    REQUEST_TYPES: {
+      REQ_DO: 'Day Off',
+      PM_OFF: 'PM Off',
+      AM_OFF: 'AM Off',
+      FLIGHT: 'Flight',
+    },
   };
 
-  // Calendar Manager Class
+  // Global state
+  let existingRequests = [];
+  let selectedDates = [];
+
+  // Calendar Management Class
   class CalendarManager {
     constructor() {
-      // Get today's date and reset time to midnight
       this.today = new Date();
-      this.today.setHours(0, 0, 0, 0);
+      this.minDate = this.addDays(this.today, CONFIG.MIN_ADVANCE_DAYS);
+      this.maxDate = this.addDays(this.today, CONFIG.MAX_ADVANCE_DAYS);
 
-      // Debug: Log the configuration values
-      console.log('=== CALENDAR DATE DEBUG ===');
-      console.log('TUIFLY_CONFIG:', window.TUIFLY_CONFIG);
+      // Allow viewing past requests - start from 3 months before today
+      this.viewMinDate = this.addDays(this.today, -90);
+      this.viewMaxDate = this.maxDate;
 
-      // Parse configuration with proper fallbacks and validation
-      const minAdvanceDays = this.parseIntSafe(
-        window.TUIFLY_CONFIG?.MIN_ADVANCE_DAYS,
-        60
-      );
-      const maxAdvanceDays = this.parseIntSafe(
-        window.TUIFLY_CONFIG?.MAX_ADVANCE_DAYS,
-        120
-      );
-
-      console.log('Parsed minAdvanceDays:', minAdvanceDays);
-      console.log('Parsed maxAdvanceDays:', maxAdvanceDays);
-
-      // Calculate date ranges properly
-      this.viewMinDate = new Date(this.today);
-      this.viewMinDate.setDate(this.today.getDate() + minAdvanceDays);
-
-      this.viewMaxDate = new Date(this.today);
-      this.viewMaxDate.setDate(this.today.getDate() + maxAdvanceDays);
-
-      console.log('Today:', this.today.toISOString().split('T')[0]);
-      console.log('viewMinDate:', this.viewMinDate.toISOString().split('T')[0]);
-      console.log('viewMaxDate:', this.viewMaxDate.toISOString().split('T')[0]);
-
-      // Set current view to start from the minimum date month
       this.currentViewStart = new Date(
-        this.viewMinDate.getFullYear(),
-        this.viewMinDate.getMonth(),
+        this.minDate.getFullYear(),
+        this.minDate.getMonth(),
         1
       );
+      this.monthsToShow = 3;
 
-      console.log(
-        'currentViewStart:',
-        this.currentViewStart.toISOString().split('T')[0]
-      );
-      console.log('=== END CALENDAR DATE DEBUG ===');
-
-      // Responsive months display
-      this.monthsToShow = window.innerWidth >= 768 ? 3 : 1;
-
-      // Listen for window resize
-      window.addEventListener('resize', () => {
-        const newMonthsToShow = window.innerWidth >= 768 ? 3 : 1;
-        if (newMonthsToShow !== this.monthsToShow) {
-          this.monthsToShow = newMonthsToShow;
-          this.generateCalendar();
-        }
+      console.log('📅 Calendar date ranges:', {
+        today: this.today.toISOString().split('T')[0],
+        minDate: this.minDate.toISOString().split('T')[0],
+        maxDate: this.maxDate.toISOString().split('T')[0],
+        viewMinDate: this.viewMinDate.toISOString().split('T')[0],
+        viewMaxDate: this.viewMaxDate.toISOString().split('T')[0],
       });
     }
 
-    // Helper method to safely parse integers with validation
-    parseIntSafe(value, defaultValue) {
-      // Handle various input types
-      if (typeof value === 'number' && !isNaN(value)) {
-        return Math.floor(value);
-      }
-
-      if (typeof value === 'string') {
-        const parsed = parseInt(value, 10);
-        if (!isNaN(parsed) && parsed > 0 && parsed < 1000) {
-          // Reasonable bounds
-          return parsed;
-        }
-      }
-
-      console.warn(
-        `Invalid value for date calculation: ${value}, using default: ${defaultValue}`
-      );
-      return defaultValue;
+    addDays(date, days) {
+      const result = new Date(date);
+      result.setDate(result.getDate() + days);
+      return result;
     }
 
-    // Date validation methods (keep existing logic)
-    isDateSelectable(date) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      return (
-        date >= this.viewMinDate &&
-        date <= this.viewMaxDate &&
-        date >= today &&
-        !this.hasExistingRequest(date)
-      );
-    }
-
-    hasExistingRequest(date) {
-      const dateStr = date.toISOString().split('T')[0];
-      return existingRequests.some((request) => request.startDate === dateStr);
-    }
-
-    // Date selection methods
-    toggleDateSelection(date) {
-      const dateStr = date.toISOString().split('T')[0];
-      const existingIndex = selectedDates.findIndex((d) => d.date === dateStr);
-
-      if (existingIndex >= 0) {
-        // Remove from selection
-        selectedDates.splice(existingIndex, 1);
-      } else {
-        // Add to selection with default type
-        selectedDates.push({
-          date: dateStr,
-          type: 'REQ_DO',
-          flightNumber: '',
-        });
-      }
-
-      // Sort dates chronologically
-      selectedDates.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-      this.updateDateSelection();
-      this.updateFloatingButton();
-    }
-
-    // Generate calendar
-    generateCalendar() {
-      const container = document.getElementById('calendarGrid');
-      container.innerHTML = '';
-
-      const months = this.getMonthsInView();
-
-      months.forEach((monthStart) => {
-        const monthContainer = this.createMonthContainer(monthStart);
-        container.appendChild(monthContainer);
-      });
-
-      this.updateNavigationButtons();
-
-      // Update selection after DOM is ready
-      requestAnimationFrame(() => {
-        this.updateDateSelection();
-      });
-    }
-
-    getMonthsInView() {
+    getMonthsToDisplay() {
       const months = [];
-      const current = new Date(this.currentViewStart);
+      let current = new Date(this.currentViewStart);
 
       for (let i = 0; i < this.monthsToShow; i++) {
         months.push(new Date(current));
@@ -177,6 +66,156 @@
       }
 
       return months;
+    }
+
+    canNavigatePrevious() {
+      const previousMonth = new Date(this.currentViewStart);
+      previousMonth.setMonth(previousMonth.getMonth() - 1);
+      const viewMinMonth = new Date(
+        this.viewMinDate.getFullYear(),
+        this.viewMinDate.getMonth(),
+        1
+      );
+      const canNavigate = previousMonth >= viewMinMonth;
+      console.log('🔍 Can navigate previous:', canNavigate, {
+        previousMonth: previousMonth.toISOString().split('T')[0],
+        viewMinMonth: viewMinMonth.toISOString().split('T')[0],
+      });
+      return canNavigate;
+    }
+
+    canNavigateNext() {
+      const lastDisplayedMonth = new Date(this.currentViewStart);
+      lastDisplayedMonth.setMonth(
+        lastDisplayedMonth.getMonth() + this.monthsToShow - 1
+      );
+      const viewMaxMonth = new Date(
+        this.viewMaxDate.getFullYear(),
+        this.viewMaxDate.getMonth(),
+        1
+      );
+      const canNavigate = lastDisplayedMonth < viewMaxMonth;
+      console.log('🔍 Can navigate next:', canNavigate, {
+        lastDisplayedMonth: lastDisplayedMonth.toISOString().split('T')[0],
+        viewMaxMonth: viewMaxMonth.toISOString().split('T')[0],
+      });
+      return canNavigate;
+    }
+
+    navigatePrevious() {
+      console.log('🔄 Attempting to navigate previous...');
+      if (this.canNavigatePrevious()) {
+        this.currentViewStart.setMonth(this.currentViewStart.getMonth() - 1);
+        console.log(
+          '✅ Navigated to previous month:',
+          this.currentViewStart.toISOString().split('T')[0]
+        );
+        this.generateCalendar();
+        this.updateNavigationButtons();
+      } else {
+        console.log('❌ Cannot navigate to previous month');
+      }
+    }
+
+    navigateNext() {
+      console.log('🔄 Attempting to navigate next...');
+      if (this.canNavigateNext()) {
+        this.currentViewStart.setMonth(this.currentViewStart.getMonth() + 1);
+        console.log(
+          '✅ Navigated to next month:',
+          this.currentViewStart.toISOString().split('T')[0]
+        );
+        this.generateCalendar();
+        this.updateNavigationButtons();
+      } else {
+        console.log('❌ Cannot navigate to next month');
+      }
+    }
+
+    updateNavigationButtons() {
+      const prevBtn = document.getElementById('prevMonthBtn');
+      const nextBtn = document.getElementById('nextMonthBtn');
+      const currentDisplay = document.getElementById('currentMonthDisplay');
+
+      if (prevBtn) {
+        prevBtn.disabled = !this.canNavigatePrevious();
+        console.log('🔄 Previous button disabled:', prevBtn.disabled);
+      }
+
+      if (nextBtn) {
+        nextBtn.disabled = !this.canNavigateNext();
+        console.log('🔄 Next button disabled:', nextBtn.disabled);
+      }
+
+      // Update current month display
+      if (currentDisplay) {
+        const months = this.getMonthsToDisplay();
+        const startMonth = months[0].toLocaleDateString('en-US', {
+          month: 'short',
+          year: 'numeric',
+        });
+        const endMonth = months[months.length - 1].toLocaleDateString('en-US', {
+          month: 'short',
+          year: 'numeric',
+        });
+        currentDisplay.textContent = `${startMonth} - ${endMonth}`;
+      }
+    }
+
+    isDateAvailable(date) {
+      return date >= this.minDate && date <= this.maxDate;
+    }
+
+    isWeekend(date) {
+      const day = date.getDay();
+      // Saturday = 6, Sunday = 0
+      return day === 0 || day === 6;
+    }
+
+    formatDate(date) {
+      return date.toISOString().split('T')[0];
+    }
+
+    generateCalendar() {
+      console.log('=== GENERATING CALENDAR ===');
+      const calendarGrid = document.getElementById('calendarGrid');
+      if (!calendarGrid) {
+        console.error('❌ Calendar grid element not found');
+        return;
+      }
+
+      calendarGrid.innerHTML = '';
+
+      const months = this.getMonthsToDisplay();
+      console.log(
+        'Displaying months:',
+        months.map((m) =>
+          m.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+        )
+      );
+
+      // Create month containers
+      months.forEach((monthStart, index) => {
+        console.log(
+          `Creating month ${index + 1}:`,
+          monthStart.toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric',
+          })
+        );
+        const monthContainer = this.createMonthContainer(monthStart);
+        calendarGrid.appendChild(monthContainer);
+      });
+
+      this.updateNavigationButtons();
+
+      // Use requestAnimationFrame for better timing
+      requestAnimationFrame(() => {
+        console.log('Running delayed selection update...');
+        this.updateDateSelection();
+      });
+
+      console.log('=== CALENDAR GENERATION COMPLETE ===');
     }
 
     createMonthContainer(monthStart) {
@@ -191,7 +230,7 @@
         year: 'numeric',
       });
 
-      // Weekday headers
+      // Weekday headers - MONDAY START
       const weekdayHeader = document.createElement('div');
       weekdayHeader.className = 'weekday-header';
       ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach((day) => {
@@ -210,27 +249,29 @@
         monthStart.getMonth(),
         1
       );
-      const lastDay = new Date(
-        monthStart.getFullYear(),
-        monthStart.getMonth() + 1,
-        0
-      );
 
       // Calculate start date for Monday-based week
       const startDate = new Date(firstDay);
+      // Get day of week (0 = Sunday, 1 = Monday, etc.)
       let dayOfWeek = firstDay.getDay();
-      dayOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert to Monday = 0
+      // Convert to Monday-based (0 = Monday, 1 = Tuesday, etc.)
+      dayOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      // Go back to the Monday of the week containing the 1st
       startDate.setDate(startDate.getDate() - dayOfWeek);
 
-      // Generate 6 weeks of days
-      for (let week = 0; week < 6; week++) {
-        for (let day = 0; day < 7; day++) {
-          const currentDate = new Date(startDate);
-          currentDate.setDate(startDate.getDate() + week * 7 + day);
+      for (let i = 0; i < 42; i++) {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(startDate.getDate() + i);
 
-          const dayCell = this.createDayCell(currentDate, monthStart);
-          daysGrid.appendChild(dayCell);
-        }
+        // Only show dates that belong to this specific month
+        const isCurrentMonth = currentDate.getMonth() === monthStart.getMonth();
+
+        const dayCell = this.createDayCell(
+          currentDate,
+          monthStart,
+          isCurrentMonth
+        );
+        daysGrid.appendChild(dayCell);
       }
 
       monthContainer.appendChild(monthHeader);
@@ -240,68 +281,199 @@
       return monthContainer;
     }
 
-    createDayCell(date, monthStart) {
+    createDayCell(date, monthStart, shouldShowDate) {
       const dayCell = document.createElement('div');
       dayCell.className = 'day-cell';
+      dayCell.dataset.date = this.formatDate(date);
 
-      const isCurrentMonth = date.getMonth() === monthStart.getMonth();
-      const isSelectable = this.isDateSelectable(date);
-      const dateStr = date.toISOString().split('T')[0];
-
-      dayCell.setAttribute('data-date', dateStr);
-
-      if (!isCurrentMonth) {
+      if (!shouldShowDate) {
+        // Make cell invisible but keep in DOM for grid layout
         dayCell.style.visibility = 'hidden';
+        dayCell.style.pointerEvents = 'none';
         return dayCell;
-      }
-
-      if (!isSelectable) {
-        dayCell.classList.add('unavailable');
       }
 
       // Day number
       const dayNumber = document.createElement('div');
       dayNumber.className = 'day-number';
       dayNumber.textContent = date.getDate();
-      dayCell.appendChild(dayNumber);
+
+      // Determine cell state
+      const isCurrentMonth = date.getMonth() === monthStart.getMonth();
+      const isAvailable = this.isDateAvailable(date);
+      const isWeekend = this.isWeekend(date);
+
+      if (!isCurrentMonth) {
+        dayCell.classList.add('other-month');
+      }
+
+      // Add weekend class BEFORE availability check
+      if (isWeekend) {
+        dayCell.classList.add('weekend');
+      }
+
+      if (!isAvailable) {
+        dayCell.classList.add('unavailable');
+      } else {
+        dayCell.addEventListener('click', () => this.handleDateClick(date));
+      }
 
       // Check for existing requests
-      const existingRequest = existingRequests.find(
-        (r) => r.startDate === dateStr
-      );
+      const existingRequest = this.getExistingRequest(date);
       if (existingRequest) {
-        const requestIndicator = document.createElement('div');
-        requestIndicator.className = `day-request request-${existingRequest.status.toLowerCase()}`;
-        requestIndicator.textContent = existingRequest.type;
-        dayCell.appendChild(requestIndicator);
+        const requestElement = document.createElement('div');
+        requestElement.className = `day-request request-${existingRequest.status.toLowerCase()}`;
+        requestElement.textContent = CONFIG.REQUEST_TYPES[existingRequest.type];
+
+        // Add tooltip
+        dayCell.setAttribute('data-bs-toggle', 'tooltip');
+        dayCell.setAttribute('data-bs-placement', 'top');
+        dayCell.setAttribute(
+          'title',
+          `${this.formatDate(date)}: ${existingRequest.type} (${existingRequest.status})${
+            existingRequest.customMessage
+              ? ' - ' + existingRequest.customMessage
+              : ''
+          }`
+        );
+
+        dayCell.appendChild(requestElement);
       }
 
-      // Click handler for selectable dates
-      if (isSelectable) {
-        dayCell.style.cursor = 'pointer';
-        dayCell.addEventListener('click', () => {
-          this.toggleDateSelection(date);
-        });
-      }
-
+      dayCell.appendChild(dayNumber);
       return dayCell;
     }
 
+    getExistingRequest(date) {
+      const dateStr = this.formatDate(date);
+      return existingRequests.find(
+        (request) =>
+          request.startDate === dateStr || request.endDate === dateStr
+      );
+    }
+
+    handleDateClick(date) {
+      if (!this.isDateAvailable(date)) return;
+
+      const dateStr = this.formatDate(date);
+      const existingRequest = this.getExistingRequest(date);
+
+      if (existingRequest) {
+        showToast(`Request already exists for ${dateStr}`, 'info');
+        return;
+      }
+
+      // Handle smart date selection
+      const index = selectedDates.findIndex((d) => d.date === dateStr);
+
+      if (index > -1) {
+        // Date is already selected - deselect it
+        selectedDates.splice(index, 1);
+        console.log('Deselected:', dateStr);
+      } else {
+        // Date is not selected - check if we should add or start fresh
+        if (selectedDates.length === 0) {
+          // First date - always allow
+          selectedDates.push({ date: dateStr, type: 'REQ_DO' });
+          console.log('First selection:', dateStr);
+        } else {
+          // Check if new date extends the consecutive range
+          if (this.isConsecutiveToSelection(dateStr)) {
+            // Check if we're at the limit
+            if (selectedDates.length >= CONFIG.MAX_DAYS_PER_REQUEST) {
+              showToast(
+                `Maximum ${CONFIG.MAX_DAYS_PER_REQUEST} consecutive days allowed`,
+                'warning'
+              );
+              return;
+            }
+            // Add to existing selection
+            selectedDates.push({ date: dateStr, type: 'REQ_DO' });
+            console.log(
+              'Extended selection:',
+              dateStr,
+              'Total:',
+              selectedDates.length
+            );
+          } else {
+            // Start fresh selection - clear previous dates and select new one
+            selectedDates = [{ date: dateStr, type: 'REQ_DO' }];
+            showToast('Started new selection', 'info');
+            console.log('Fresh selection:', dateStr);
+          }
+        }
+      }
+
+      // Sort dates chronologically
+      selectedDates.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      // Force update after a small delay to ensure DOM is ready
+      setTimeout(() => {
+        this.updateDateSelection();
+        this.updateFloatingButton();
+      }, 10);
+    }
+
+    // New method to check if a date is consecutive to current selection
+    isConsecutiveToSelection(newDateStr) {
+      if (selectedDates.length === 0) return true;
+
+      // Get all selected dates sorted
+      const selectedDateStrings = selectedDates.map((d) => d.date).sort();
+      const newDate = new Date(newDateStr);
+
+      // Get min and max dates from current selection
+      const minDateStr = selectedDateStrings[0];
+      const maxDateStr = selectedDateStrings[selectedDateStrings.length - 1];
+
+      const minDate = new Date(minDateStr);
+      const maxDate = new Date(maxDateStr);
+
+      // Check if newDate is exactly one day before min or one day after max
+      const dayBefore = new Date(minDate);
+      dayBefore.setDate(dayBefore.getDate() - 1);
+
+      const dayAfter = new Date(maxDate);
+      dayAfter.setDate(dayAfter.getDate() + 1);
+
+      const isOneDayBefore = newDate.getTime() === dayBefore.getTime();
+      const isOneDayAfter = newDate.getTime() === dayAfter.getTime();
+
+      return isOneDayBefore || isOneDayAfter;
+    }
+
+    // updateDateSelection with better debugging
     updateDateSelection() {
-      // Clear all selections
-      document.querySelectorAll('.day-cell.selected').forEach((cell) => {
+      console.log('=== UPDATE SELECTION ===');
+      console.log(
+        'Selected dates:',
+        selectedDates.map((d) => d.date)
+      );
+
+      // Clear all selections first
+      const allSelected = document.querySelectorAll('.day-cell.selected');
+      console.log('Clearing', allSelected.length, 'previously selected cells');
+      allSelected.forEach((cell) => {
         cell.classList.remove('selected');
       });
 
       // Apply current selections
       selectedDates.forEach(({ date }) => {
+        // Find all cells with this date (should be only one, but let's be thorough)
         const cells = document.querySelectorAll(`[data-date="${date}"]`);
-        cells.forEach((cell) => {
+        console.log(`Looking for date ${date}: found ${cells.length} cell(s)`);
+
+        cells.forEach((cell, index) => {
           if (cell.style.visibility !== 'hidden') {
             cell.classList.add('selected');
+            console.log(`  - Highlighted cell ${index + 1} for ${date}`);
+          } else {
+            console.log(`  - Skipped hidden cell ${index + 1} for ${date}`);
           }
         });
       });
+
+      console.log('=== SELECTION UPDATE COMPLETE ===');
     }
 
     updateFloatingButton() {
@@ -320,415 +492,10 @@
         }
       }
     }
-
-    // Navigation methods
-    canNavigatePrevious() {
-      const previousMonth = new Date(this.currentViewStart);
-      previousMonth.setMonth(previousMonth.getMonth() - 1);
-      const viewMinMonth = new Date(
-        this.viewMinDate.getFullYear(),
-        this.viewMinDate.getMonth(),
-        1
-      );
-      return previousMonth >= viewMinMonth;
-    }
-
-    canNavigateNext() {
-      const lastDisplayedMonth = new Date(this.currentViewStart);
-      lastDisplayedMonth.setMonth(
-        lastDisplayedMonth.getMonth() + this.monthsToShow - 1
-      );
-      const viewMaxMonth = new Date(
-        this.viewMaxDate.getFullYear(),
-        this.viewMaxDate.getMonth(),
-        1
-      );
-      return lastDisplayedMonth < viewMaxMonth;
-    }
-
-    navigatePrevious() {
-      if (this.canNavigatePrevious()) {
-        this.currentViewStart.setMonth(this.currentViewStart.getMonth() - 1);
-        this.generateCalendar();
-      }
-    }
-
-    navigateNext() {
-      if (this.canNavigateNext()) {
-        this.currentViewStart.setMonth(this.currentViewStart.getMonth() + 1);
-        this.generateCalendar();
-      }
-    }
-
-    updateNavigationButtons() {
-      const prevBtn = document.getElementById('prevMonthBtn');
-      const nextBtn = document.getElementById('nextMonthBtn');
-      const currentDisplay = document.getElementById('currentMonthDisplay');
-
-      if (prevBtn) prevBtn.disabled = !this.canNavigatePrevious();
-      if (nextBtn) nextBtn.disabled = !this.canNavigateNext();
-
-      if (currentDisplay) {
-        const endMonth = new Date(this.currentViewStart);
-        endMonth.setMonth(endMonth.getMonth() + this.monthsToShow - 1);
-
-        if (this.monthsToShow === 1) {
-          currentDisplay.textContent = this.currentViewStart.toLocaleDateString(
-            'en-US',
-            {
-              month: 'long',
-              year: 'numeric',
-            }
-          );
-        } else {
-          currentDisplay.textContent = `${this.currentViewStart.toLocaleDateString(
-            'en-US',
-            {
-              month: 'short',
-            }
-          )} - ${endMonth.toLocaleDateString('en-US', {
-            month: 'short',
-            year: 'numeric',
-          })}`;
-        }
-      }
-    }
   }
 
-  // Modal Management Functions
-  window.updateDateType = function (index, newType) {
-    if (selectedDates[index]) {
-      selectedDates[index].type = newType;
-
-      // Show/hide flight number input based on type
-      const flightInput = document.querySelector(
-        `input[data-index="${index}"]`
-      );
-      if (flightInput) {
-        if (newType === 'FLIGHT') {
-          flightInput.style.display = 'block';
-          flightInput.required = true;
-          if (!flightInput.value) {
-            flightInput.placeholder = 'TB###';
-          }
-        } else {
-          flightInput.style.display = 'none';
-          flightInput.required = false;
-          flightInput.value = '';
-          selectedDates[index].flightNumber = '';
-        }
-      }
-
-      updateSubmitButton();
-    }
-  };
-
-  window.updateFlightNumber = function (index, flightNumber) {
-    if (selectedDates[index]) {
-      selectedDates[index].flightNumber = flightNumber;
-      updateSubmitButton();
-    }
-  };
-
-  function populateModalDates() {
-    const container = document.getElementById('selectedDatesList');
-
-    if (!container) {
-      console.error('selectedDatesList container not found!');
-      return;
-    }
-
-    if (selectedDates.length === 0) {
-      container.innerHTML = `
-        <div class="text-center py-3 text-muted">
-          <i class="bi bi-calendar-x fs-1 mb-2 d-block"></i>
-          No dates selected yet
-        </div>
-      `;
-      return;
-    }
-
-    container.innerHTML = '';
-
-    selectedDates.forEach((dateObj, index) => {
-      const date = new Date(dateObj.date);
-      const dateStr = date.toLocaleDateString('en-US', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-      });
-
-      const dateRow = document.createElement('div');
-      dateRow.className = 'row mb-3 align-items-center border-bottom pb-2';
-      dateRow.innerHTML = `
-        <div class="col-md-5">
-          <span class="fw-bold">${dateStr}</span>
-          <br><small class="text-muted">${dateObj.date}</small>
-        </div>
-        <div class="col-md-4">
-          <select class="form-select form-select-sm" onchange="updateDateType(${index}, this.value)">
-            <option value="REQ_DO" ${dateObj.type === 'REQ_DO' ? 'selected' : ''}>Full Day Off</option>
-            <option value="PM_OFF" ${dateObj.type === 'PM_OFF' ? 'selected' : ''}>PM Off</option>
-            <option value="AM_OFF" ${dateObj.type === 'AM_OFF' ? 'selected' : ''}>AM Off</option>
-            <option value="FLIGHT" ${dateObj.type === 'FLIGHT' ? 'selected' : ''}>Flight</option>
-          </select>
-        </div>
-        <div class="col-md-3">
-          <input
-            type="text"
-            class="form-control form-control-sm"
-            placeholder="TB###"
-            value="${dateObj.flightNumber || ''}"
-            data-index="${index}"
-            onchange="updateFlightNumber(${index}, this.value)"
-            style="display: ${dateObj.type === 'FLIGHT' ? 'block' : 'none'}"
-            ${dateObj.type === 'FLIGHT' ? 'required' : ''}
-          />
-        </div>
-      `;
-
-      container.appendChild(dateRow);
-    });
-
-    // Enable/disable submit button based on validation
-    updateSubmitButton();
-  }
-
-  function updateSubmitButton() {
-    const submitBtn = document.getElementById('submitGroupRequest');
-    if (!submitBtn) return;
-
-    const isValid =
-      selectedDates.length > 0 &&
-      selectedDates.every((date) => {
-        if (date.type === 'FLIGHT') {
-          return date.flightNumber && date.flightNumber.startsWith('TB');
-        }
-        return true;
-      });
-
-    submitBtn.disabled = !isValid;
-  }
-
-  function openGroupRequestModal() {
-    console.log('openGroupRequestModal called, selectedDates:', selectedDates);
-
-    if (selectedDates.length === 0) {
-      showToast(
-        'Please select dates first by clicking on the calendar',
-        'warning'
-      );
-      return;
-    }
-
-    // Ensure modal exists in DOM
-    let modal = document.getElementById('groupRequestModal');
-    if (!modal) {
-      console.error('Group request modal not found in DOM!');
-      showToast('Modal not available. Please refresh the page.', 'error');
-      return;
-    }
-
-    // Populate dates in modal
-    populateModalDates();
-
-    // Clear custom message
-    const customMessageField = document.getElementById('customMessage');
-    if (customMessageField) {
-      customMessageField.value = '';
-      updateMessageCounter(0);
-    }
-
-    // Show modal
-    const bootstrapModal = new bootstrap.Modal(modal);
-    bootstrapModal.show();
-  }
-
-  async function submitGroupRequest() {
-    console.log('submitGroupRequest called');
-
-    // Validate all flight requests have flight numbers
-    const invalidFlights = selectedDates.filter(
-      (date) =>
-        date.type === 'FLIGHT' &&
-        (!date.flightNumber || !date.flightNumber.startsWith('TB'))
-    );
-
-    if (invalidFlights.length > 0) {
-      showToast(
-        'All flight requests must have valid TB flight numbers',
-        'error'
-      );
-      return;
-    }
-
-    // Check if dates are consecutive
-    if (!validateConsecutiveDates(selectedDates.map((d) => d.date))) {
-      showToast('Selected dates must be consecutive', 'error');
-      return;
-    }
-
-    if (selectedDates.length === 0) {
-      showToast('Please select at least one date', 'warning');
-      return;
-    }
-
-    const customMessage = document.getElementById('customMessage')?.value || '';
-
-    try {
-      showLoading('Creating request...');
-
-      const response = await fetch('/api/requests/group', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          dates: selectedDates,
-          customMessage: customMessage || null,
-        }),
-      });
-
-      const result = await response.json();
-
-      hideLoading();
-
-      if (result.success) {
-        // Close modal
-        const modal = bootstrap.Modal.getInstance(
-          document.getElementById('groupRequestModal')
-        );
-        if (modal) {
-          modal.hide();
-        }
-
-        // Clear selection
-        selectedDates = [];
-        calendar.updateDateSelection();
-        calendar.updateFloatingButton();
-
-        // Reload data
-        await loadExistingRequests();
-
-        showToast(result.message || 'Request created successfully', 'success');
-      } else {
-        showToast(result.error || 'Failed to create request', 'error');
-      }
-    } catch (error) {
-      hideLoading();
-      console.error('Error creating group request:', error);
-      showToast('Failed to create request', 'error');
-    }
-  }
-
-  // Utility Functions
-  function updateMessageCounter(length) {
-    const counter = document.getElementById('messageCounter');
-    if (counter) {
-      counter.textContent = length;
-    }
-  }
-
-  function updateRequestPreview() {
-    // This can be enhanced later to show real-time email preview
-    console.log('Request preview updated');
-  }
-
-  function validateConsecutiveDates(dates) {
-    if (dates.length <= 1) return true;
-
-    const sortedDates = dates.sort();
-
-    for (let i = 1; i < sortedDates.length; i++) {
-      const prevDate = new Date(sortedDates[i - 1]);
-      const currentDate = new Date(sortedDates[i]);
-      const dayDiff = (currentDate - prevDate) / (1000 * 60 * 60 * 24);
-
-      if (dayDiff !== 1) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  function formatDateForDisplay(dateStr) {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
-  }
-
-  // Loading utilities
-  function showLoading(message = 'Loading...') {
-    let loader = document.getElementById('globalLoader');
-    if (!loader) {
-      loader = document.createElement('div');
-      loader.id = 'globalLoader';
-      loader.className =
-        'position-fixed top-50 start-50 translate-middle bg-white p-4 rounded shadow';
-      loader.style.zIndex = '9999';
-      document.body.appendChild(loader);
-    }
-
-    loader.innerHTML = `
-      <div class="text-center">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Loading...</span>
-        </div>
-        <div class="mt-2">${message}</div>
-      </div>
-    `;
-    loader.style.display = 'block';
-  }
-
-  function hideLoading() {
-    const loader = document.getElementById('globalLoader');
-    if (loader) {
-      loader.style.display = 'none';
-    }
-  }
-
-  // Enhanced toast function
-  function showToast(message, type = 'info') {
-    // Create toast container if it doesn't exist
-    let toastContainer = document.getElementById('toastContainer');
-    if (!toastContainer) {
-      toastContainer = document.createElement('div');
-      toastContainer.id = 'toastContainer';
-      toastContainer.className =
-        'toast-container position-fixed top-0 end-0 p-3';
-      toastContainer.style.zIndex = '9999';
-      document.body.appendChild(toastContainer);
-    }
-
-    // Create toast
-    const toastId = 'toast_' + Date.now();
-    const toastHtml = `
-      <div id="${toastId}" class="toast show" role="alert">
-        <div class="toast-header">
-          <i class="bi bi-${type === 'success' ? 'check-circle text-success' : type === 'error' ? 'exclamation-triangle text-danger' : 'info-circle text-info'} me-2"></i>
-          <strong class="me-auto">${type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Info'}</strong>
-          <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-        </div>
-        <div class="toast-body">
-          ${message}
-        </div>
-      </div>
-    `;
-
-    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-      const toastElement = document.getElementById(toastId);
-      if (toastElement) {
-        toastElement.remove();
-      }
-    }, 5000);
-  }
+  // Initialize calendar
+  let calendar;
 
   // API Functions
   async function loadExistingRequests() {
@@ -739,8 +506,10 @@
       if (data.success) {
         existingRequests = data.data;
         updateStatistics(data.data);
-        calendar.generateCalendar();
-        initializeTooltips();
+        if (calendar) {
+          calendar.generateCalendar();
+          initializeTooltips();
+        }
       }
     } catch (error) {
       console.error('Error loading requests:', error);
@@ -768,27 +537,213 @@
     );
   }
 
-  // Event Listeners
+  // Group Request Modal Functions (KEEPING ORIGINAL WORKING STRUCTURE)
+  function openGroupRequestModal() {
+    if (selectedDates.length === 0) {
+      showToast('Please select dates first', 'warning');
+      return;
+    }
+
+    // Use the existing modal from group-request-modal.ejs
+    populateModalDates();
+    const modal = new bootstrap.Modal(
+      document.getElementById('groupRequestModal')
+    );
+    modal.show();
+  }
+
+  function populateModalDates() {
+    const container = document.getElementById('selectedDatesList');
+    if (!container) {
+      console.error('selectedDatesList container not found');
+      return;
+    }
+
+    container.innerHTML = '';
+
+    selectedDates.forEach((dateObj, index) => {
+      const date = new Date(dateObj.date);
+      const dateStr = date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      });
+
+      const dateRow = document.createElement('div');
+      dateRow.className = 'row mb-2 align-items-center';
+      dateRow.innerHTML = `
+        <div class="col-md-6">
+          <span class="fw-bold">${dateStr}</span>
+        </div>
+        <div class="col-md-4">
+          <select class="form-select form-select-sm" onchange="updateDateType(${index}, this.value)">
+            <option value="REQ_DO" ${dateObj.type === 'REQ_DO' ? 'selected' : ''}>Full Day Off</option>
+            <option value="PM_OFF" ${dateObj.type === 'PM_OFF' ? 'selected' : ''}>PM Off</option>
+            <option value="AM_OFF" ${dateObj.type === 'AM_OFF' ? 'selected' : ''}>AM Off</option>
+            <option value="FLIGHT" ${dateObj.type === 'FLIGHT' ? 'selected' : ''}>Flight</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <input 
+            type="text" 
+            class="form-control form-control-sm" 
+            placeholder="TB###"
+            value="${dateObj.flightNumber || ''}"
+            ${dateObj.type === 'FLIGHT' ? '' : 'disabled'}
+            onchange="updateFlightNumber(${index}, this.value)"
+          />
+        </div>
+      `;
+
+      container.appendChild(dateRow);
+    });
+  }
+
+  // Global functions for modal (KEEPING ORIGINAL WORKING STRUCTURE)
+  window.updateDateType = function (index, newType) {
+    selectedDates[index].type = newType;
+    if (newType === 'FLIGHT') {
+      selectedDates[index].flightNumber =
+        selectedDates[index].flightNumber || '';
+    } else {
+      delete selectedDates[index].flightNumber;
+    }
+    populateModalDates();
+  };
+
+  window.updateFlightNumber = function (index, flightNumber) {
+    selectedDates[index].flightNumber = flightNumber;
+  };
+
+  async function submitGroupRequest() {
+    const customMessage = document
+      .getElementById('customMessage')
+      ?.value.trim();
+
+    // Validate flight numbers
+    for (const dateObj of selectedDates) {
+      if (dateObj.type === 'FLIGHT') {
+        const flightNumber = dateObj.flightNumber?.trim();
+        if (!flightNumber || !flightNumber.startsWith('TB')) {
+          showToast(
+            'Flight requests must have a valid TB flight number',
+            'error'
+          );
+          return;
+        }
+        dateObj.flightNumber = flightNumber;
+      }
+    }
+
+    // Validate consecutive dates
+    if (!validateConsecutiveDates(selectedDates.map((d) => d.date))) {
+      showToast('Selected dates must be consecutive', 'error');
+      return;
+    }
+
+    if (selectedDates.length === 0) return;
+
+    try {
+      const response = await fetch('/api/requests/group', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dates: selectedDates,
+          customMessage: customMessage || null,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(
+          document.getElementById('groupRequestModal')
+        );
+        modal.hide();
+
+        // Clear selection
+        selectedDates = [];
+        calendar.updateDateSelection();
+        calendar.updateFloatingButton();
+
+        // Reload data
+        await loadExistingRequests();
+
+        showToast(result.message, 'success');
+      } else {
+        showToast(result.error, 'error');
+      }
+    } catch (error) {
+      console.error('Error creating group request:', error);
+      showToast('Failed to create request', 'error');
+    }
+  }
+
+  // Event Listeners - Fixed initialization
   document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize calendar
-    calendar = new CalendarManager();
+    console.log('📅 Calendar initialization started...');
 
-    // Load initial data
-    await loadExistingRequests();
+    try {
+      // Initialize calendar first
+      calendar = new CalendarManager();
+      console.log('✅ Calendar manager created');
 
-    // Setup event listeners
-    document
-      .getElementById('createRequestBtn')
-      ?.addEventListener('click', openGroupRequestModal);
+      // Load existing requests
+      await loadExistingRequests();
+      console.log('✅ Existing requests loaded');
 
-    // Month navigation
-    document.getElementById('prevMonthBtn')?.addEventListener('click', () => {
-      calendar.navigatePrevious();
-    });
+      // Generate initial calendar display
+      calendar.generateCalendar();
+      console.log('✅ Calendar generated');
 
-    document.getElementById('nextMonthBtn')?.addEventListener('click', () => {
-      calendar.navigateNext();
-    });
+      // Setup event listeners AFTER calendar is ready
+      setupEventListeners();
+      console.log('✅ Event listeners setup complete');
+    } catch (error) {
+      console.error('❌ Calendar initialization failed:', error);
+      showToast('Failed to initialize calendar', 'error');
+    }
+  });
+
+  function setupEventListeners() {
+    // Create request button
+    const createBtn = document.getElementById('createRequestBtn');
+    if (createBtn) {
+      createBtn.addEventListener('click', openGroupRequestModal);
+      console.log('✅ Create button listener added');
+    }
+
+    // Month navigation - ensure buttons exist before adding listeners
+    const prevBtn = document.getElementById('prevMonthBtn');
+    const nextBtn = document.getElementById('nextMonthBtn');
+
+    if (prevBtn) {
+      prevBtn.addEventListener('click', () => {
+        console.log('🔄 Previous month clicked');
+        if (calendar) {
+          calendar.navigatePrevious();
+        }
+      });
+      console.log('✅ Previous button listener added');
+    } else {
+      console.warn('⚠️ Previous month button not found');
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        console.log('🔄 Next month clicked');
+        if (calendar) {
+          calendar.navigateNext();
+        }
+      });
+      console.log('✅ Next button listener added');
+    } else {
+      console.warn('⚠️ Next month button not found');
+    }
 
     // Modal event listeners
     document.addEventListener('click', (e) => {
@@ -800,19 +755,84 @@
     // Clear form when modal is hidden
     document.addEventListener('hidden.bs.modal', (e) => {
       if (e.target.id === 'groupRequestModal') {
-        const form = document.getElementById('groupRequestForm');
-        const customMessage = document.getElementById('customMessage');
-
-        if (form) form.reset();
-        if (customMessage) customMessage.value = '';
-        updateMessageCounter(0);
+        document.getElementById('groupRequestForm')?.reset();
+        const customMessageField = document.getElementById('customMessage');
+        if (customMessageField) {
+          customMessageField.value = '';
+        }
       }
     });
+  }
 
-    // Handle custom message input
-    document.getElementById('customMessage')?.addEventListener('input', (e) => {
-      updateMessageCounter(e.target.value.length);
-      updateRequestPreview();
+  // Utility Functions
+  function formatDateForDisplay(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
     });
-  });
+  }
+
+  function validateConsecutiveDates(dates) {
+    if (dates.length <= 1) return true;
+
+    const sortedDates = dates.sort();
+
+    for (let i = 1; i < sortedDates.length; i++) {
+      const prevDate = new Date(sortedDates[i - 1]);
+      const currentDate = new Date(sortedDates[i]);
+      const dayDiff = (currentDate - prevDate) / (1000 * 60 * 60 * 24);
+
+      if (dayDiff !== 1) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  // Toast notification function
+  function showToast(message, type = 'info') {
+    // Create toast container if it doesn't exist
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+      toastContainer = document.createElement('div');
+      toastContainer.className =
+        'toast-container position-fixed top-0 end-0 p-3';
+      toastContainer.style.zIndex = '1050';
+      document.body.appendChild(toastContainer);
+    }
+
+    // Create toast element
+    const toastId = 'toast-' + Date.now();
+    const toastHTML = `
+      <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+          <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info-circle'} me-2 text-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'primary'}"></i>
+          <strong class="me-auto">TUIfly</strong>
+          <small>now</small>
+          <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+          ${message}
+        </div>
+      </div>
+    `;
+
+    toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+
+    // Initialize and show the toast
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement, {
+      autohide: true,
+      delay: type === 'error' ? 5000 : 3000,
+    });
+
+    toast.show();
+
+    // Remove toast element after it's hidden
+    toastElement.addEventListener('hidden.bs.toast', () => {
+      toastElement.remove();
+    });
+  }
 </script>
