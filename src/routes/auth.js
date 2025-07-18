@@ -108,17 +108,21 @@ router.get('/waiting-approval', async (req, res) => {
 });
 
 // Initiate Google OAuth
+// Initiate Google OAuth with environment-configured scopes
+// Initiate Google OAuth with environment-configured scopes
 router.get(
   '/google',
   requireGuest,
   authRateLimit,
   passport.authenticate('google', {
-    scope: ['profile', 'email'],
+    scope: process.env.GOOGLE_SCOPES
+      ? process.env.GOOGLE_SCOPES.split(' ')
+      : ['profile', 'email'],
     prompt: 'select_account', // Force account selection
   })
 );
 
-// Google OAuth callback
+// Google OAuth callback with Gmail permission verification
 router.get(
   '/google/callback',
   passport.authenticate('google', {
@@ -132,24 +136,24 @@ router.get(
       req.session.googleId = req.user.googleId;
       req.session.email = req.user.email;
 
-      console.log(`🔐 OAuth callback for user: ${req.user.email}`);
+      // 🚀 CHECK: Verify Gmail permissions were granted
+      if (!req.user.gmailScopeGranted || !req.user.gmailAccessToken) {
+        console.log(`⚠️ User ${req.user.email} denied Gmail permissions`);
+        return res.redirect(
+          '/auth/login?error=gmail_permission_required&message=Gmail access is required for this app to function properly'
+        );
+      }
+
+      console.log(`✅ User ${req.user.email} logged in with Gmail permissions`);
 
       // Check if user needs onboarding
       if (!req.user.isOnboarded()) {
         req.session.needsOnboarding = true;
-        console.log(`📝 User needs onboarding: ${req.user.email}`);
         return res.redirect('/onboarding');
       }
 
-      // Check if user needs admin approval
-      if (!req.user.canUseApp()) {
-        console.log(`⏳ User needs admin approval: ${req.user.email}`);
-        return res.redirect('/auth/waiting-approval');
-      }
-
-      // User can access app - redirect to dashboard
-      console.log(`✅ User can access app: ${req.user.email}`);
-      res.redirect('/');
+      // Success - redirect to dashboard
+      res.redirect('/?message=login_success');
     } catch (error) {
       console.error('OAuth callback error:', error);
       res.redirect('/auth/login?error=callback_error');

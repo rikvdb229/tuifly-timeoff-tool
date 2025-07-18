@@ -8,14 +8,25 @@ class GmailService {
     this.oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI
+      process.env.GOOGLE_REDIRECT_URI // Use same redirect as Passport
     );
+  }
+  // 🚀 NEW: Check if user needs to re-authorize (redirect to login)
+  static needsReauthorization(user) {
+    return !user.gmailScopeGranted || !user.gmailAccessToken;
+  }
+
+  // 🚀 NEW: Get login URL with Gmail permissions
+  static getAuthUrl() {
+    return '/auth/google'; // Use Passport OAuth flow instead of separate Gmail auth
   }
 
   // Set user credentials for OAuth client
   setUserCredentials(user) {
     if (!user.gmailAccessToken) {
-      throw new Error('User has no Gmail access token');
+      throw new Error(
+        'User has no Gmail access token - please re-login to grant Gmail permissions'
+      );
     }
 
     this.oauth2Client.setCredentials({
@@ -64,7 +75,7 @@ class GmailService {
     const employeeCode = user.code || process.env.EMPLOYEE_CODE || 'XXX';
 
     // Generate subject
-    const subject = `${employeeCode} - CREW REQUEST - ${year} - ${monthName}`;
+    const subject = `${user.code} CREW REQUEST - ${monthName} ${year}`;
 
     // Generate request lines
     const requestLines = requests
@@ -75,19 +86,19 @@ class GmailService {
         let line = '';
         switch (request.type) {
           case 'REQ_DO':
-            line = `${formattedDate} ${EMAIL_REQ_DO_LABEL}`;
+            line = `${EMAIL_REQ_DO_LABEL} - ${formattedDate}`;
             break;
           case 'PM_OFF':
-            line = `${formattedDate} ${EMAIL_PM_OFF_LABEL}`;
+            line = `${EMAIL_PM_OFF_LABEL} - ${formattedDate}`;
             break;
           case 'AM_OFF':
-            line = `${formattedDate} ${EMAIL_AM_OFF_LABEL}`;
+            line = `${EMAIL_AM_OFF_LABEL} - ${formattedDate}`;
             break;
           case 'FLIGHT':
-            line = `${formattedDate} ${EMAIL_FLIGHT_LABEL} ${request.flightNumber || ''}`;
+            line = `${EMAIL_FLIGHT_LABEL} ${request.flightNumber} - ${formattedDate}`;
             break;
           default:
-            line = `${formattedDate} ${request.type}`;
+            line = `${request.type} - ${formattedDate}`;
         }
 
         return line.trim();
@@ -324,32 +335,6 @@ class GmailService {
     } catch (error) {
       console.error('Token refresh error:', error);
       throw new Error('Failed to refresh Gmail token. Please re-authorize.');
-    }
-  }
-
-  // Get authorization URL for Gmail permissions
-  getAuthUrl(userId) {
-    const scopes = (
-      process.env.GMAIL_SCOPES ||
-      'https://www.googleapis.com/auth/userinfo.profile,https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/gmail.readonly'
-    ).split(',');
-
-    return this.oauth2Client.generateAuthUrl({
-      access_type: 'offline',
-      scope: scopes,
-      state: userId.toString(),
-      prompt: 'consent', // Force re-consent to get refresh token
-    });
-  }
-
-  // Exchange authorization code for tokens
-  async exchangeCodeForTokens(code) {
-    try {
-      const { tokens } = await this.oauth2Client.getToken(code);
-      return tokens;
-    } catch (error) {
-      console.error('Token exchange error:', error);
-      throw new Error('Failed to exchange authorization code for tokens');
     }
   }
 }

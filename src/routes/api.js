@@ -81,6 +81,9 @@ router.get('/', (req, res) => {
       'GET /api/requests/group/:groupId': 'Get requests by group ID',
       'GET /api/requests/conflicts': 'Check for date conflicts',
       'GET /api/requests/stats': 'Get request statistics',
+      'GET /api/gmail/status': 'Check Gmail connection status',
+      'POST /api/requests/:id/resend-email':
+        'Resend email for specific request',
     },
   });
 });
@@ -151,66 +154,95 @@ router.get('/requests/stats', async (req, res) => {
 });
 
 // POST create group time-off request
+// POST create group time-off request WITH EMAIL INTEGRATION
 router.post('/requests/group', async (req, res) => {
   try {
-    const { error, value } = groupRequestSchema.validate(req.body);
+    const { dates, customMessage } = req.body;
 
-    if (error) {
+    if (!dates || !Array.isArray(dates) || dates.length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'Validation failed',
-        details: error.details,
+        error: 'Invalid dates array',
+        message:
+          'Provide array of date objects with date, type, and optional flightNumber',
       });
     }
 
-    const { dates, customMessage } = value;
+    // Generate group ID for all requests
+    const { v4: uuidv4 } = require('uuid');
+    const groupId = uuidv4();
 
-    // Validate consecutive dates
-    if (!validateConsecutiveDates(dates)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Dates must be consecutive',
-        details:
-          'Group requests can only contain consecutive dates (max 4 days)',
+    // Create all requests in the group
+    const requestPromises = dates.map((dateObj) => {
+      return TimeOffRequest.create({
+        userId: req.user.id,
+        groupId,
+        startDate: dateObj.date,
+        endDate: dateObj.date,
+        type: dateObj.type.toUpperCase(),
+        flightNumber:
+          dateObj.type.toUpperCase() === 'FLIGHT' ? dateObj.flightNumber : null,
+        customMessage: customMessage || null,
       });
-    }
-
-    // Sort dates to ensure proper order
-    dates.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    // Check for conflicts
-    const startDate = dates[0].date;
-    const endDate = dates[dates.length - 1].date;
-
-    const conflicts = await TimeOffRequest.getConflictsForUser(
-      req.user.id,
-      startDate,
-      endDate
-    );
-
-    if (conflicts.length > 0) {
-      return res.status(409).json({
-        success: false,
-        error: 'Date conflicts with existing requests',
-        conflicts: conflicts.map((c) => ({
-          date: c.startDate,
-          type: c.type,
-          status: c.status,
-        })),
-      });
-    }
-
-    // Create group request
-    const requests = await TimeOffRequest.createGroupRequest(req.user.id, {
-      dates,
-      customMessage,
     });
+
+    const newRequests = await Promise.all(requestPromises);
+
+    // 🚀 NEW: Attempt to send email for the group
+    let emailStatus = {
+      sent: false,
+      error: null,
+      canRetry: false,
+    };
+
+    if (req.user.canSendEmails()) {
+      try {
+        console.log(
+          `Attempting to send group email for ${newRequests.length} requests...`
+        );
+        const gmailService = require('../services/gmailService');
+        const emailResult = await gmailService.sendEmail(req.user, newRequests);
+
+        // Mark all requests as having email sent
+        await Promise.all(
+          newRequests.map((request) =>
+            request.markEmailSent(emailResult.messageId, emailResult.threadId)
+          )
+        );
+
+        emailStatus.sent = true;
+        console.log(
+          `✅ Group email sent successfully for ${newRequests.length} requests`
+        );
+      } catch (emailError) {
+        console.error('Group email sending failed:', emailError);
+        emailStatus.error = emailError.message;
+        emailStatus.canRetry = true;
+
+        console.log(
+          `⚠️ Group requests created but email failed: ${emailError.message}`
+        );
+      }
+    } else {
+      emailStatus.error =
+        'Gmail not configured - please re-login to grant Gmail permissions';
+      emailStatus.canRetry = true;
+      emailStatus.authUrl = '/auth/google';
+    }
+
+    // Reload requests to get updated email fields
+    for (const request of newRequests) {
+      await request.reload();
+    }
 
     res.status(201).json({
       success: true,
-      data: requests,
-      groupId: requests[0].groupId,
-      message: `Group request created successfully (${requests.length} consecutive days)`,
+      data: newRequests,
+      groupId,
+      emailStatus,
+      message: emailStatus.sent
+        ? `Group request created with ${newRequests.length} days and email sent successfully`
+        : `Group request created with ${newRequests.length} days but email could not be sent`,
     });
   } catch (error) {
     console.error('Error creating group request:', error);
@@ -286,54 +318,80 @@ router.get('/requests/conflicts', async (req, res) => {
   }
 });
 
-// POST create single time-off request
+// POST create single time-off request WITH EMAIL INTEGRATION
 router.post('/requests', async (req, res) => {
   try {
-    const { error, value } = createRequestSchema.validate(req.body);
+    const { startDate, endDate, type, flightNumber, customMessage } = req.body;
 
-    if (error) {
+    // Validate required fields
+    if (!startDate || !endDate || !type) {
       return res.status(400).json({
         success: false,
-        error: 'Validation failed',
-        details: error.details,
+        error: 'Missing required fields',
+        required: ['startDate', 'endDate', 'type'],
       });
     }
 
-    const { startDate, endDate, type, flightNumber, customMessage } = value;
-
-    // Check for conflicts
-    const conflicts = await TimeOffRequest.getConflictsForUser(
-      req.user.id,
-      startDate,
-      endDate
-    );
-
-    if (conflicts.length > 0) {
-      return res.status(409).json({
-        success: false,
-        error: 'Date conflicts with existing requests',
-        conflicts: conflicts.map((c) => ({
-          date: c.startDate,
-          type: c.type,
-          status: c.status,
-        })),
-      });
-    }
-
-    // Create new request
-    const newRequest = await TimeOffRequest.createForUser(req.user.id, {
+    // Create the request first
+    const newRequest = await TimeOffRequest.create({
+      userId: req.user.id,
       startDate,
       endDate,
-      type,
-      status: 'PENDING',
-      flightNumber: type === 'FLIGHT' ? flightNumber : null,
+      type: type.toUpperCase(),
+      flightNumber: type.toUpperCase() === 'FLIGHT' ? flightNumber : null,
       customMessage: customMessage || null,
     });
+
+    // 🚀 NEW: Attempt to send email after successful request creation
+    let emailStatus = {
+      sent: false,
+      error: null,
+      canRetry: false,
+    };
+
+    if (req.user.canSendEmails()) {
+      try {
+        console.log(`Attempting to send email for request ${newRequest.id}...`);
+        const gmailService = require('../services/gmailService');
+        const emailResult = await gmailService.sendEmail(req.user, [
+          newRequest,
+        ]);
+
+        // Mark email as sent in database
+        await newRequest.markEmailSent(
+          emailResult.messageId,
+          emailResult.threadId
+        );
+
+        emailStatus.sent = true;
+        console.log(`✅ Email sent successfully for request ${newRequest.id}`);
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
+        emailStatus.error = emailError.message;
+        emailStatus.canRetry = true;
+
+        // Don't fail the request creation, just log the email failure
+        console.log(
+          `⚠️ Request ${newRequest.id} created but email failed: ${emailError.message}`
+        );
+      }
+    } else {
+      emailStatus.error =
+        'Gmail not configured - please re-login to grant Gmail permissions';
+      emailStatus.canRetry = true;
+      emailStatus.authUrl = '/auth/google';
+    }
+
+    // Reload request to get updated email fields
+    await newRequest.reload();
 
     res.status(201).json({
       success: true,
       data: newRequest,
-      message: 'Time-off request created successfully',
+      emailStatus,
+      message: emailStatus.sent
+        ? 'Time-off request created and email sent successfully'
+        : 'Time-off request created but email could not be sent',
     });
   } catch (error) {
     console.error('Error creating request:', error);
@@ -466,6 +524,113 @@ router.delete('/requests/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to delete request',
+      message: error.message,
+    });
+  }
+});
+// 🚀 NEW: Gmail status and management endpoints
+
+// GET Gmail connection status
+// GET Gmail connection status
+router.get('/gmail/status', async (req, res) => {
+  try {
+    // Debug: Check what canSendEmails() returns
+    const canSendEmailsResult = req.user.canSendEmails();
+    console.log(
+      '🔍 canSendEmails() result:',
+      canSendEmailsResult,
+      typeof canSendEmailsResult
+    );
+
+    const status = {
+      connected: req.user.gmailScopeGranted || false,
+      canSendEmails: Boolean(req.user.canSendEmails()), // Force boolean conversion
+      hasValidToken: req.user.hasValidGmailToken(),
+      tokenExpiry: req.user.gmailTokenExpiry,
+      needsReauth: false,
+      authUrl: '/auth/google', // Unified login URL
+    };
+
+    // Check if re-authorization is needed
+    if (
+      status.connected &&
+      !status.hasValidToken &&
+      !req.user.gmailRefreshToken
+    ) {
+      status.needsReauth = true;
+    }
+
+    res.json({
+      success: true,
+      data: status,
+      message: status.canSendEmails
+        ? 'Gmail is ready for sending emails'
+        : 'Gmail needs to be connected - please re-login',
+    });
+  } catch (error) {
+    console.error('Error getting Gmail status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get Gmail status',
+      message: error.message,
+    });
+  }
+});
+
+// POST resend email for specific request
+router.post('/requests/:id/resend-email', async (req, res) => {
+  try {
+    const requestId = parseInt(req.params.id);
+    const request = await TimeOffRequest.findByPkAndUser(
+      requestId,
+      req.user.id
+    );
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        error: 'Request not found',
+      });
+    }
+
+    if (!req.user.canSendEmails()) {
+      return res.status(403).json({
+        success: false,
+        error: 'Gmail not configured for this user',
+        message: 'Please re-login to grant Gmail permissions',
+        needsAuth: true,
+        authUrl: '/auth/google',
+      });
+    }
+
+    try {
+      console.log(`Sending email for request ${requestId}...`);
+      const gmailService = require('../services/gmailService');
+      const emailResult = await gmailService.sendEmail(req.user, [request]);
+
+      // Update email fields in database
+      await request.markEmailSent(emailResult.messageId, emailResult.threadId);
+      await request.reload();
+
+      res.json({
+        success: true,
+        data: request,
+        message: 'Email sent successfully',
+      });
+    } catch (emailError) {
+      console.error('Email send failed:', emailError);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to send email',
+        message: emailError.message,
+        canRetry: true,
+      });
+    }
+  } catch (error) {
+    console.error('Error in resend email:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to send email',
       message: error.message,
     });
   }
