@@ -1,4 +1,4 @@
-// src/middleware/auth.js - FIXED VERSION
+// src/middleware/auth.js - FINAL FIXED VERSION (REDIRECT TO ROUTE)
 const { User } = require('../models');
 const rateLimit = require('express-rate-limit');
 
@@ -42,7 +42,7 @@ const requireOnboarding = async (req, res, next) => {
       return res.redirect('/onboarding');
     }
 
-    // 🚨 NEW: Check if user has admin approval to use the app
+    // 🚨 FIXED: Check if user has admin approval to use the app
     if (!user.canUseApp()) {
       // Show waiting for approval screen
       if (req.xhr || req.headers.accept?.includes('application/json')) {
@@ -54,11 +54,8 @@ const requireOnboarding = async (req, res, next) => {
         });
       }
 
-      // Render waiting for approval page
-      return res.render('pages/waiting-approval', {
-        title: 'Waiting for Approval',
-        user: user.toSafeObject(),
-      });
+      // 🚨 CRITICAL FIX: Redirect to the route instead of rendering directly
+      return res.redirect('/auth/waiting-approval');
     }
 
     req.user = user;

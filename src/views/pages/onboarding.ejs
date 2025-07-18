@@ -336,34 +336,31 @@
                   <h6 class="card-title">
                     <i class="bi bi-person-check me-2"></i>Profile Information
                   </h6>
-                  <div class="row">
-                    <div class="col-md-6">
-                      <p>
-                        <strong>Full Name:</strong><br /><span
-                          id="reviewName"
-                          class="text-muted"
-                        ></span>
-                      </p>
-                      <p>
-                        <strong>Email:</strong><br /><span class="text-muted"
-                          ><%= user.email %></span
-                        >
-                      </p>
+
+                  <!-- UPDATED: Single column layout instead of row with col-md-6 -->
+                  <div class="review-fields">
+                    <div class="review-field mb-3">
+                      <strong>Full Name:</strong><br />
+                      <span id="reviewName" class="text-muted"></span>
                     </div>
-                    <div class="col-md-6">
-                      <p>
-                        <strong>Pilot Code:</strong><br /><span
-                          id="reviewCode"
-                          class="text-muted"
-                        ></span>
-                      </p>
-                      <p>
-                        <strong>Email Signature:</strong><br /><span
-                          id="reviewSignature"
-                          class="text-muted"
-                          style="white-space: pre-wrap"
-                        ></span>
-                      </p>
+
+                    <div class="review-field mb-3">
+                      <strong>Email:</strong><br />
+                      <span class="text-muted"><%= user.email %></span>
+                    </div>
+
+                    <div class="review-field mb-3">
+                      <strong>Pilot Code:</strong><br />
+                      <span id="reviewCode" class="text-muted"></span>
+                    </div>
+
+                    <div class="review-field mb-0">
+                      <strong>Email Signature:</strong><br />
+                      <span
+                        id="reviewSignature"
+                        class="text-muted"
+                        style="white-space: pre-wrap"
+                      ></span>
                     </div>
                   </div>
                 </div>
