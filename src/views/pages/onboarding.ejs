@@ -574,10 +574,10 @@
 
         let isValid = true;
 
-        // Clear previous errors
-        document
-          .querySelectorAll('.is-invalid')
-          .forEach((el) => el.classList.remove('is-invalid'));
+        // ✅ IMPROVED: Clear all previous errors using clearError function
+        ['name', 'code', 'signature'].forEach((fieldId) => {
+          clearError(fieldId);
+        });
 
         // Validate name
         if (!name || name.length < 2) {
@@ -621,6 +621,25 @@
 
         feedbackElement.textContent = message;
         feedbackElement.style.display = 'block';
+      }
+
+      function clearError(fieldId) {
+        const field = document.getElementById(fieldId);
+        if (!field) {
+          console.error(`Field with ID '${fieldId}' not found`);
+          return;
+        }
+
+        // Remove invalid styling
+        field.classList.remove('is-invalid');
+
+        // Find and hide the error message
+        const feedbackElement =
+          field.parentNode.querySelector('.invalid-feedback');
+        if (feedbackElement) {
+          feedbackElement.style.display = 'none';
+          feedbackElement.textContent = '';
+        }
       }
 
       // ✅ FIXED: completeOnboarding function
@@ -707,10 +726,24 @@
 
       // Real-time code validation
       document.getElementById('code').addEventListener('input', function (e) {
+        // Convert to uppercase
         e.target.value = e.target.value.toUpperCase();
+
+        const code = e.target.value.trim();
+
+        // Clear any previous error if user is typing and length is valid
+        if (code.length <= 3) {
+          clearError('code');
+        }
+
+        // Show error if length exceeds 3
+        if (code.length > 3) {
+          showError('code', 'Code must be exactly 3 characters');
+        }
       });
 
       // Check code availability on blur
+      // ✅ UPDATED: Check code availability on blur with proper error clearing
       document
         .getElementById('code')
         .addEventListener('blur', async function (e) {
@@ -730,12 +763,19 @@
               if (!result.available) {
                 showError('code', result.message);
               } else {
-                // Clear any existing error
-                e.target.classList.remove('is-invalid');
+                // ✅ FIXED: Properly clear error using clearError function
+                clearError('code');
               }
             } catch (error) {
               console.error('Code check error:', error);
+              showError('code', 'Error checking code availability');
             }
+          } else if (code.length > 0) {
+            // ✅ ADD: Show error for invalid length
+            showError('code', 'Code must be exactly 3 characters');
+          } else {
+            // ✅ ADD: Clear error when field is empty
+            clearError('code');
           }
         });
 
