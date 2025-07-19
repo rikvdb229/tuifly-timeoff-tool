@@ -2,6 +2,7 @@
 const express = require('express');
 const { requireAuth, requireOnboarding } = require('../middleware/auth');
 const { TimeOffRequest, User } = require('../models');
+const gmailService = require('../services/gmailService');
 const { Op } = require('sequelize');
 const Joi = require('joi');
 
@@ -96,7 +97,7 @@ router.get('/requests', async (req, res) => {
       include: [
         {
           model: User,
-          attributes: ['name', 'code'],
+          attributes: ['name', 'code', 'emailPreference'],
         },
       ],
       order: [['createdAt', 'DESC']],
@@ -117,10 +118,24 @@ router.get('/requests', async (req, res) => {
 
     const requests = await TimeOffRequest.findAllByUser(req.user.id, options);
 
+    // Enhance each request with email status information
+    const enhancedRequests = requests.map((request) => {
+      const requestData = request.toJSON();
+      return {
+        ...requestData,
+        emailStatus: request.getEmailStatus(),
+        emailStatusIcon: request.getEmailStatusIcon(),
+        emailStatusLabel: request.getEmailStatusLabel(),
+        canManualEmailBeSent: request.canManualEmailBeSent(),
+        isEmailSent: request.isEmailSent(),
+        hasReply: request.hasReply(),
+      };
+    });
+
     res.json({
       success: true,
-      data: requests,
-      count: requests.length,
+      data: enhancedRequests,
+      count: enhancedRequests.length,
       user: req.user.toSafeObject(),
     });
   } catch (error) {
@@ -148,6 +163,70 @@ router.get('/requests/stats', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch statistics',
+      message: error.message,
+    });
+  }
+});
+// GET current user's email preference
+router.get('/user/email-preference', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        emailPreference: req.user.emailPreference,
+        gmailScopeGranted: req.user.gmailScopeGranted,
+        canSendEmails: req.user.canSendEmails(),
+        usesManualEmail: req.user.usesManualEmail(),
+        usesAutomaticEmail: req.user.usesAutomaticEmail(),
+      },
+      user: req.user.toSafeObject(),
+    });
+  } catch (error) {
+    console.error('Error fetching email preference:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch email preference',
+      message: error.message,
+    });
+  }
+});
+
+// PUT update user's email preference
+router.put('/user/email-preference', async (req, res) => {
+  try {
+    const { preference } = req.body;
+
+    if (!preference || !['automatic', 'manual'].includes(preference)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email preference',
+        message: 'Preference must be "automatic" or "manual"',
+      });
+    }
+
+    await req.user.setEmailPreference(preference);
+
+    // If switching to automatic mode, user needs to grant Gmail permissions
+    let requiresGmailAuth = false;
+    if (preference === 'automatic' && !req.user.gmailScopeGranted) {
+      requiresGmailAuth = true;
+    }
+
+    res.json({
+      success: true,
+      message: `Email preference updated to ${preference}`,
+      data: {
+        emailPreference: preference,
+        requiresGmailAuth,
+        gmailScopeGranted: req.user.gmailScopeGranted,
+      },
+      user: req.user.toSafeObject(),
+    });
+  } catch (error) {
+    console.error('Error updating email preference:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update email preference',
       message: error.message,
     });
   }
@@ -323,75 +402,78 @@ router.post('/requests', async (req, res) => {
   try {
     const { startDate, endDate, type, flightNumber, customMessage } = req.body;
 
-    // Validate required fields
+    // Validation
     if (!startDate || !endDate || !type) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields',
-        required: ['startDate', 'endDate', 'type'],
+        details: [
+          { field: 'startDate', message: 'Start date is required' },
+          { field: 'endDate', message: 'End date is required' },
+          { field: 'type', message: 'Request type is required' },
+        ],
       });
     }
 
-    // Create the request first
-    const newRequest = await TimeOffRequest.create({
-      userId: req.user.id,
+    // Create the request with email mode tracking
+    const request = await TimeOffRequest.createForUser(req.user.id, {
       startDate,
       endDate,
-      type: type.toUpperCase(),
-      flightNumber: type.toUpperCase() === 'FLIGHT' ? flightNumber : null,
+      type,
+      flightNumber: flightNumber || null,
       customMessage: customMessage || null,
     });
 
-    // 🚀 NEW: Attempt to send email after successful request creation
-    let emailStatus = {
-      sent: false,
-      error: null,
-      canRetry: false,
-    };
+    // Get the user's email preference
+    const emailPreference = req.user.emailPreference;
+    let emailResponse = {};
 
-    if (req.user.canSendEmails()) {
+    if (emailPreference === 'automatic' && req.user.canSendEmails()) {
+      // AUTOMATIC MODE: Use existing Gmail service
       try {
-        console.log(`Attempting to send email for request ${newRequest.id}...`);
-        const gmailService = require('../services/gmailService');
-        const emailResult = await gmailService.sendEmail(req.user, [
-          newRequest,
-        ]);
+        // Use existing Gmail service - pass requests as array
+        const emailResult = await gmailService.sendEmail(req.user, [request]);
 
-        // Mark email as sent in database
-        await newRequest.markEmailSent(
+        await request.markEmailSent(
           emailResult.messageId,
           emailResult.threadId
         );
 
-        emailStatus.sent = true;
-        console.log(`✅ Email sent successfully for request ${newRequest.id}`);
+        emailResponse = {
+          emailStatus: { sent: true, messageId: emailResult.messageId },
+          message: 'Request created and email sent automatically',
+        };
       } catch (emailError) {
-        console.error('Email sending failed:', emailError);
-        emailStatus.error = emailError.message;
-        emailStatus.canRetry = true;
-
-        // Don't fail the request creation, just log the email failure
-        console.log(
-          `⚠️ Request ${newRequest.id} created but email failed: ${emailError.message}`
-        );
+        console.error('Gmail send failed:', emailError);
+        emailResponse = {
+          emailStatus: { sent: false, error: emailError.message },
+          message: 'Request created but email failed to send',
+        };
       }
     } else {
-      emailStatus.error =
-        'Gmail not configured - please re-login to grant Gmail permissions';
-      emailStatus.canRetry = true;
-      emailStatus.authUrl = '/auth/google';
-    }
+      // MANUAL MODE: Generate email content using existing service
+      const emailContent = gmailService.generateEmailContent(req.user, [
+        request,
+      ]);
 
-    // Reload request to get updated email fields
-    await newRequest.reload();
+      await request.storeManualEmailContent(emailContent);
+
+      emailResponse = {
+        emailContent,
+        emailMode: 'manual',
+        message: 'Request created. Email ready to copy.',
+      };
+    }
 
     res.status(201).json({
       success: true,
-      data: newRequest,
-      emailStatus,
-      message: emailStatus.sent
-        ? 'Time-off request created and email sent successfully'
-        : 'Time-off request created but email could not be sent',
+      data: {
+        ...request.toJSON(),
+        emailStatus: request.getEmailStatus(),
+        emailStatusIcon: request.getEmailStatusIcon(),
+        emailStatusLabel: request.getEmailStatusLabel(),
+      },
+      ...emailResponse,
     });
   } catch (error) {
     console.error('Error creating request:', error);
@@ -631,6 +713,197 @@ router.post('/requests/:id/resend-email', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to send email',
+      message: error.message,
+    });
+  }
+});
+// GET email content for a specific request (manual mode)
+router.get('/requests/:id/email-content', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await TimeOffRequest.findByPkAndUser(id, req.user.id);
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        error: 'Request not found',
+      });
+    }
+
+    if (request.emailMode !== 'manual') {
+      return res.status(400).json({
+        success: false,
+        error: 'This request is not in manual email mode',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        emailContent: request.manualEmailContent,
+        canBeSent: request.canManualEmailBeSent(),
+        emailStatus: request.getEmailStatus(),
+        emailStatusIcon: request.getEmailStatusIcon(),
+        emailStatusLabel: request.getEmailStatusLabel(),
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching email content:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch email content',
+      message: error.message,
+    });
+  }
+});
+
+// POST mark manual email as sent
+router.post('/requests/:id/mark-email-sent', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await TimeOffRequest.findByPkAndUser(id, req.user.id);
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        error: 'Request not found',
+      });
+    }
+
+    if (request.emailMode !== 'manual') {
+      return res.status(400).json({
+        success: false,
+        error: 'This request is not in manual email mode',
+      });
+    }
+
+    if (request.manualEmailConfirmed) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email already marked as sent',
+      });
+    }
+
+    await request.markManualEmailSent();
+
+    res.json({
+      success: true,
+      message: 'Email marked as sent successfully',
+      data: {
+        emailStatus: request.getEmailStatus(),
+        emailStatusIcon: request.getEmailStatusIcon(),
+        emailStatusLabel: request.getEmailStatusLabel(),
+        emailSent: request.emailSent,
+      },
+    });
+  } catch (error) {
+    console.error('Error marking email as sent:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to mark email as sent',
+      message: error.message,
+    });
+  }
+});
+
+// POST retry email sending (uses existing Gmail service)
+router.post('/requests/:id/retry-email', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await TimeOffRequest.findByPkAndUser(id, req.user.id);
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        error: 'Request not found',
+      });
+    }
+
+    if (!req.user.canSendEmails()) {
+      return res.status(400).json({
+        success: false,
+        error: 'User cannot send automatic emails',
+        message: 'Gmail permissions required for automatic email sending',
+      });
+    }
+
+    try {
+      // Use existing Gmail service
+      const emailResult = await gmailService.sendEmail(req.user, [request]);
+
+      await request.markEmailSent(emailResult.messageId, emailResult.threadId);
+
+      res.json({
+        success: true,
+        message: 'Email sent successfully',
+        data: {
+          emailStatus: 'sent',
+          emailStatusIcon: '✅',
+          emailStatusLabel: 'Email Sent',
+          messageId: emailResult.messageId,
+        },
+      });
+    } catch (emailError) {
+      console.error('Gmail retry failed:', emailError);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to send email',
+        message: emailError.message,
+      });
+    }
+  } catch (error) {
+    console.error('Error retrying email:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retry email',
+      message: error.message,
+    });
+  }
+});
+
+// PUT manually override request status
+router.put('/requests/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, reason } = req.body;
+
+    if (!status || !['PENDING', 'APPROVED', 'DENIED'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid status',
+        message: 'Status must be PENDING, APPROVED, or DENIED',
+      });
+    }
+
+    const request = await TimeOffRequest.findByPkAndUser(id, req.user.id);
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        error: 'Request not found',
+      });
+    }
+
+    const updates = { status };
+    if (status !== 'PENDING') {
+      updates.approvalDate = new Date();
+    }
+    if (status === 'DENIED' && reason) {
+      updates.denialReason = reason;
+    }
+
+    await request.update(updates);
+
+    res.json({
+      success: true,
+      message: `Request status updated to ${status}`,
+      data: request,
+    });
+  } catch (error) {
+    console.error('Error updating request status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update request status',
       message: error.message,
     });
   }

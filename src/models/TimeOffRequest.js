@@ -77,6 +77,23 @@ function defineTimeOffRequest(sequelize) {
         allowNull: true,
         comment: 'Last time we checked for replies',
       },
+      manualEmailConfirmed: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        allowNull: false,
+        comment: 'Whether user confirmed they sent the email manually',
+      },
+      manualEmailContent: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        comment:
+          'Generated email content for manual sending (subject, body, to)',
+      },
+      emailMode: {
+        type: DataTypes.ENUM('automatic', 'manual'),
+        allowNull: true,
+        comment: 'Which email mode was used when this request was created',
+      },
       replyReceived: {
         type: DataTypes.DATE,
         allowNull: true,
@@ -232,6 +249,65 @@ function defineTimeOffRequest(sequelize) {
       lastReplyCheck: new Date(),
     });
   };
+  TimeOffRequest.prototype.markManualEmailSent = function () {
+    return this.update({
+      manualEmailConfirmed: true,
+      emailSent: new Date(),
+    });
+  };
+
+  TimeOffRequest.prototype.storeManualEmailContent = function (emailContent) {
+    return this.update({
+      manualEmailContent: emailContent,
+    });
+  };
+
+  TimeOffRequest.prototype.getEmailStatus = function () {
+    if (this.emailMode === 'automatic') {
+      if (this.emailSent) return 'sent'; // ✅
+      if (this.emailSent === false) return 'failed'; // ❌ (when explicitly failed)
+      return 'sending'; // 🔄
+    } else {
+      // manual mode
+      if (this.manualEmailConfirmed) return 'confirmed'; // ✅
+      if (this.manualEmailContent) return 'ready'; // 📧
+      return 'not_sent'; // ⚠️
+    }
+  };
+
+  TimeOffRequest.prototype.getEmailStatusIcon = function () {
+    const status = this.getEmailStatus();
+    const iconMap = {
+      sent: '✅',
+      failed: '❌',
+      sending: '🔄',
+      confirmed: '✅',
+      ready: '📧',
+      not_sent: '⚠️',
+    };
+    return iconMap[status] || '❓';
+  };
+
+  TimeOffRequest.prototype.getEmailStatusLabel = function () {
+    const status = this.getEmailStatus();
+    const labelMap = {
+      sent: 'Email Sent',
+      failed: 'Email Failed',
+      sending: 'Sending Email',
+      confirmed: 'Email Confirmed Sent',
+      ready: 'Ready to Copy',
+      not_sent: 'Not Sent',
+    };
+    return labelMap[status] || 'Unknown';
+  };
+
+  TimeOffRequest.prototype.canManualEmailBeSent = function () {
+    return (
+      this.emailMode === 'manual' &&
+      this.manualEmailContent &&
+      !this.manualEmailConfirmed
+    );
+  };
 
   // Class methods for user isolation
   TimeOffRequest.findAllByUser = async function (userId, options = {}) {
@@ -249,9 +325,14 @@ function defineTimeOffRequest(sequelize) {
   };
 
   TimeOffRequest.createForUser = async function (userId, requestData) {
+    // Get user to determine email mode
+    const User = require('./index').User;
+    const user = await User.findByPk(userId);
+
     return await this.create({
       ...requestData,
       userId,
+      emailMode: user ? user.emailPreference : 'manual', // Capture the mode used
     });
   };
 

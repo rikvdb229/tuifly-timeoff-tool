@@ -1,4 +1,4 @@
-// src/routes/settings.js - FIXED VERSION
+// src/routes/settings.js - COMPLETE FIXED VERSION
 const express = require('express');
 const { requireAuth, requireOnboarding } = require('../middleware/auth');
 const { User, UserSetting } = require('../models');
@@ -9,7 +9,7 @@ const router = express.Router();
 router.use(requireAuth);
 router.use(requireOnboarding);
 
-// Basic validation functions (replacing Joi for now)
+// Basic validation functions (replacing Joi)
 function validateProfile(data) {
   const errors = [];
 
@@ -38,45 +38,20 @@ function validateProfile(data) {
     });
   }
 
-  return errors;
+  return { isValid: errors.length === 0, errors };
 }
 
-function validateSettings(data) {
+function validateEmailPreference(data) {
   const errors = [];
-  const validKeys = [
-    'theme',
-    'notifications',
-    'timezone',
-    'language',
-    'autoSave',
-    'emailFrequency',
-  ];
 
-  Object.keys(data).forEach((key) => {
-    if (!validKeys.includes(key)) {
-      errors.push({ field: key, message: 'Invalid setting key' });
-    }
-  });
-
-  if (data.theme && !['light', 'dark'].includes(data.theme)) {
-    errors.push({ field: 'theme', message: 'Theme must be light or dark' });
-  }
-
-  if (data.language && !['en', 'nl', 'fr', 'de'].includes(data.language)) {
-    errors.push({ field: 'language', message: 'Invalid language code' });
-  }
-
-  if (
-    data.emailFrequency &&
-    !['immediate', 'daily', 'weekly', 'never'].includes(data.emailFrequency)
-  ) {
+  if (!data.preference || !['automatic', 'manual'].includes(data.preference)) {
     errors.push({
-      field: 'emailFrequency',
-      message: 'Invalid email frequency',
+      field: 'preference',
+      message: 'Preference must be "automatic" or "manual"',
     });
   }
 
-  return errors;
+  return { isValid: errors.length === 0, errors };
 }
 
 // Settings page
@@ -104,49 +79,15 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get settings (API endpoint) - FIXED
+// Get settings (API endpoint)
 router.get('/api', async (req, res) => {
-  console.log('📊 Settings API called by user:', req.user?.id);
-
   try {
-    // Validate user is authenticated
-    if (!req.user || !req.user.id) {
-      console.error('❌ No authenticated user found');
-      return res.status(401).json({
-        success: false,
-        error: 'User not authenticated',
-      });
-    }
+    const userSettings = await UserSetting.getUserSettings(req.user.id);
 
-    console.log('🔍 Fetching settings for user ID:', req.user.id);
-
-    // Get user settings with error handling
-    let userSettings = {};
-    try {
-      userSettings = await UserSetting.getUserSettings(req.user.id);
-      console.log('✅ User settings loaded:', Object.keys(userSettings));
-    } catch (settingsError) {
-      console.error('⚠️ Error loading user settings:', settingsError);
-      // Continue with empty settings if user settings fail
-      userSettings = {};
-    }
-
-    // Prepare safe user object
-    const safeUser = req.user.toSafeObject
-      ? req.user.toSafeObject()
-      : {
-          id: req.user.id,
-          name: req.user.name,
-          email: req.user.email,
-          code: req.user.code,
-          signature: req.user.signature,
-        };
-
-    console.log('✅ Sending settings response');
     res.json({
       success: true,
       data: {
-        user: safeUser,
+        user: req.user.toSafeObject(),
         settings: userSettings,
         globalSettings: {
           MIN_ADVANCE_DAYS: process.env.MIN_ADVANCE_DAYS || 60,
@@ -157,204 +98,73 @@ router.get('/api', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('❌ Settings API error:', error);
-    console.error('Error stack:', error.stack);
+    console.error('Settings API error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch settings',
-      details:
-        process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+// GET current user's email preference
+router.get('/email-preference', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        emailPreference: req.user.emailPreference,
+        gmailScopeGranted: req.user.gmailScopeGranted,
+        canSendEmails: req.user.canSendEmails(),
+        usesManualEmail: req.user.usesManualEmail(),
+        usesAutomaticEmail: req.user.usesAutomaticEmail(),
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching email preference:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch email preference',
+      message: error.message,
     });
   }
 });
 
-// Update profile
-router.put('/profile', async (req, res) => {
+// PUT update user's email preference
+router.put('/email-preference', async (req, res) => {
   try {
-    const errors = validateProfile(req.body);
+    const validation = validateEmailPreference(req.body);
 
-    if (errors.length > 0) {
+    if (!validation.isValid) {
       return res.status(400).json({
         success: false,
         error: 'Validation failed',
-        details: errors,
+        details: validation.errors,
       });
     }
 
-    const { name, code, signature } = req.body;
+    const { preference } = req.body;
+    await req.user.setEmailPreference(preference);
 
-    // Check if code is already taken by another user
-    const existingUser = await User.findOne({
-      where: { code: code.toUpperCase() },
-    });
-    if (existingUser && existingUser.id !== req.user.id) {
-      return res.status(400).json({
-        success: false,
-        error: 'Code already taken',
-        details: [
-          {
-            field: 'code',
-            message: 'This 3-letter code is already in use',
-          },
-        ],
-      });
-    }
-
-    // Update user profile
-    await req.user.update({
-      name,
-      code: code.toUpperCase(),
-      signature,
-    });
-
-    res.json({
-      success: true,
-      message: 'Profile updated successfully',
-      user: req.user.toSafeObject(),
-    });
-  } catch (error) {
-    console.error('Profile update error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update profile',
-    });
-  }
-});
-
-// Update user settings
-router.put('/preferences', async (req, res) => {
-  try {
-    const errors = validateSettings(req.body);
-
-    if (errors.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Validation failed',
-        details: errors,
-      });
-    }
-
-    // Update each setting
-    const updatedSettings = {};
-    for (const [key, val] of Object.entries(req.body)) {
-      if (val !== undefined) {
-        const settingType = typeof val === 'boolean' ? 'boolean' : 'string';
-        await UserSetting.updateUserSetting(req.user.id, key, val, settingType);
-        updatedSettings[key] = val;
-      }
+    // If switching to automatic mode, user needs to grant Gmail permissions
+    let requiresGmailAuth = false;
+    if (preference === 'automatic' && !req.user.gmailScopeGranted) {
+      requiresGmailAuth = true;
     }
 
     res.json({
       success: true,
-      message: 'Preferences updated successfully',
-      settings: updatedSettings,
+      message: `Email preference updated to ${preference}`,
+      data: {
+        emailPreference: preference,
+        requiresGmailAuth,
+        gmailScopeGranted: req.user.gmailScopeGranted,
+      },
     });
   } catch (error) {
-    console.error('Settings update error:', error);
+    console.error('Error updating email preference:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to update preferences',
-    });
-  }
-});
-
-// Update single setting
-router.put('/preferences/:key', async (req, res) => {
-  try {
-    const { key } = req.params;
-    const { value } = req.body;
-
-    const validKeys = [
-      'theme',
-      'notifications',
-      'timezone',
-      'language',
-      'autoSave',
-      'emailFrequency',
-    ];
-
-    if (!validKeys.includes(key)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid setting key',
-      });
-    }
-
-    const settingType = typeof value === 'boolean' ? 'boolean' : 'string';
-    await UserSetting.updateUserSetting(req.user.id, key, value, settingType);
-
-    res.json({
-      success: true,
-      message: 'Setting updated successfully',
-      setting: { [key]: value },
-    });
-  } catch (error) {
-    console.error('Single setting update error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update setting',
-    });
-  }
-});
-
-// Reset settings to default
-router.post('/reset', async (req, res) => {
-  try {
-    const defaultSettings = UserSetting.getDefaultSettings();
-
-    // Update all settings to defaults
-    for (const [key, value] of Object.entries(defaultSettings)) {
-      const settingType = typeof value === 'boolean' ? 'boolean' : 'string';
-      await UserSetting.updateUserSetting(req.user.id, key, value, settingType);
-    }
-
-    res.json({
-      success: true,
-      message: 'Settings reset to defaults',
-      settings: defaultSettings,
-    });
-  } catch (error) {
-    console.error('Settings reset error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to reset settings',
-    });
-  }
-});
-
-// Check code availability
-router.post('/check-code', async (req, res) => {
-  try {
-    const { code } = req.body;
-
-    if (!code || code.length !== 3) {
-      return res.json({
-        available: false,
-        message: 'Code must be exactly 3 characters',
-      });
-    }
-
-    const normalizedCode = code.toUpperCase();
-    const existingUser = await User.findOne({
-      where: { code: normalizedCode },
-    });
-
-    if (existingUser && existingUser.id !== req.user.id) {
-      return res.json({
-        available: false,
-        message: 'Code already taken',
-      });
-    }
-
-    res.json({
-      available: true,
-      message: 'Code available',
-    });
-  } catch (error) {
-    console.error('Code check error:', error);
-    res.status(500).json({
-      available: false,
-      message: 'Error checking code availability',
+      error: 'Failed to update email preference',
+      message: error.message,
     });
   }
 });

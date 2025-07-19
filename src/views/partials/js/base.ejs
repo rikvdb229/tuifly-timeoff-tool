@@ -37,7 +37,10 @@
       const data = await response.json();
 
       if (data.success) {
-        // Populate profile form
+        // ➕ ADD email preference loading:
+        loadEmailPreferences(data.data.emailPreference);
+
+        // Populate profile form (existing code)
         const userName = document.getElementById('userName');
         const userCode = document.getElementById('userCode');
         const userSignature = document.getElementById('userSignature');
@@ -297,6 +300,116 @@
       toastElement.remove();
     });
   }
+  // Email preference functions (replace the duplicate functions with this single set)
+  function loadEmailPreferences(emailPrefData) {
+    console.log('Loading email preferences:', emailPrefData); // Debug line
+
+    if (!emailPrefData) {
+      // If no email preference data, load it separately
+      loadEmailPreferencesFromAPI();
+      return;
+    }
+
+    // Set radio button
+    const currentPref = emailPrefData.current || emailPrefData.emailPreference;
+    const radioButton = document.querySelector(
+      `input[name="emailPreference"][value="${currentPref}"]`
+    );
+    if (radioButton) radioButton.checked = true;
+
+    // Update status badge
+    const emailPrefBadge = document.getElementById('emailPrefBadge');
+    if (emailPrefBadge) {
+      emailPrefBadge.textContent =
+        currentPref === 'automatic' ? 'Automatic' : 'Manual';
+      emailPrefBadge.className = `badge ms-2 ${currentPref === 'automatic' ? 'bg-primary' : 'bg-success'}`;
+    }
+
+    // Update status displays
+    const emailModeStatus = document.getElementById('emailModeStatus');
+    if (emailModeStatus) {
+      emailModeStatus.innerHTML = `
+      <i class="bi bi-circle-fill ${currentPref === 'automatic' ? 'text-primary' : 'text-success'}"></i>
+      <span>${currentPref === 'automatic' ? 'Automatic' : 'Manual'}</span>
+    `;
+    }
+
+    const gmailAccessStatus = document.getElementById('gmailAccessStatus');
+    if (gmailAccessStatus) {
+      gmailAccessStatus.innerHTML = `
+      <i class="bi bi-circle-fill ${emailPrefData.gmailScopeGranted ? 'text-success' : 'text-warning'}"></i>
+      <span>${emailPrefData.gmailScopeGranted ? 'Granted' : 'Not Granted'}</span>
+    `;
+    }
+
+    // Show Gmail auth section if needed
+    const gmailAuthSection = document.getElementById('gmailAuthSection');
+    if (gmailAuthSection) {
+      if (currentPref === 'automatic' && !emailPrefData.gmailScopeGranted) {
+        gmailAuthSection.style.display = 'block';
+      } else {
+        gmailAuthSection.style.display = 'none';
+      }
+    }
+
+    // Highlight selected card
+    updateEmailMethodCardHighlights(currentPref);
+  }
+
+  async function loadEmailPreferencesFromAPI() {
+    try {
+      const response = await fetch('/settings/email-preference');
+      const data = await response.json();
+
+      if (data.success) {
+        loadEmailPreferences(data.data);
+      }
+    } catch (error) {
+      console.error('Error loading email preferences from API:', error);
+    }
+  }
+
+  function updateEmailMethodCardHighlights(preference) {
+    const automaticCard = document.getElementById('automaticCard');
+    const manualCard = document.getElementById('manualCard');
+
+    if (automaticCard)
+      automaticCard.classList.toggle(
+        'border-primary',
+        preference === 'automatic'
+      );
+    if (manualCard)
+      manualCard.classList.toggle('border-success', preference === 'manual');
+  }
+
+  async function updateEmailPreference(preference) {
+    try {
+      const response = await fetch('/settings/email-preference', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ preference }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showToast(`Email preference updated to ${preference}`, 'success');
+
+        // Reload email preferences to update UI
+        loadEmailPreferencesFromAPI();
+      } else {
+        throw new Error(data.message || 'Failed to update preference');
+      }
+    } catch (error) {
+      console.error('Error updating email preference:', error);
+      showToast('Failed to update email preference', 'error');
+
+      // Reload settings to revert UI
+      loadSettings();
+    }
+  }
 
   // Utility functions
   function formatDate(date) {
@@ -316,4 +429,52 @@
       minute: '2-digit',
     });
   }
+</script>
+
+<!-- Add CSS styles and event listeners -->
+<style>
+  .email-method-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+  }
+
+  .email-method-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .email-method-card.border-primary {
+    border-color: var(--bs-primary) !important;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+  }
+
+  .email-method-card.border-success {
+    border-color: var(--bs-success) !important;
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+  }
+</style>
+
+<script>
+  // Add email preference event listeners when DOM is ready
+  document.addEventListener('DOMContentLoaded', function () {
+    // Email preference change handlers
+    document
+      .querySelectorAll('input[name="emailPreference"]')
+      .forEach((radio) => {
+        radio.addEventListener('change', function () {
+          if (this.checked) {
+            updateEmailPreference(this.value);
+          }
+        });
+      });
+
+    // Gmail authorization handler
+    const authorizeGmailBtn = document.getElementById('authorizeGmailBtn');
+    if (authorizeGmailBtn) {
+      authorizeGmailBtn.addEventListener('click', function () {
+        window.location.href = '/auth/google?scope=gmail';
+      });
+    }
+  });
 </script>

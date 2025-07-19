@@ -69,10 +69,49 @@
   <!-- Calendar Container -->
   <div class="calendar-container">
     <div class="d-flex justify-content-between align-items-center mb-3">
-      <h4 class="mb-0">
-        <i class="bi bi-calendar-week text-primary"></i>
-        Request Calendar
-      </h4>
+<h4 class="mb-0">
+            <i class="bi bi-calendar-week text-primary"></i>
+            Request Calendar
+          </h4>
+          <!-- ➕ ADD Email Mode Badge -->
+          <small class="text-muted">
+            Email Mode: 
+            <span class="badge <%= user.emailPreference === 'automatic' ? 'bg-primary' : 'bg-success' %> ms-1">
+              <%= user.emailPreference === 'automatic' ? '🤖 Automatic' : '📧 Manual' %>
+            </span>
+            <a href="#" onclick="openSettingsModal(); return false;" class="ms-2" title="Change email preferences">
+              <i class="bi bi-gear"></i>
+            </a>
+          </small>
+        </div>
+       <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0">
+            <i class="bi bi-info-circle text-info"></i>
+            Email Status Legend
+          </h6>
+          <div class="email-status-legend">
+            <div class="email-status-legend-item">
+              <span class="email-status-legend-icon">✅</span>
+              <span>Sent/Confirmed</span>
+            </div>
+            <div class="email-status-legend-item">
+              <span class="email-status-legend-icon">📧</span>
+              <span>Ready to Copy</span>
+            </div>
+            <div class="email-status-legend-item">
+              <span class="email-status-legend-icon">🔄</span>
+              <span>Sending</span>
+            </div>
+            <div class="email-status-legend-item">
+              <span class="email-status-legend-icon">❌</span>
+              <span>Failed</span>
+            </div>
+            <div class="email-status-legend-item">
+              <span class="email-status-legend-icon">⚠️</span>
+              <span>Not Sent</span>
+            </div>
+          </div>
+        </div>
       <div class="d-flex align-items-center gap-2">
         <div class="request-legend">
           <div class="legend-item">

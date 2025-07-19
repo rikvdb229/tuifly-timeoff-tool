@@ -242,4 +242,120 @@
       font-size: 2rem !important;
     }
   }
+  /* ➕ EMAIL STATUS STYLING */
+  .request-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+
+  .request-type {
+    flex-grow: 1;
+    font-size: 0.7rem;
+    font-weight: 500;
+  }
+
+  .email-status-icon {
+    font-size: 0.7rem;
+    margin-left: 3px;
+    opacity: 0.9;
+    transition: opacity 0.2s ease;
+  }
+
+  .day-request:hover .email-status-icon {
+    opacity: 1;
+  }
+
+  /* ➕ EMAIL STATUS LEGEND */
+  .email-status-legend {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .email-status-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    color: #495057;
+  }
+
+  .email-status-legend-icon {
+    font-size: 1rem;
+  }
+
+  /* ➕ MODAL EMAIL SECTION STYLING */
+  .email-copy-section {
+    background: rgba(0, 0, 0, 0.02);
+    padding: 1rem;
+    border-radius: 0.375rem;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  .email-copy-section label {
+    font-size: 0.875rem;
+    color: #495057;
+    margin-bottom: 0.25rem;
+    display: block;
+  }
+
+  .email-copy-section .input-group {
+    margin-bottom: 0.5rem;
+  }
+
+  .email-copy-section .form-control {
+    font-size: 0.875rem;
+    background-color: #f8f9fa;
+  }
+
+  .email-copy-section .btn-outline-secondary {
+    border-left: none;
+  }
+
+  .email-copy-section .btn-outline-secondary:hover {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+  }
+
+  /* ➕ ENHANCED REQUEST ITEM STYLING */
+  .day-request {
+    font-size: 0.7rem;
+    font-weight: bold;
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin-top: 2px;
+    z-index: 2;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+
+  .day-request:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  /* ➕ RESPONSIVE ADJUSTMENTS */
+  @media (max-width: 768px) {
+    .email-status-legend {
+      gap: 0.5rem;
+    }
+
+    .email-status-legend-item {
+      font-size: 0.75rem;
+    }
+
+    .request-content {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .email-status-icon {
+      margin-left: 0;
+      margin-top: 0.125rem;
+    }
+  }
 </style>

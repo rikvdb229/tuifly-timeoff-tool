@@ -111,6 +111,13 @@ function defineUser(sequelize) {
         defaultValue: false,
         comment: 'Whether user granted Gmail send permission',
       },
+      emailPreference: {
+        type: DataTypes.ENUM('automatic', 'manual'),
+        defaultValue: 'manual',
+        allowNull: false,
+        comment:
+          'User preference for email handling: automatic (Gmail API) or manual (copy/paste)',
+      },
     },
     {
       tableName: 'users',
@@ -169,7 +176,32 @@ function defineUser(sequelize) {
   };
 
   User.prototype.canSendEmails = function () {
-    return this.canUseApp() && this.gmailScopeGranted && this.isOnboarded();
+    return (
+      this.canUseApp() &&
+      this.emailPreference === 'automatic' &&
+      this.gmailScopeGranted &&
+      this.isOnboarded()
+    );
+  };
+  // ➕ ADD these new methods AFTER the existing canSendEmails method:
+  User.prototype.usesManualEmail = function () {
+    return this.emailPreference === 'manual';
+  };
+
+  User.prototype.usesAutomaticEmail = function () {
+    return this.emailPreference === 'automatic' && this.gmailScopeGranted;
+  };
+
+  User.prototype.setEmailPreference = async function (preference) {
+    if (!['automatic', 'manual'].includes(preference)) {
+      throw new Error(
+        'Invalid email preference. Must be "automatic" or "manual"'
+      );
+    }
+
+    return await this.update({
+      emailPreference: preference,
+    });
   };
 
   User.prototype.hasValidGmailToken = function () {
@@ -235,6 +267,9 @@ function defineUser(sequelize) {
       needsAdminApproval: this.needsAdminApproval(),
       canSendEmails: this.canSendEmails(),
       gmailScopeGranted: user.gmailScopeGranted,
+      emailPreference: user.emailPreference,
+      usesManualEmail: this.usesManualEmail(),
+      usesAutomaticEmail: this.usesAutomaticEmail(),
     };
   };
 

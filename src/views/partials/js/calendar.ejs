@@ -258,7 +258,12 @@
       if (existingRequest) {
         const requestElement = document.createElement('div');
         requestElement.className = `day-request request-${existingRequest.status.toLowerCase()}`;
-        requestElement.textContent = CONFIG.REQUEST_TYPES[existingRequest.type];
+        requestElement.textContent = `
+          <div class="request-content">
+            <span class="request-type">${CONFIG.REQUEST_TYPES[existingRequest.type]}</span>
+            <span class="email-status-icon" title="${getEmailStatusTooltip(existingRequest)}">${getEmailStatusIcon(existingRequest)}</span>
+          </div>
+        `;
 
         dayCell.setAttribute('data-bs-toggle', 'tooltip');
         dayCell.setAttribute('data-bs-placement', 'top');
@@ -749,4 +754,334 @@
       toastElement.remove();
     });
   }
+  function getEmailStatusIcon(request) {
+    // Determine email status based on request data
+    if (request.emailMode === 'automatic') {
+      if (request.emailSent) return '✅'; // Sent successfully
+      if (request.emailSent === false) return '❌'; // Failed to send
+      return '🔄'; // Sending in progress
+    } else if (request.emailMode === 'manual') {
+      if (request.manualEmailConfirmed) return '✅'; // User confirmed sent
+      if (request.manualEmailContent) return '📧'; // Ready to copy
+      return '⚠️'; // Not sent yet
+    }
+    return '❓'; // Unknown status
+  }
+
+  function getEmailStatusTooltip(request) {
+    const status = getEmailStatusIcon(request);
+    const tooltipMap = {
+      '✅':
+        request.emailMode === 'automatic'
+          ? 'Email sent successfully'
+          : 'Email confirmed sent',
+      '❌': 'Email failed to send',
+      '🔄': 'Email sending in progress',
+      '📧': 'Email ready to copy',
+      '⚠️': 'Email not sent yet',
+      '❓': 'Unknown email status',
+    };
+    return tooltipMap[status] || 'Unknown email status';
+  }
+
+  // ➕ REQUEST DETAIL MODAL FUNCTION
+  function showRequestDetailModal(request) {
+    // Create modal HTML
+    const modalHTML = `
+    <div class="modal fade" id="requestDetailModal" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <i class="bi bi-calendar-event text-primary"></i>
+              Request Details
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            ${generateRequestDetailContent(request)}
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            ${generateModalActionButtons(request)}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+    // Remove existing modal if present
+    const existingModal = document.getElementById('requestDetailModal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // Show modal
+    const modal = new bootstrap.Modal(
+      document.getElementById('requestDetailModal')
+    );
+    modal.show();
+
+    // Add event listeners for modal actions
+    attachModalEventListeners(request);
+  }
+
+  function generateRequestDetailContent(request) {
+    const emailStatusIcon = getEmailStatusIcon(request);
+    const emailStatusTooltip = getEmailStatusTooltip(request);
+
+    return `
+    <div class="row">
+      <div class="col-md-6">
+        <h6><i class="bi bi-info-circle text-info"></i> Request Information</h6>
+        <table class="table table-sm">
+          <tr>
+            <td><strong>Type:</strong></td>
+            <td><span class="badge bg-primary">${request.type}</span></td>
+          </tr>
+          <tr>
+            <td><strong>Start Date:</strong></td>
+            <td>${formatDisplayDate(request.startDate)}</td>
+          </tr>
+          <tr>
+            <td><strong>End Date:</strong></td>
+            <td>${formatDisplayDate(request.endDate)}</td>
+          </tr>
+          <tr>
+            <td><strong>Status:</strong></td>
+            <td><span class="badge bg-${getStatusColor(request.status)}">${request.status}</span></td>
+          </tr>
+          ${
+            request.flightNumber
+              ? `
+          <tr>
+            <td><strong>Flight Number:</strong></td>
+            <td>${request.flightNumber}</td>
+          </tr>
+          `
+              : ''
+          }
+          ${
+            request.customMessage
+              ? `
+          <tr>
+            <td><strong>Message:</strong></td>
+            <td>${request.customMessage}</td>
+          </tr>
+          `
+              : ''
+          }
+        </table>
+      </div>
+      
+      <div class="col-md-6">
+        <h6><i class="bi bi-envelope text-warning"></i> Email Status</h6>
+        <div class="card bg-light">
+          <div class="card-body">
+            <div class="d-flex align-items-center mb-2">
+              <span class="fs-4 me-2">${emailStatusIcon}</span>
+              <div>
+                <strong>${emailStatusTooltip}</strong><br>
+                <small class="text-muted">Mode: ${request.emailMode || 'Unknown'}</small>
+              </div>
+            </div>
+            
+            ${generateEmailActionSection(request)}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  }
+
+  function generateEmailActionSection(request) {
+    if (
+      request.emailMode === 'manual' &&
+      request.manualEmailContent &&
+      !request.manualEmailConfirmed
+    ) {
+      return `
+      <div class="mt-3">
+        <h6>📧 Email Content Ready to Copy</h6>
+        <div class="email-copy-section">
+          <div class="mb-2">
+            <label class="fw-bold">To:</label>
+            <div class="input-group input-group-sm">
+              <input type="text" class="form-control" readonly value="${request.manualEmailContent.to}" id="emailTo">
+              <button class="btn btn-outline-secondary" onclick="copyToClipboard('emailTo')" title="Copy">
+                <i class="bi bi-clipboard"></i>
+              </button>
+            </div>
+          </div>
+          
+          <div class="mb-2">
+            <label class="fw-bold">Subject:</label>
+            <div class="input-group input-group-sm">
+              <input type="text" class="form-control" readonly value="${request.manualEmailContent.subject}" id="emailSubject">
+              <button class="btn btn-outline-secondary" onclick="copyToClipboard('emailSubject')" title="Copy">
+                <i class="bi bi-clipboard"></i>
+              </button>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label class="fw-bold">Body:</label>
+            <div class="input-group">
+              <textarea class="form-control" readonly rows="4" id="emailBody">${request.manualEmailContent.body}</textarea>
+              <button class="btn btn-outline-secondary" onclick="copyToClipboard('emailBody')" title="Copy">
+                <i class="bi bi-clipboard"></i>
+              </button>
+            </div>
+          </div>
+          
+          <button class="btn btn-success btn-sm" onclick="markEmailAsSent(${request.id})">
+            <i class="bi bi-check-circle"></i> Mark as Sent
+          </button>
+        </div>
+      </div>
+    `;
+    } else if (request.emailMode === 'automatic' && !request.emailSent) {
+      return `
+      <div class="mt-3">
+        <button class="btn btn-primary btn-sm" onclick="retryEmailSend(${request.id})">
+          <i class="bi bi-arrow-clockwise"></i> Retry Send
+        </button>
+      </div>
+    `;
+    }
+
+    return '';
+  }
+
+  function generateModalActionButtons(request) {
+    let buttons = '';
+
+    if (request.status === 'PENDING') {
+      buttons += `
+      <button type="button" class="btn btn-success" onclick="updateRequestStatus(${request.id}, 'APPROVED')">
+        <i class="bi bi-check-circle"></i> Mark Approved
+      </button>
+      <button type="button" class="btn btn-danger" onclick="updateRequestStatus(${request.id}, 'DENIED')">
+        <i class="bi bi-x-circle"></i> Mark Denied
+      </button>
+    `;
+    }
+
+    return buttons;
+  }
+
+  // ➕ MODAL ACTION FUNCTIONS
+  function attachModalEventListeners(request) {
+    // These functions will be available globally for the modal
+    window.copyToClipboard = function (elementId) {
+      const element = document.getElementById(elementId);
+      element.select();
+      document.execCommand('copy');
+
+      showToast('Copied to clipboard!', 'success');
+    };
+
+    window.markEmailAsSent = async function (requestId) {
+      try {
+        const response = await fetch(
+          `/api/requests/${requestId}/mark-email-sent`,
+          {
+            method: 'POST',
+          }
+        );
+
+        const data = await response.json();
+
+        if (data.success) {
+          showToast('Email marked as sent!', 'success');
+          bootstrap.Modal.getInstance(
+            document.getElementById('requestDetailModal')
+          ).hide();
+          loadRequests(); // Refresh calendar
+        } else {
+          throw new Error(data.message);
+        }
+      } catch (error) {
+        console.error('Error marking email as sent:', error);
+        showToast('Failed to mark email as sent', 'error');
+      }
+    };
+
+    window.updateRequestStatus = async function (requestId, status) {
+      try {
+        const response = await fetch(`/api/requests/${requestId}/status`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ status }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          showToast(`Request ${status.toLowerCase()} successfully!`, 'success');
+          bootstrap.Modal.getInstance(
+            document.getElementById('requestDetailModal')
+          ).hide();
+          loadRequests(); // Refresh calendar
+        } else {
+          throw new Error(data.message);
+        }
+      } catch (error) {
+        console.error('Error updating request status:', error);
+        showToast('Failed to update request status', 'error');
+      }
+    };
+
+    window.retryEmailSend = async function (requestId) {
+      try {
+        const response = await fetch(`/api/requests/${requestId}/retry-email`, {
+          method: 'POST',
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          showToast('Email sent successfully!', 'success');
+          bootstrap.Modal.getInstance(
+            document.getElementById('requestDetailModal')
+          ).hide();
+          loadRequests(); // Refresh calendar
+        } else {
+          throw new Error(data.message);
+        }
+      } catch (error) {
+        console.error('Error retrying email send:', error);
+        showToast('Failed to resend email: ' + error.message, 'error');
+      }
+    };
+  }
+
+  // ➕ UTILITY FUNCTIONS
+  function formatDisplayDate(dateString) {
+    return new Date(dateString).toLocaleDateString('en-GB');
+  }
+
+  function getStatusColor(status) {
+    const colors = {
+      PENDING: 'warning',
+      APPROVED: 'success',
+      DENIED: 'danger',
+    };
+    return colors[status] || 'secondary';
+  }
+
+  // 🔍 FIND where request elements get click handlers and ADD this to show the detail modal:
+  // Look for: requestElement.addEventListener('click', ...) or similar and MODIFY to:
+  // (This should be added to the existing request element creation)
+
+  // Add click handler to show request details (modify existing click handler)
+  requestElement.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showRequestDetailModal(existingRequest);
+  });
 </script>
