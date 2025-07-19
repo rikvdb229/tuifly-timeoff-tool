@@ -358,4 +358,60 @@
       margin-top: 0.125rem;
     }
   }
+  /* Request content container */
+  .request-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: 100%;
+    font-size: 0.7rem;
+    font-weight: bold;
+  }
+
+  /* Request type text */
+  .request-type {
+    flex-shrink: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  /* Email status icon */
+  .email-status-icon {
+    flex-shrink: 0;
+    font-size: 0.6rem;
+    opacity: 0.9;
+    cursor: help;
+  }
+
+  /* Responsive adjustments for smaller screens */
+  @media (max-width: 768px) {
+    .request-content {
+      font-size: 0.6rem;
+      gap: 1px;
+    }
+
+    .email-status-icon {
+      font-size: 0.55rem;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .request-content {
+      font-size: 0.55rem;
+    }
+
+    .email-status-icon {
+      font-size: 0.5rem;
+    }
+
+    /* On very small screens, stack the content vertically */
+    .request-content {
+      flex-direction: column;
+      gap: 0;
+      line-height: 1.1;
+    }
+  }
 </style>

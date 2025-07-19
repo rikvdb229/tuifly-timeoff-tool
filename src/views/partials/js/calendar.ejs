@@ -22,7 +22,22 @@
   let existingRequests = [];
   let selectedDates = [];
   let isSubmitting = false;
-
+  let userEmailPreference = 'automatic'; // Default - this should be loaded from user settings
+  async function loadUserSettings() {
+    try {
+      const response = await fetch('/settings/api');
+      const data = await response.json();
+      if (data.success) {
+        // Set email preference from user settings
+        userEmailPreference = data.data.settings.emailPreference || 'automatic';
+        console.log('User email preference:', userEmailPreference);
+      }
+    } catch (error) {
+      console.error('Failed to load user settings:', error);
+      // Default to automatic if we can't load settings
+      userEmailPreference = 'automatic';
+    }
+  }
   // Calendar Management Class (Restored Original Logic)
   class CalendarManager {
     constructor() {
@@ -231,10 +246,12 @@
         return dayCell;
       }
 
+      // Day number
       const dayNumber = document.createElement('div');
       dayNumber.className = 'day-number';
       dayNumber.textContent = date.getDate();
 
+      // Determine cell state
       const isCurrentMonth = date.getMonth() === monthStart.getMonth();
       const isAvailable = this.isDateAvailable(date);
       const isWeekend = this.isWeekend(date);
@@ -250,6 +267,7 @@
       if (!isAvailable) {
         dayCell.classList.add('unavailable');
       } else {
+        // Add click handler for both new requests AND existing requests
         dayCell.addEventListener('click', () => this.handleDateClick(date));
       }
 
@@ -258,18 +276,36 @@
       if (existingRequest) {
         const requestElement = document.createElement('div');
         requestElement.className = `day-request request-${existingRequest.status.toLowerCase()}`;
-        requestElement.textContent = `
-          <div class="request-content">
-            <span class="request-type">${CONFIG.REQUEST_TYPES[existingRequest.type]}</span>
-            <span class="email-status-icon" title="${getEmailStatusTooltip(existingRequest)}">${getEmailStatusIcon(existingRequest)}</span>
-          </div>
-        `;
 
+        // Create request content container
+        const requestContent = document.createElement('div');
+        requestContent.className = 'request-content';
+
+        // Create request type span
+        const requestType = document.createElement('span');
+        requestType.className = 'request-type';
+        requestType.textContent = CONFIG.REQUEST_TYPES[existingRequest.type];
+
+        // Create email status icon span with LARGER size
+        const emailStatusIcon = document.createElement('span');
+        emailStatusIcon.className = 'email-status-icon';
+
+        // Get CORRECT email status icon based on user preference and request data
+        const emailStatus = this.getEmailStatusIcon(existingRequest);
+        emailStatusIcon.textContent = emailStatus.icon;
+        emailStatusIcon.setAttribute('title', emailStatus.title);
+
+        // Append elements
+        requestContent.appendChild(requestType);
+        requestContent.appendChild(emailStatusIcon);
+        requestElement.appendChild(requestContent);
+
+        // Add tooltip for the entire request
         dayCell.setAttribute('data-bs-toggle', 'tooltip');
         dayCell.setAttribute('data-bs-placement', 'top');
         dayCell.setAttribute(
           'title',
-          `${this.formatDate(date)}: ${existingRequest.type} (${existingRequest.status})${
+          `${this.formatDate(date)}: ${existingRequest.type} (${existingRequest.status}) - ${emailStatus.title}${
             existingRequest.customMessage
               ? ' - ' + existingRequest.customMessage
               : ''
@@ -281,6 +317,68 @@
 
       dayCell.appendChild(dayNumber);
       return dayCell;
+    }
+
+    // Add this helper method to CalendarManager class
+    getEmailStatusIcon(request) {
+      if (userEmailPreference === 'automatic') {
+        // Automatic mode: Check actual email status
+        if (request.emailSent) {
+          return {
+            icon: '✅',
+            title: 'Email sent automatically',
+          };
+        } else if (request.emailFailed) {
+          return {
+            icon: '❌',
+            title: 'Email failed to send',
+          };
+        } else if (request.emailPending) {
+          return {
+            icon: '🔄',
+            title: 'Email sending in progress',
+          };
+        } else {
+          return {
+            icon: '⚠️',
+            title: 'Email not sent yet',
+          };
+        }
+      } else {
+        // Manual mode: Check manual confirmation status
+        if (request.manualEmailConfirmed) {
+          return {
+            icon: '✅',
+            title: 'User confirmed email sent',
+          };
+        } else {
+          return {
+            icon: '📧',
+            title: 'Email ready to copy and send',
+          };
+        }
+      }
+    }
+
+    // Alternative simpler version if the above is too complex:
+    getEmailStatusIconSimple(request) {
+      // Simple fallback that works with current data structure
+      if (request.status === 'APPROVED') {
+        return {
+          icon: '✅',
+          title: 'Request approved',
+        };
+      } else if (request.status === 'DENIED') {
+        return {
+          icon: '❌',
+          title: 'Request denied',
+        };
+      } else {
+        return {
+          icon: '📧',
+          title: 'Request pending',
+        };
+      }
     }
 
     getExistingRequest(date) {
@@ -298,8 +396,8 @@
       const existingRequest = this.getExistingRequest(date);
 
       if (existingRequest) {
-        showToast(`Request already exists for ${dateStr}`, 'info');
-        return;
+        this.openRequestDetailModal(existingRequest, dateStr);
+        return; // OPENS MODAL INSTEAD!
       }
 
       const index = selectedDates.findIndex((d) => d.date === dateStr);
@@ -398,6 +496,237 @@
           buttonText.textContent = 'New Request';
         }
       }
+    }
+    openRequestDetailModal(request, dateStr) {
+      const existingModal = document.getElementById('requestDetailModal');
+      if (existingModal) {
+        existingModal.remove();
+      }
+
+      const modalHTML = `
+      <div class="modal fade" id="requestDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">
+                <i class="bi bi-calendar-event"></i> Request Details - ${dateStr}
+              </h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <div class="row">
+                <div class="col-md-6">
+                  <h6><i class="bi bi-info-circle me-2"></i>Request Information</h6>
+                  <p><strong>Type:</strong> ${CONFIG.REQUEST_TYPES[request.type]}</p>
+                  <p><strong>Status:</strong> <span class="badge bg-${this.getStatusColor(request.status)}">${request.status}</span></p>
+                  <p><strong>Date Range:</strong> ${request.startDate} to ${request.endDate}</p>
+                  ${request.flightNumber ? `<p><strong>Flight:</strong> ${request.flightNumber}</p>` : ''}
+                  ${request.customMessage ? `<p><strong>Message:</strong> ${request.customMessage}</p>` : ''}
+                </div>
+                <div class="col-md-6">
+                  <h6><i class="bi bi-envelope me-2"></i>Email Information</h6>
+                  ${this.getEmailInfoSection(request)}
+                </div>
+              </div>
+              
+              ${userEmailPreference === 'manual' && !request.manualEmailConfirmed ? this.getManualEmailSection(request) : ''}
+            </div>
+            <div class="modal-footer">
+              ${this.getModalActions(request)}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+      document.body.insertAdjacentHTML('beforeend', modalHTML);
+      const modal = new bootstrap.Modal(
+        document.getElementById('requestDetailModal')
+      );
+      modal.show();
+
+      // Setup modal event listeners
+      this.setupModalEventListeners(request);
+    }
+
+    getStatusColor(status) {
+      switch (status) {
+        case 'APPROVED':
+          return 'success';
+        case 'DENIED':
+          return 'danger';
+        default:
+          return 'warning';
+      }
+    }
+
+    getEmailInfoSection(request) {
+      const emailStatus = this.getEmailStatusIcon(request);
+
+      if (userEmailPreference === 'automatic') {
+        return `
+        <p><strong>Email Mode:</strong> Automatic</p>
+        <p><strong>Status:</strong> ${emailStatus.icon} ${emailStatus.title}</p>
+        ${request.emailSent ? `<p><strong>Sent:</strong> ${new Date(request.emailSent).toLocaleString()}</p>` : ''}
+      `;
+      } else {
+        return `
+        <p><strong>Email Mode:</strong> Manual</p>
+        <p><strong>Status:</strong> ${emailStatus.icon} ${emailStatus.title}</p>
+        ${request.manualEmailConfirmed ? `<p><strong>Confirmed Sent:</strong> Yes</p>` : ''}
+      `;
+      }
+    }
+
+    getManualEmailSection(request) {
+      // Generate email content
+      const emailContent = this.generateEmailContent(request);
+
+      return `
+      <div class="mt-4">
+        <h6><i class="bi bi-envelope-plus me-2"></i>Email Content to Copy</h6>
+        <div class="card bg-light">
+          <div class="card-body">
+            <div class="email-field mb-2">
+              <label class="fw-bold">To:</label>
+              <div class="input-group input-group-sm">
+                <input type="text" class="form-control" value="scheduling@tuifly.be" readonly id="emailTo">
+                <button class="btn btn-outline-secondary copy-btn" type="button" data-copy="emailTo">
+                  <i class="bi bi-clipboard"></i> Copy
+                </button>
+              </div>
+            </div>
+            <div class="email-field mb-2">
+              <label class="fw-bold">Subject:</label>
+              <div class="input-group input-group-sm">
+                <input type="text" class="form-control" value="${emailContent.subject}" readonly id="emailSubject">
+                <button class="btn btn-outline-secondary copy-btn" type="button" data-copy="emailSubject">
+                  <i class="bi bi-clipboard"></i> Copy
+                </button>
+              </div>
+            </div>
+            <div class="email-field mb-2">
+              <label class="fw-bold">Body:</label>
+              <div class="input-group">
+                <textarea class="form-control" rows="6" readonly id="emailBody">${emailContent.body}</textarea>
+                <button class="btn btn-outline-secondary copy-btn" type="button" data-copy="emailBody">
+                  <i class="bi bi-clipboard"></i> Copy
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    }
+
+    generateEmailContent(request) {
+      const startDate = new Date(request.startDate);
+      const month = startDate.toLocaleDateString('en-US', {
+        month: 'long',
+        year: 'numeric',
+      });
+
+      return {
+        subject: `RVB - CREW REQUEST - ${month}`,
+        body: `Dear,\n\n${request.startDate} - ${request.type}${request.flightNumber ? ' ' + request.flightNumber : ''}${request.customMessage ? '\n\n' + request.customMessage : ''}\n\nBrgds,\n${window.currentUser?.signature || 'Your Name'}`,
+      };
+    }
+
+    getModalActions(request) {
+      let actions = '';
+
+      if (userEmailPreference === 'manual' && !request.manualEmailConfirmed) {
+        actions += `
+        <button type="button" class="btn btn-success" id="markEmailSent">
+          <i class="bi bi-check-lg me-1"></i>Mark as Sent
+        </button>
+      `;
+      }
+
+      if (request.status === 'PENDING') {
+        actions += `
+        <button type="button" class="btn btn-outline-primary me-2" id="editRequest">
+          <i class="bi bi-pencil me-1"></i>Edit
+        </button>
+        <button type="button" class="btn btn-outline-danger me-2" id="deleteRequest">
+          <i class="bi bi-trash me-1"></i>Delete
+        </button>
+      `;
+      }
+
+      actions += `
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+        <i class="bi bi-x-lg me-1"></i>Close
+      </button>
+    `;
+
+      return actions;
+    }
+
+    setupModalEventListeners(request) {
+      // Copy button functionality
+      document.querySelectorAll('.copy-btn').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          const targetId = e.currentTarget.getAttribute('data-copy');
+          const targetElement = document.getElementById(targetId);
+
+          if (targetElement) {
+            targetElement.select();
+            document.execCommand('copy');
+
+            // Visual feedback
+            const originalText = e.currentTarget.innerHTML;
+            e.currentTarget.innerHTML = '<i class="bi bi-check"></i> Copied!';
+            e.currentTarget.classList.add('btn-success');
+            e.currentTarget.classList.remove('btn-outline-secondary');
+
+            setTimeout(() => {
+              e.currentTarget.innerHTML = originalText;
+              e.currentTarget.classList.remove('btn-success');
+              e.currentTarget.classList.add('btn-outline-secondary');
+            }, 2000);
+          }
+        });
+      });
+
+      // Mark as sent functionality
+      const markSentBtn = document.getElementById('markEmailSent');
+      if (markSentBtn) {
+        markSentBtn.addEventListener('click', async () => {
+          try {
+            const response = await fetch(
+              `/api/requests/${request.id}/mark-email-sent`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+              }
+            );
+
+            const result = await response.json();
+            if (result.success) {
+              showToast('Email marked as sent!', 'success');
+
+              // Close modal and refresh calendar
+              const modal = bootstrap.Modal.getInstance(
+                document.getElementById('requestDetailModal')
+              );
+              modal.hide();
+              await loadExistingRequests();
+            } else {
+              showToast(
+                result.error || 'Failed to mark email as sent',
+                'error'
+              );
+            }
+          } catch (error) {
+            console.error('Error marking email as sent:', error);
+            showToast('Failed to mark email as sent', 'error');
+          }
+        });
+      }
+
+      // Edit and delete functionality can be added here
     }
   }
 
@@ -673,6 +1002,7 @@
 
   // Event Listeners
   document.addEventListener('DOMContentLoaded', async () => {
+    await loadUserSettings();
     await loadExistingRequests();
 
     const createBtn = document.getElementById('createRequestBtn');
