@@ -168,5 +168,101 @@ router.put('/email-preference', async (req, res) => {
     });
   }
 });
+router.put('/profile', async (req, res) => {
+  try {
+    const validation = validateProfile(req.body);
+
+    if (!validation.isValid) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        errors: validation.errors,
+      });
+    }
+
+    const { name, code, signature } = req.body;
+
+    // Check if code is already taken by another user
+    const existingUser = await User.findOne({
+      where: {
+        code: code.toUpperCase(),
+        id: { [require('sequelize').Op.ne]: req.user.id },
+      },
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        error: 'Code already taken by another user',
+      });
+    }
+
+    await req.user.update({
+      name: name.trim(),
+      code: code.toUpperCase(),
+      signature: signature.trim(),
+    });
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: req.user.toSafeObject(),
+    });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update profile',
+      message: error.message,
+    });
+  }
+});
+
+// Update preferences endpoint (MISSING ROUTE)
+router.put('/preferences', async (req, res) => {
+  try {
+    // For now, just handle app settings (theme, language, etc.)
+    // Email preferences are handled via /settings/email-preference
+    const { theme, language, notifications, autoSave } = req.body;
+
+    // Get or create user settings
+    let userSettings = await UserSetting.findOne({
+      where: { userId: req.user.id },
+    });
+
+    if (!userSettings) {
+      userSettings = await UserSetting.create({
+        userId: req.user.id,
+        theme: theme || 'light',
+        language: language || 'en',
+        notifications: notifications !== false,
+        autoSave: autoSave !== false,
+      });
+    } else {
+      await userSettings.update({
+        theme: theme || userSettings.theme,
+        language: language || userSettings.language,
+        notifications:
+          notifications !== undefined
+            ? notifications
+            : userSettings.notifications,
+        autoSave: autoSave !== undefined ? autoSave : userSettings.autoSave,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Preferences updated successfully',
+      data: userSettings,
+    });
+  } catch (error) {
+    console.error('Preferences update error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update preferences',
+      message: error.message,
+    });
+  }
+});
 
 module.exports = router;

@@ -74,15 +74,15 @@
             Request Calendar
           </h4>
           <!-- ➕ ADD Email Mode Badge -->
-          <small class="text-muted">
-            Email Mode: 
-            <span class="badge <%= user.emailPreference === 'automatic' ? 'bg-primary' : 'bg-success' %> ms-1">
-              <%= user.emailPreference === 'automatic' ? '🤖 Automatic' : '📧 Manual' %>
-            </span>
-            <a href="#" onclick="openSettingsModal(); return false;" class="ms-2" title="Change email preferences">
-              <i class="bi bi-gear"></i>
-            </a>
-          </small>
+<small class="text-muted">
+  Email Mode: 
+  <span id="headerEmailModeBadge" class="badge bg-success ms-1">
+    📧 Manual
+  </span>
+  <a href="#" onclick="openSettingsModal(); return false;" class="ms-2" title="Change email preferences">
+    <i class="bi bi-gear"></i>
+  </a>
+</small>
         </div>
        <div class="d-flex justify-content-between align-items-center mb-2">
           <h6 class="mb-0">

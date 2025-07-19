@@ -313,10 +313,18 @@
           'title',
           `${this.formatDate(date)}: ${existingRequest.type} (${existingRequest.status}) - ${emailStatus.title}${
             existingRequest.customMessage
-              ? ' - ' + existingRequest.customMessage
+              ? ' - ' + existingRequest.customMessage // ✅ Make sure this line is complete
               : ''
           }`
         );
+        const modeIndicator = document.createElement('span');
+        modeIndicator.className = 'email-mode-indicator';
+        modeIndicator.textContent =
+          existingRequest.emailMode === 'automatic' ? '🤖' : '📧';
+        modeIndicator.title = `Created in ${existingRequest.emailMode || 'manual'} email mode`;
+        modeIndicator.style.fontSize = '10px';
+        modeIndicator.style.opacity = '0.7';
+        requestElement.appendChild(modeIndicator);
 
         dayCell.appendChild(requestElement);
       }
@@ -326,9 +334,12 @@
     }
 
     // Add this helper method to CalendarManager class
+    // ✅ UPDATE: Existing getEmailStatusIcon function in CalendarManager class
     getEmailStatusIcon(request) {
-      if (userEmailPreference === 'automatic') {
-        // Automatic mode: Check actual email status
+      // Use the request's original emailMode, not the user's current preference
+      const requestEmailMode = request.emailMode || 'manual';
+
+      if (requestEmailMode === 'automatic') {
         if (request.emailSent) {
           return {
             icon: '✅',
@@ -357,10 +368,18 @@
             icon: '✅',
             title: 'User confirmed email sent',
           };
-        } else {
+        } else if (
+          request.manualEmailContent &&
+          !request.manualEmailConfirmed
+        ) {
           return {
             icon: '📧',
             title: 'Email ready to copy and send',
+          };
+        } else {
+          return {
+            icon: '⚠️',
+            title: 'Email not prepared yet',
           };
         }
       }
@@ -509,41 +528,63 @@
         existingModal.remove();
       }
 
-      const modalHTML = `
-        <div class="modal fade" id="requestDetailModal" tabindex="-1">
-          <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title">
-                  <i class="bi bi-calendar-event"></i> Request Details - ${dateStr}
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-              </div>
-              <div class="modal-body">
-                <div class="row">
-                  <div class="col-md-6">
-                    <h6><i class="bi bi-info-circle me-2"></i>Request Information</h6>
-                    <p><strong>Type:</strong> ${CONFIG.REQUEST_TYPES[request.type]}</p>
-                    <p><strong>Status:</strong> <span class="badge bg-${this.getStatusColor(request.status)}">${request.status}</span></p>
-                    <p><strong>Date Range:</strong> ${request.startDate} to ${request.endDate}</p>
-                    ${request.flightNumber ? `<p><strong>Flight:</strong> ${request.flightNumber}</p>` : ''}
-                    ${request.customMessage ? `<p><strong>Message:</strong> ${request.customMessage}</p>` : ''}
-                  </div>
-                  <div class="col-md-6">
-                    <h6><i class="bi bi-envelope me-2"></i>Email Information</h6>
-                    ${this.getEmailInfoSection(request)}
-                  </div>
-                </div>
+      // ✅ For group requests, get the full date range
+      let dateRangeDisplay;
+      if (request.groupId) {
+        // Find all requests in the same group to show full range
+        const groupRequests = existingRequests.filter(
+          (r) => r.groupId === request.groupId
+        );
+        if (groupRequests.length > 1) {
+          groupRequests.sort(
+            (a, b) => new Date(a.startDate) - new Date(b.startDate)
+          );
+          const firstDate = groupRequests[0].startDate;
+          const lastDate = groupRequests[groupRequests.length - 1].endDate;
+          dateRangeDisplay = `${firstDate} to ${lastDate} (${groupRequests.length} days)`;
+        } else {
+          dateRangeDisplay = `${request.startDate} to ${request.endDate}`;
+        }
+      } else {
+        dateRangeDisplay = `${request.startDate} to ${request.endDate}`;
+      }
 
-               ${this.getManualEmailSection(request)}
+      const modalHTML = `
+    <div class="modal fade" id="requestDetailModal" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <i class="bi bi-calendar-event"></i> Request Details - ${dateStr}
+              ${request.groupId ? ' <span class="badge bg-info">Group Request</span>' : ''}
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row">
+              <div class="col-md-6">
+                <h6><i class="bi bi-info-circle me-2"></i>Request Information</h6>
+                <p><strong>Type:</strong> ${CONFIG.REQUEST_TYPES[request.type]}</p>
+                <p><strong>Status:</strong> <span class="badge bg-${this.getStatusColor(request.status)}">${request.status}</span></p>
+                <p><strong>Date Range:</strong> ${dateRangeDisplay}</p>
+                ${request.flightNumber ? `<p><strong>Flight:</strong> ${request.flightNumber}</p>` : ''}
+                ${request.customMessage ? `<p><strong>Message:</strong> ${request.customMessage}</p>` : ''}
               </div>
-              <div class="modal-footer">
-                ${this.getModalActions(request)}
+              <div class="col-md-6">
+                <h6><i class="bi bi-envelope me-2"></i>Email Information</h6>
+                ${this.getEmailInfoSection(request)}
               </div>
             </div>
+
+           ${this.getManualEmailSection(request)}
+          </div>
+          <div class="modal-footer">
+            ${this.getModalActions(request)}
           </div>
         </div>
-      `;
+      </div>
+    </div>
+  `;
 
       document.body.insertAdjacentHTML('beforeend', modalHTML);
       const modal = new bootstrap.Modal(
@@ -569,18 +610,21 @@
     getEmailInfoSection(request) {
       const emailStatus = this.getEmailStatusIcon(request);
 
-      if (userEmailPreference === 'automatic') {
+      // ✅ Use userEmailPreference (current user setting) instead of request.emailMode
+      const currentEmailMode = userEmailPreference || 'manual';
+
+      if (currentEmailMode === 'automatic') {
         return `
-          <p><strong>Email Mode:</strong> Automatic</p>
-          <p><strong>Status:</strong> ${emailStatus.icon} ${emailStatus.title}</p>
-          ${request.emailSent ? `<p><strong>Sent:</strong> ${new Date(request.emailSent).toLocaleString()}</p>` : ''}
-        `;
+      <p><strong>Email Mode:</strong> Automatic</p>
+      <p><strong>Status:</strong> ${emailStatus.icon} ${emailStatus.title}</p>
+      ${request.emailSent ? `<p><strong>Sent:</strong> ${new Date(request.emailSent).toLocaleString()}</p>` : ''}
+    `;
       } else {
         return `
-          <p><strong>Email Mode:</strong> Manual</p>
-          <p><strong>Status:</strong> ${emailStatus.icon} ${emailStatus.title}</p>
-          ${request.manualEmailConfirmed ? `<p><strong>Confirmed Sent:</strong> Yes</p>` : ''}
-        `;
+      <p><strong>Email Mode:</strong> Manual</p>
+      <p><strong>Status:</strong> ${emailStatus.icon} ${emailStatus.title}</p>
+      ${request.manualEmailConfirmed ? `<p><strong>Confirmed Sent:</strong> Yes</p>` : ''}
+    `;
       }
     }
 
@@ -592,58 +636,130 @@
       // If email already marked as sent, don't show email content section
       if (request.manualEmailConfirmed) {
         return `
-        <div class="mt-4">
-          <div class="alert alert-success">
-            <i class="bi bi-check-circle me-2"></i>
-            <strong>Email Confirmed Sent</strong><br>
-            You have already confirmed that this email was sent manually.
-          </div>
-        </div>
-      `;
+    <div class="mt-4">
+      <div class="alert alert-success">
+        <i class="bi bi-check-circle me-2"></i>
+        <strong>Email Confirmed Sent</strong><br>
+        You have already confirmed that this email was sent manually.
+      </div>
+    </div>
+  `;
       }
 
-      // Auto-generate email content for copying
-      const emailContent = this.generateEmailContent(request);
+      // ✅ Generate email content (works for both single and group requests)
+      let emailContent;
+      if (request.groupId) {
+        // For group requests, generate group email content
+        emailContent = this.generateGroupEmailContent(request);
+      } else {
+        // For single requests, use existing function
+        emailContent = this.generateEmailContent(request);
+      }
 
       return `
-      <div class="mt-4">
-        <h6>
-          <i class="bi bi-envelope-plus me-2"></i>
-          Email Content to Copy ${request.groupId ? '(Group Request)' : ''}
-        </h6>
-        <div class="card bg-light">
-          <div class="card-body">
-            <div class="email-field mb-2">
-              <label class="fw-bold">To:</label>
-              <div class="input-group input-group-sm">
-                <input type="text" class="form-control" value="scheduling@tuifly.be" readonly id="emailTo">
-                <button class="btn btn-outline-secondary copy-btn" type="button" data-copy="emailTo">
-                  <i class="bi bi-clipboard"></i> Copy
-                </button>
-              </div>
-            </div>
-            <div class="email-field mb-2">
-              <label class="fw-bold">Subject:</label>
-              <div class="input-group input-group-sm">
-                <input type="text" class="form-control" value="${emailContent.subject}" readonly id="emailSubject">
-                <button class="btn btn-outline-secondary copy-btn" type="button" data-copy="emailSubject">
-                  <i class="bi bi-clipboard"></i> Copy
-                </button>
-              </div>
-            </div>
-            <div class="email-field mb-2">
-              <label class="fw-bold">Body:</label>
-              <div class="input-group">
-                <textarea class="form-control" rows="8" readonly id="emailBody">${emailContent.body}</textarea>
-                <button class="btn btn-outline-secondary copy-btn" type="button" data-copy="emailBody">
-                  <i class="bi bi-clipboard"></i> Copy
-                </button>
-              </div>
-            </div>
+  <div class="mt-4">
+    <h6>
+      <i class="bi bi-envelope-plus me-2"></i>
+      Email Content to Copy ${request.groupId ? '(Group Request)' : ''}
+    </h6>
+    <div class="card bg-light">
+      <div class="card-body">
+        <div class="email-field mb-2">
+          <label class="fw-bold">To:</label>
+          <div class="input-group input-group-sm">
+            <input type="text" class="form-control" value="scheduling@tuifly.be" readonly id="emailTo">
+            <button class="btn btn-outline-secondary copy-btn" type="button" onclick="copyToClipboard('emailTo')">
+              <i class="bi bi-clipboard"></i> Copy
+            </button>
           </div>
         </div>
+        <div class="email-field mb-2">
+          <label class="fw-bold">Subject:</label>
+          <div class="input-group input-group-sm">
+            <input type="text" class="form-control" value="${emailContent.subject}" readonly id="emailSubject">
+            <button class="btn btn-outline-secondary copy-btn" type="button" onclick="copyToClipboard('emailSubject')">
+              <i class="bi bi-clipboard"></i> Copy
+            </button>
+          </div>
+        </div>
+        <div class="email-field mb-3">
+          <label class="fw-bold">Body:</label>
+          <div class="input-group">
+            <textarea class="form-control" rows="8" readonly id="emailBody">${emailContent.body}</textarea>
+            <button class="btn btn-outline-secondary copy-btn" type="button" onclick="copyToClipboard('emailBody')">
+              <i class="bi bi-clipboard"></i> Copy
+            </button>
+          </div>
+        </div>
+        
+        <div class="text-center">
+          <button class="btn btn-success" onclick="markEmailAsSent(${request.id})">
+            <i class="bi bi-check-circle me-1"></i>Mark as Sent
+          </button>
+        </div>
       </div>
-    `;
+    </div>
+  </div>
+`;
+    }
+    generateGroupEmailContent(request) {
+      // Get all requests in the same group
+      const groupRequests = existingRequests.filter(
+        (r) => r.groupId === request.groupId
+      );
+      groupRequests.sort(
+        (a, b) => new Date(a.startDate) - new Date(b.startDate)
+      );
+
+      const firstDate = new Date(groupRequests[0].startDate);
+      const month = firstDate.toLocaleDateString('en-US', {
+        month: 'long',
+        year: 'numeric',
+      });
+
+      // Build the email body
+      let bodyLines = ['Dear,', ''];
+
+      groupRequests.forEach((req) => {
+        let line = `${req.startDate} - `;
+
+        // Convert type to display format
+        switch (req.type) {
+          case 'REQ_DO':
+            line += 'REQ DO';
+            break;
+          case 'PM_OFF':
+            line += 'PM OFF';
+            break;
+          case 'AM_OFF':
+            line += 'AM OFF';
+            break;
+          case 'FLIGHT':
+            line += 'FLIGHT';
+            break;
+          default:
+            line += req.type;
+        }
+
+        if (req.flightNumber) {
+          line += ` ${req.flightNumber}`;
+        }
+        bodyLines.push(line);
+      });
+
+      if (request.customMessage) {
+        bodyLines.push('');
+        bodyLines.push(request.customMessage);
+        bodyLines.push(''); // Extra line break after custom message
+      }
+
+      bodyLines.push('');
+      bodyLines.push(window.currentUserData?.signature || 'Brgds,\nYour Name');
+
+      return {
+        subject: `${window.currentUserData?.code || 'RVB'} - CREW REQUEST - ${month}`,
+        body: bodyLines.join('\n'),
+      };
     }
 
     generateEmailContent(request) {
@@ -688,6 +804,7 @@
       if (request.customMessage) {
         bodyLines.push('');
         bodyLines.push(request.customMessage);
+        bodyLines.push(''); // ✅ ADD THIS: Additional line break after custom message
       }
 
       // 🔥 FIX: Add signature WITHOUT extra "Brgds" prefix
@@ -706,7 +823,7 @@
       // Mark as sent button (only for manual mode and not yet confirmed)
       if (userEmailPreference === 'manual' && !request.manualEmailConfirmed) {
         actions += `
-      <button type="button" class="btn btn-success" id="markEmailSent">
+      <button type="button" class="btn btn-success" onclick="markEmailAsSent(${request.id})">
         <i class="bi bi-check-lg me-1"></i>Mark as Sent
       </button>
     `;
@@ -715,22 +832,26 @@
       // Resend button (only for automatic mode and email failed)
       if (userEmailPreference === 'automatic' && request.emailFailed) {
         actions += `
-      <button type="button" class="btn btn-warning me-2" id="resendEmail">
+      <button type="button" class="btn btn-warning me-2" onclick="resendEmail(${request.id})">
         <i class="bi bi-arrow-repeat me-1"></i>Resend Email
       </button>
     `;
       }
 
-      // 🔥 FIX: Delete button - only show if request is pending AND email not sent
+      // Delete button - only show if request is pending AND email not sent
       const canDelete =
         request.status === 'PENDING' &&
         ((userEmailPreference === 'automatic' && !request.emailSent) ||
           (userEmailPreference === 'manual' && !request.manualEmailConfirmed));
 
       if (canDelete) {
+        // ✅ Use proper onclick with group detection
+        const isGroup = request.groupId ? true : false;
+        const deleteText = isGroup ? 'Delete Group' : 'Delete';
+
         actions += `
-      <button type="button" class="btn btn-outline-danger me-2" id="deleteRequest">
-        <i class="bi bi-trash me-1"></i>Delete
+      <button type="button" class="btn btn-outline-danger me-2" onclick="deleteRequest(${request.id}, ${isGroup})">
+        <i class="bi bi-trash me-1"></i>${deleteText}
       </button>
     `;
       }
@@ -937,6 +1058,36 @@
 
   // Initialize calendar
   const calendar = new CalendarManager();
+  window.updateDateType = function (index, newType) {
+    // Update the selectedDates array
+    selectedDates[index].type = newType;
+
+    // Show/hide flight number input based on selection
+    const flightInput = document.querySelector(`input[data-index="${index}"]`);
+    if (flightInput) {
+      if (newType === 'FLIGHT') {
+        flightInput.style.display = 'block';
+        flightInput.required = true;
+        flightInput.focus();
+      } else {
+        flightInput.style.display = 'none';
+        flightInput.required = false;
+        flightInput.value = '';
+        selectedDates[index].flightNumber = '';
+      }
+    }
+
+    // ✅ UPDATE PREVIEW IMMEDIATELY
+    updateRequestPreview();
+  };
+
+  window.updateFlightNumber = function (index, flightNumber) {
+    // Update the selectedDates array
+    selectedDates[index].flightNumber = flightNumber;
+
+    // ✅ UPDATE PREVIEW IMMEDIATELY
+    updateRequestPreview();
+  };
   window.updateRequestPreview = function () {
     const requestLinesContainer = document.getElementById('requestLines');
     const emailSubjectElement = document.getElementById('emailSubject');
@@ -947,86 +1098,183 @@
 
     if (!requestLinesContainer || !emailSubjectElement) return;
 
-    // Clear existing content
-    requestLinesContainer.innerHTML = '';
+    // ✅ FIX: Generate proper request lines from selected dates
+    if (selectedDates && selectedDates.length > 0) {
+      const requestLines = selectedDates
+        .map((dateInfo) => {
+          const formattedDate = formatDateForEmail(new Date(dateInfo.date));
 
-    if (selectedDates.length === 0) {
+          switch (dateInfo.type) {
+            case 'REQ_DO':
+              return `REQ DO - ${formattedDate}`;
+            case 'PM_OFF':
+              return `REQ PM OFF - ${formattedDate}`;
+            case 'AM_OFF':
+              return `REQ AM OFF - ${formattedDate}`;
+            case 'FLIGHT':
+              return `REQ FLIGHT ${dateInfo.flightNumber || '[NUMBER]'} - ${formattedDate}`; // ✅ FIXED: REQ FLIGHT
+            default:
+              return `${dateInfo.type} - ${formattedDate}`;
+          }
+        })
+        .join('<br>');
+
+      requestLinesContainer.innerHTML = requestLines;
+    } else {
       requestLinesContainer.innerHTML =
-        '<em class="text-muted">No dates selected</em>';
-      return;
+        '<em class="text-muted">Please fill in the required fields</em>';
     }
 
-    // Generate request lines for each selected date
-    selectedDates.forEach((dateObj) => {
-      const date = new Date(dateObj.date);
-      const formattedDate = date.toLocaleDateString('en-CA'); // YYYY-MM-DD format
-
-      // Convert type to display format
-      let displayType = '';
-      switch (dateObj.type) {
-        case 'REQ_DO':
-          displayType = 'REQ DO';
-          break;
-        case 'PM_OFF':
-          displayType = 'PM OFF';
-          break;
-        case 'AM_OFF':
-          displayType = 'AM OFF';
-          break;
-        case 'FLIGHT':
-          displayType = 'FLIGHT';
-          break;
-        default:
-          displayType = dateObj.type;
-      }
-
-      // Build the line
-      let requestLine = `${formattedDate} - ${displayType}`;
-      if (dateObj.flightNumber) {
-        requestLine += ` ${dateObj.flightNumber}`;
-      }
-
-      // Create the line element
-      const lineElement = document.createElement('p');
-      lineElement.className = 'mb-1';
-      lineElement.textContent = requestLine;
-      requestLinesContainer.appendChild(lineElement);
-    });
-
-    // Update subject with dynamic month
-    if (selectedDates.length > 0) {
+    // ✅ FIX: Generate proper subject with correct format
+    if (selectedDates && selectedDates.length > 0) {
       const firstDate = new Date(selectedDates[0].date);
-      const month = firstDate.toLocaleDateString('en-US', {
-        month: 'long',
-        year: 'numeric',
-      });
-      const userCode = window.currentUserData?.code || 'RVB';
-      emailSubjectElement.textContent = `${userCode} - CREW REQUEST - ${month}`;
+      const monthNames = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+      ];
+      const monthName = monthNames[firstDate.getMonth()];
+      const year = firstDate.getFullYear();
+      const userCode =
+        window.currentUserData?.code ||
+        window.TUIFLY_CONFIG?.EMPLOYEE_CODE ||
+        'XXX';
+
+      emailSubjectElement.textContent = `${userCode} - CREW REQUEST - ${monthName} ${year}`;
     }
 
-    // Update custom message preview
+    // ✅ FIX: Update custom message preview
     const customMessage = document.getElementById('customMessage');
+    const customMessageSpacer = document.getElementById('customMessageSpacer');
+
     if (customMessage && customMessagePreview) {
       if (customMessage.value.trim()) {
         customMessagePreview.textContent = customMessage.value;
         customMessagePreview.style.display = 'block';
+
+        // ✅ Show spacer to create line break after custom message
+        if (customMessageSpacer) {
+          customMessageSpacer.style.display = 'block';
+        }
       } else {
         customMessagePreview.style.display = 'none';
+
+        // Hide spacer when no custom message
+        if (customMessageSpacer) {
+          customMessageSpacer.style.display = 'none';
+        }
       }
     }
 
-    // Update signature (remove duplicate "Brgds")
-    if (userSignatureElement && window.currentUserData?.signature) {
-      // Just use the signature as-is (it already contains "Brgds")
-      userSignatureElement.innerHTML = window.currentUserData.signature.replace(
-        /\n/g,
-        '<br>'
-      );
-    } else {
-      // Fallback if no signature loaded
-      userSignatureElement.innerHTML = 'Brgds,<br>Your Name';
+    // ✅ FIX: Update signature properly
+    if (userSignatureElement) {
+      const signature =
+        window.currentUserData?.signature ||
+        window.TUIFLY_CONFIG?.EMPLOYEE_SIGNATURE ||
+        `Brgds,\n${window.currentUserData?.name || window.TUIFLY_CONFIG?.EMPLOYEE_NAME || 'Unknown'}`;
+
+      userSignatureElement.innerHTML = `<br><br>${signature.replace(/\n/g, '<br>')}`;
     }
   };
+
+  // ✅ ADD: Helper function to format dates properly
+  function formatDateForEmail(date) {
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
+  // ✅ CENTRALIZED EMAIL GENERATION (matches gmailService.js)
+  function generateEmailContentLikeGmailService(user, requests) {
+    const firstRequest = requests[0];
+    const startDate = new Date(firstRequest.startDate);
+
+    // Generate subject (matches gmailService)
+    const monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    const monthName = monthNames[startDate.getMonth()];
+    const year = startDate.getFullYear();
+    const subject = `${user.code} - CREW REQUEST - ${monthName} ${year}`;
+
+    // Generate request lines (matches gmailService format)
+    const requestLines = requests
+      .map((request) => {
+        const start = new Date(request.startDate);
+        const end = new Date(request.endDate);
+        const dates = [];
+
+        // Generate all dates in range
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          dates.push(new Date(d));
+        }
+
+        return dates
+          .map((date) => {
+            const formattedDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+
+            switch (request.type) {
+              case 'REQ_DO':
+                return `REQ DO - ${formattedDate}`;
+              case 'PM_OFF':
+                return `REQ PM OFF - ${formattedDate}`;
+              case 'AM_OFF':
+                return `REQ AM OFF - ${formattedDate}`;
+              case 'FLIGHT':
+                return `FLIGHT ${request.flightNumber || ''} - ${formattedDate}`;
+              default:
+                return `${request.type} - ${formattedDate}`;
+            }
+          })
+          .join('\n');
+      })
+      .join('\n');
+
+    return {
+      subject: subject,
+      requestLines: requestLines,
+      body: `Dear,\n\n${requestLines}${firstRequest.customMessage ? '\n\n' + firstRequest.customMessage : ''}\n\n${user.signature}`,
+    };
+  }
+
+  // ✅ ADD DYNAMIC UPDATE EVENT LISTENERS
+  document.addEventListener('DOMContentLoaded', function () {
+    const fieldsToWatch = [
+      'startDate',
+      'endDate',
+      'type',
+      'flightNumber',
+      'customMessage',
+    ];
+    fieldsToWatch.forEach((fieldId) => {
+      const field = document.getElementById(fieldId);
+      if (field) {
+        field.addEventListener('change', updateRequestPreview);
+        field.addEventListener('input', updateRequestPreview);
+      }
+    });
+  });
   window.loadGroupEmailContent = async function (requestId) {
     try {
       const response = await fetch(
@@ -1146,60 +1394,101 @@
     const bootstrapModal = new bootstrap.Modal(modal);
     bootstrapModal.show();
 
-    // Initialize email preview after modal is visible
+    // ✅ Initialize email preview and add dynamic listeners after modal is visible
     setTimeout(() => {
-      updateRequestPreview();
-    }, 150);
+      updateRequestPreview(); // Initial preview
+      addDynamicPreviewListeners(); // Add change listeners
+    }, 200); // Increased timeout to ensure elements are ready
+  }
+
+  function addDynamicPreviewListeners() {
+    // Find all the date type dropdowns and flight number inputs
+    const dateInputs = document.querySelectorAll(
+      'select[id^="dateType_"], input[id^="flightNumber_"]'
+    );
+
+    dateInputs.forEach((input) => {
+      input.addEventListener('change', function () {
+        // Update the selectedDates array with the new values
+        updateSelectedDatesFromInputs();
+        // Trigger preview update
+        updateRequestPreview();
+      });
+    });
+
+    // Also listen to custom message changes
+    const customMessageInput = document.getElementById('customMessage');
+    if (customMessageInput) {
+      customMessageInput.addEventListener('input', function () {
+        updateRequestPreview();
+      });
+    }
+  }
+
+  // ✅ ADD: Function to update selectedDates array from current input values
+  function updateSelectedDatesFromInputs() {
+    selectedDates.forEach((dateInfo, index) => {
+      const typeSelect = document.getElementById(`dateType_${index}`);
+      const flightInput = document.getElementById(`flightNumber_${index}`);
+
+      if (typeSelect) {
+        dateInfo.type = typeSelect.value;
+      }
+
+      if (flightInput && dateInfo.type === 'FLIGHT') {
+        dateInfo.flightNumber = flightInput.value;
+      }
+    });
   }
 
   function createGroupRequestModal() {
     const modalHTML = `
-      <div class="modal fade" id="groupRequestModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title">
-                <i class="bi bi-calendar-plus"></i> Create Time-Off Request
-              </h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-              <form id="groupRequestForm">
-                <div class="mb-3">
-                  <label class="form-label">Selected Dates</label>
-                  <div id="selectedDatesList" class="border rounded p-3 bg-light">
-                    <!-- Dates will be populated here -->
+        <div class="modal fade" id="groupRequestModal" tabindex="-1">
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">
+                  <i class="bi bi-calendar-plus"></i> Create Time-Off Request
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <form id="groupRequestForm">
+                  <div class="mb-3">
+                    <label class="form-label">Selected Dates</label>
+                    <div id="selectedDatesList" class="border rounded p-3 bg-light">
+                      <!-- Dates will be populated here -->
+                    </div>
                   </div>
-                </div>
 
-                <div class="mb-3">
-                  <label for="customMessage" class="form-label">Custom Message (Optional)</label>
-                  <textarea
-                    class="form-control"
-                    id="customMessage"
-                    rows="3"
-                    placeholder="Additional information or reason for time-off...">
-                  </textarea>
-                </div>
+                  <div class="mb-3">
+                    <label for="customMessage" class="form-label">Custom Message (Optional)</label>
+                    <textarea
+                      class="form-control"
+                      id="customMessage"
+                      rows="3"
+                      placeholder="Additional information or reason for time-off...">
+                    </textarea>
+                  </div>
 
-                <div class="alert alert-info">
-                  <i class="bi bi-info-circle me-2"></i>
-                  <small>
-                    Request will be sent to scheduling@tuifly.be for approval.
-                  </small>
-                </div>
-              </form>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-              <button type="button" class="btn btn-primary" id="submitGroupRequest">
-                <i class="bi bi-send me-1"></i>Submit Request
-              </button>
+                  <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <small>
+                      Request will be sent to scheduling@tuifly.be for approval.
+                    </small>
+                  </div>
+                </form>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="submitGroupRequest">
+                  <i class="bi bi-send me-1"></i>Submit Request
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
     document.body.insertAdjacentHTML('beforeend', modalHTML);
   }
 
@@ -1221,29 +1510,31 @@
       const isFlightType = dateObj.type === 'FLIGHT';
 
       dateRow.innerHTML = `
-          <div class="col-md-6">
-            <span class="fw-bold">${dateStr}</span>
-          </div>
-          <div class="col-md-4">
-            <select class="form-select form-select-sm" onchange="updateDateType(${index}, this.value)">
-              <option value="REQ_DO" ${dateObj.type === 'REQ_DO' ? 'selected' : ''}>Full Day Off</option>
-              <option value="PM_OFF" ${dateObj.type === 'PM_OFF' ? 'selected' : ''}>PM Off</option>
-              <option value="AM_OFF" ${dateObj.type === 'AM_OFF' ? 'selected' : ''}>AM Off</option>
-              <option value="FLIGHT" ${dateObj.type === 'FLIGHT' ? 'selected' : ''}>Flight</option>
-            </select>
-          </div>
-          <div class="col-md-2">
-            <input
-              type="text"
-              class="form-control form-control-sm"
-              placeholder="TB###"
-              value="${dateObj.flightNumber || ''}"
-              ${isFlightType ? '' : 'style="display:none;" disabled'}
-              onchange="updateFlightNumber(${index}, this.value)"
-              id="flight-${index}"
-            />
-          </div>
-        `;
+  <div class="col-md-6">
+    <span class="fw-bold">${dateStr}</span>
+  </div>
+  <div class="col-md-4">
+    <select class="form-select form-select-sm" onchange="updateDateType(${index}, this.value)">
+      <option value="REQ_DO" ${dateObj.type === 'REQ_DO' ? 'selected' : ''}>Full Day Off</option>
+      <option value="PM_OFF" ${dateObj.type === 'PM_OFF' ? 'selected' : ''}>PM Off</option>
+      <option value="AM_OFF" ${dateObj.type === 'AM_OFF' ? 'selected' : ''}>AM Off</option>
+      <option value="FLIGHT" ${dateObj.type === 'FLIGHT' ? 'selected' : ''}>Flight</option>
+    </select>
+  </div>
+  <div class="col-md-2">
+    <input 
+      type="text" 
+      class="form-control form-control-sm" 
+      placeholder="Flight#"
+      data-index="${index}"
+      value="${dateObj.flightNumber || ''}"
+      onchange="updateFlightNumber(${index}, this.value)"
+      oninput="updateFlightNumber(${index}, this.value)"
+      style="display: ${isFlightType ? 'block' : 'none'}"
+      ${isFlightType ? 'required' : ''}
+    />
+  </div>
+`;
 
       container.appendChild(dateRow);
     });
@@ -1338,7 +1629,15 @@
   document.addEventListener('DOMContentLoaded', async () => {
     await loadUserDataAndSettings();
     await loadExistingRequests();
-
+    try {
+      const response = await fetch('/settings/email-preference');
+      const data = await response.json();
+      if (data.success && typeof loadEmailPreferences === 'function') {
+        loadEmailPreferences(data.data);
+      }
+    } catch (error) {
+      console.log('Could not load email preferences for header badge');
+    }
     const createBtn = document.getElementById('createRequestBtn');
     if (createBtn && !createBtn.hasAttribute('data-listener-added')) {
       createBtn.addEventListener('click', openGroupRequestModal);
@@ -1397,13 +1696,13 @@
             : 'bg-info';
 
     const toastHTML = `
-        <div id="${toastId}" class="toast ${bgClass} text-white" role="alert">
-          <div class="d-flex">
-            <div class="toast-body">${message}</div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+          <div id="${toastId}" class="toast ${bgClass} text-white" role="alert">
+            <div class="d-flex">
+              <div class="toast-body">${message}</div>
+              <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
           </div>
-        </div>
-      `;
+        `;
 
     toastContainer.insertAdjacentHTML('beforeend', toastHTML);
 
@@ -1418,20 +1717,6 @@
       toastElement.remove();
     });
   }
-  function getEmailStatusIcon(request) {
-    // Determine email status based on request data
-    if (request.emailMode === 'automatic') {
-      if (request.emailSent) return '✅'; // Sent successfully
-      if (request.emailSent === false) return '❌'; // Failed to send
-      return '🔄'; // Sending in progress
-    } else if (request.emailMode === 'manual') {
-      if (request.manualEmailConfirmed) return '✅'; // User confirmed sent
-      if (request.manualEmailContent) return '📧'; // Ready to copy
-      return '⚠️'; // Not sent yet
-    }
-    return '❓'; // Unknown status
-  }
-
   function getEmailStatusTooltip(request) {
     const status = getEmailStatusIcon(request);
     const tooltipMap = {
@@ -1452,27 +1737,27 @@
   function showRequestDetailModal(request) {
     // Create modal HTML
     const modalHTML = `
-      <div class="modal fade" id="requestDetailModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title">
-                <i class="bi bi-calendar-event text-primary"></i>
-                Request Details
-              </h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-              ${generateRequestDetailContent(request)}
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-              ${generateModalActionButtons(request)}
+        <div class="modal fade" id="requestDetailModal" tabindex="-1">
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">
+                  <i class="bi bi-calendar-event text-primary"></i>
+                  Request Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                ${generateRequestDetailContent(request)}
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                ${generateModalActionButtons(request)}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
 
     // Remove existing modal if present
     const existingModal = document.getElementById('requestDetailModal');
@@ -1485,12 +1770,30 @@
 
     // Show modal
     const modal = new bootstrap.Modal(
-      document.getElementById('requestDetailModal')
+      document.getElementById('requestDetailModal'),
+      {
+        backdrop: 'static',
+        keyboard: true,
+        focus: true,
+      }
     );
-    modal.show();
+    const modalElement = document.getElementById('requestDetailModal');
 
-    // Add event listeners for modal actions
-    attachModalEventListeners(request);
+    modalElement.addEventListener('shown.bs.modal', function () {
+      this.removeAttribute('aria-hidden');
+      // Focus the first focusable element
+      const firstFocusable = this.querySelector(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (firstFocusable) firstFocusable.focus();
+    });
+
+    modalElement.addEventListener('hidden.bs.modal', function () {
+      this.setAttribute('aria-hidden', 'true');
+      this.remove();
+    });
+
+    modal.show();
   }
 
   function generateRequestDetailContent(request) {
@@ -1498,123 +1801,125 @@
     const emailStatusTooltip = getEmailStatusTooltip(request);
 
     return `
-      <div class="row">
-        <div class="col-md-6">
-          <h6><i class="bi bi-info-circle text-info"></i> Request Information</h6>
-          <table class="table table-sm">
-            <tr>
-              <td><strong>Type:</strong></td>
-              <td><span class="badge bg-primary">${request.type}</span></td>
-            </tr>
-            <tr>
-              <td><strong>Start Date:</strong></td>
-              <td>${formatDisplayDate(request.startDate)}</td>
-            </tr>
-            <tr>
-              <td><strong>End Date:</strong></td>
-              <td>${formatDisplayDate(request.endDate)}</td>
-            </tr>
-            <tr>
-              <td><strong>Status:</strong></td>
-              <td><span class="badge bg-${getStatusColor(request.status)}">${request.status}</span></td>
-            </tr>
-            ${
-              request.flightNumber
-                ? `
-            <tr>
-              <td><strong>Flight Number:</strong></td>
-              <td>${request.flightNumber}</td>
-            </tr>
-            `
-                : ''
-            }
-            ${
-              request.customMessage
-                ? `
-            <tr>
-              <td><strong>Message:</strong></td>
-              <td>${request.customMessage}</td>
-            </tr>
-            `
-                : ''
-            }
-          </table>
-        </div>
+        <div class="row">
+          <div class="col-md-6">
+            <h6><i class="bi bi-info-circle text-info"></i> Request Information</h6>
+            <table class="table table-sm">
+              <tr>
+                <td><strong>Type:</strong></td>
+                <td><span class="badge bg-primary">${request.type}</span></td>
+              </tr>
+              <tr>
+                <td><strong>Start Date:</strong></td>
+                <td>${formatDisplayDate(request.startDate)}</td>
+              </tr>
+              <tr>
+                <td><strong>End Date:</strong></td>
+                <td>${formatDisplayDate(request.endDate)}</td>
+              </tr>
+              <tr>
+                <td><strong>Status:</strong></td>
+                <td><span class="badge bg-${getStatusColor(request.status)}">${request.status}</span></td>
+              </tr>
+              ${
+                request.flightNumber
+                  ? `
+              <tr>
+                <td><strong>Flight Number:</strong></td>
+                <td>${request.flightNumber}</td>
+              </tr>
+              `
+                  : ''
+              }
+              ${
+                request.customMessage
+                  ? `
+              <tr>
+                <td><strong>Message:</strong></td>
+                <td>${request.customMessage}</td>
+              </tr>
+              `
+                  : ''
+              }
+            </table>
+          </div>
 
-        <div class="col-md-6">
-          <h6><i class="bi bi-envelope text-warning"></i> Email Status</h6>
-          <div class="card bg-light">
-            <div class="card-body">
-              <div class="d-flex align-items-center mb-2">
-                <span class="fs-4 me-2">${emailStatusIcon}</span>
-                <div>
-                  <strong>${emailStatusTooltip}</strong><br>
-                  <small class="text-muted">Mode: ${request.emailMode || 'Unknown'}</small>
+          <div class="col-md-6">
+            <h6><i class="bi bi-envelope text-warning"></i> Email Status</h6>
+            <div class="card bg-light">
+              <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                  <span class="fs-4 me-2">${emailStatusIcon}</span>
+                  <div>
+                    <strong>${emailStatusTooltip}</strong><br>
+                    <small class="text-muted">Mode: ${request.emailMode || 'Unknown'}</small>
+                  </div>
                 </div>
-              </div>
 
-              ${generateEmailActionSection(request)}
+                ${generateEmailActionSection(request)}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
   }
 
   function generateEmailActionSection(request) {
-    if (
-      request.emailMode === 'manual' &&
-      request.manualEmailContent &&
-      !request.manualEmailConfirmed
-    ) {
-      return `
-        <div class="mt-3">
-          <h6>📧 Email Content Ready to Copy</h6>
-          <div class="email-copy-section">
-            <div class="mb-2">
-              <label class="fw-bold">To:</label>
-              <div class="input-group input-group-sm">
-                <input type="text" class="form-control" readonly value="${request.manualEmailContent.to}" id="emailTo">
-                <button class="btn btn-outline-secondary" onclick="copyToClipboard('emailTo')" title="Copy">
-                  <i class="bi bi-clipboard"></i>
-                </button>
-              </div>
-            </div>
+    const requestEmailMode = request.emailMode || 'manual';
+    const userCurrentMode = window.currentEmailPreference || 'manual';
 
-            <div class="mb-2">
-              <label class="fw-bold">Subject:</label>
-              <div class="input-group input-group-sm">
-                <input type="text" class="form-control" readonly value="${request.manualEmailContent.subject}" id="emailSubject">
-                <button class="btn btn-outline-secondary" onclick="copyToClipboard('emailSubject')" title="Copy">
-                  <i class="bi bi-clipboard"></i>
-                </button>
-              </div>
+    if (requestEmailMode === 'manual') {
+      // This request was created in manual mode
+      if (request.manualEmailContent && !request.manualEmailConfirmed) {
+        return `
+          <div class="mt-3">
+            <div class="alert alert-info">
+              <small><strong>Manual Email Mode:</strong> This request was created in manual mode.</small>
             </div>
-
-            <div class="mb-3">
-              <label class="fw-bold">Body:</label>
-              <div class="input-group">
-                <textarea class="form-control" readonly rows="4" id="emailBody">${request.manualEmailContent.body}</textarea>
-                <button class="btn btn-outline-secondary" onclick="copyToClipboard('emailBody')" title="Copy">
-                  <i class="bi bi-clipboard"></i>
-                </button>
-              </div>
+            <h6>📧 Email Content Ready to Copy</h6>
+            <div class="email-copy-section">
+              <!-- Email copy interface -->
+              <button class="btn btn-success btn-sm" onclick="markEmailAsSent(${request.id})">
+                ✅ Mark as Sent
+              </button>
             </div>
-
-            <button class="btn btn-success btn-sm" onclick="markEmailAsSent(${request.id})">
-              <i class="bi bi-check-circle"></i> Mark as Sent
-            </button>
           </div>
-        </div>
-      `;
-    } else if (request.emailMode === 'automatic' && !request.emailSent) {
-      return `
-        <div class="mt-3">
-          <button class="btn btn-primary btn-sm" onclick="retryEmailSend(${request.id})">
-            <i class="bi bi-arrow-clockwise"></i> Retry Send
-          </button>
-        </div>
-      `;
+        `;
+      } else if (request.manualEmailConfirmed) {
+        return `
+          <div class="mt-3">
+            <div class="alert alert-success">
+              <small><strong>Manual Email:</strong> You confirmed this email was sent manually.</small>
+            </div>
+          </div>
+        `;
+      }
+    } else if (requestEmailMode === 'automatic') {
+      // This request was created in automatic mode
+      if (request.emailSent) {
+        return `
+          <div class="mt-3">
+            <div class="alert alert-success">
+              <small><strong>Automatic Email:</strong> Email was sent automatically on ${new Date(request.emailSent).toLocaleString()}.</small>
+            </div>
+          </div>
+        `;
+      } else if (request.emailFailed) {
+        return `
+          <div class="mt-3">
+            <div class="alert alert-danger">
+              <small><strong>Automatic Email Failed:</strong> ${request.emailFailedReason || 'Unknown error'}</small>
+            </div>
+            ${
+              userCurrentMode === 'automatic'
+                ? `<button class="btn btn-primary btn-sm" onclick="retryEmailSend(${request.id})">
+                🔄 Retry Send
+              </button>`
+                : `<small class="text-muted">Switch to automatic mode in settings to retry sending.</small>`
+            }
+          </div>
+        `;
+      }
     }
 
     return '';
@@ -1625,13 +1930,13 @@
 
     if (request.status === 'PENDING') {
       buttons += `
-        <button type="button" class="btn btn-success" onclick="updateRequestStatus(${request.id}, 'APPROVED')">
-          <i class="bi bi-check-circle"></i> Mark Approved
-        </button>
-        <button type="button" class="btn btn-danger" onclick="updateRequestStatus(${request.id}, 'DENIED')">
-          <i class="bi bi-x-circle"></i> Mark Denied
-        </button>
-      `;
+          <button type="button" class="btn btn-success" onclick="updateRequestStatus(${request.id}, 'APPROVED')">
+            <i class="bi bi-check-circle"></i> Mark Approved
+          </button>
+          <button type="button" class="btn btn-danger" onclick="updateRequestStatus(${request.id}, 'DENIED')">
+            <i class="bi bi-x-circle"></i> Mark Denied
+          </button>
+        `;
     }
 
     return buttons;
@@ -1642,35 +1947,188 @@
     // These functions will be available globally for the modal
     window.copyToClipboard = function (elementId) {
       const element = document.getElementById(elementId);
-      element.select();
-      document.execCommand('copy');
+      if (!element) {
+        showToast('Element not found', 'error');
+        return;
+      }
 
-      showToast('Copied to clipboard!', 'success');
+      let textToCopy = '';
+
+      // Get text based on element type
+      if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+        textToCopy = element.value;
+      } else {
+        textToCopy = element.textContent || element.innerText;
+      }
+
+      if (!textToCopy.trim()) {
+        showToast('Nothing to copy', 'error');
+        return;
+      }
+
+      // Use modern clipboard API with fallback
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard
+          .writeText(textToCopy)
+          .then(() => {
+            showToast('Copied to clipboard!', 'success');
+          })
+          .catch(() => {
+            fallbackCopy(textToCopy);
+          });
+      } else {
+        fallbackCopy(textToCopy);
+      }
     };
 
+    function fallbackCopy(text) {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-9999px';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.select();
+
+      try {
+        document.execCommand('copy');
+        showToast('Copied to clipboard!', 'success');
+      } catch (err) {
+        console.error('Copy failed:', err);
+        showToast('Failed to copy', 'error');
+      }
+
+      document.body.removeChild(textArea);
+    }
+    // FIXED: Delete function to handle group requests
+    // Add this to calendar.ejs
+
+    // ✅ Global delete function for both single and group requests
+    window.deleteRequest = async function (requestId, isGroup = false) {
+      const message = isGroup
+        ? 'Are you sure you want to delete this entire group request? This will delete all dates in the group. This action cannot be undone.'
+        : 'Are you sure you want to delete this request? This action cannot be undone.';
+
+      const title = isGroup ? 'Delete Group Request' : 'Delete Request';
+
+      const confirmed = await showConfirmDialog(message, title, 'danger');
+
+      if (confirmed) {
+        try {
+          // ✅ Use new API endpoint for group deletion
+          const url = isGroup
+            ? `/api/requests/${requestId}/delete-group`
+            : `/api/requests/${requestId}`;
+
+          const response = await fetch(url, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+          });
+
+          const result = await response.json();
+          if (result.success) {
+            const deleteMessage = isGroup
+              ? `Group request deleted successfully (${result.data?.deletedCount || 'multiple'} requests)`
+              : 'Request deleted successfully';
+
+            showToast(deleteMessage, 'success');
+
+            // Close modal and refresh calendar
+            const modal = bootstrap.Modal.getInstance(
+              document.getElementById('requestDetailModal')
+            );
+            modal.hide();
+            await loadExistingRequests();
+          } else {
+            showToast(result.error || 'Failed to delete request', 'error');
+          }
+        } catch (error) {
+          console.error('Error deleting request:', error);
+          showToast('Failed to delete request', 'error');
+        }
+      }
+    };
     window.markEmailAsSent = async function (requestId) {
       try {
         const response = await fetch(
           `/api/requests/${requestId}/mark-email-sent`,
           {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
           }
         );
 
-        const data = await response.json();
+        const result = await response.json();
+        if (result.success) {
+          const message = result.data?.groupId
+            ? `Email marked as sent for group of ${result.data.updatedRequests} requests`
+            : 'Email marked as sent successfully';
 
-        if (data.success) {
-          showToast('Email marked as sent!', 'success');
-          bootstrap.Modal.getInstance(
+          showToast(message, 'success');
+
+          // Close modal and refresh calendar
+          const modal = bootstrap.Modal.getInstance(
             document.getElementById('requestDetailModal')
-          ).hide();
-          loadRequests(); // Refresh calendar
+          );
+          modal.hide();
+          await loadExistingRequests();
         } else {
-          throw new Error(data.message);
+          showToast(result.error || 'Failed to mark email as sent', 'error');
         }
       } catch (error) {
         console.error('Error marking email as sent:', error);
         showToast('Failed to mark email as sent', 'error');
+      }
+    };
+    window.copyToClipboard = async function (elementId) {
+      try {
+        const element = document.getElementById(elementId);
+        if (!element) {
+          showToast('Element not found', 'error');
+          return;
+        }
+
+        // Use modern clipboard API if available
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(element.value);
+        } else {
+          // Fallback for older browsers
+          element.select();
+          document.execCommand('copy');
+        }
+
+        showToast('Copied to clipboard!', 'success');
+      } catch (error) {
+        console.error('Failed to copy to clipboard:', error);
+        showToast('Failed to copy to clipboard', 'error');
+      }
+    };
+    window.resendEmail = async function (requestId) {
+      try {
+        const response = await fetch(
+          `/api/requests/${requestId}/resend-email`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+
+        const result = await response.json();
+        if (result.success) {
+          showToast('Email resent successfully', 'success');
+
+          // Close modal and refresh calendar
+          const modal = bootstrap.Modal.getInstance(
+            document.getElementById('requestDetailModal')
+          );
+          modal.hide();
+          await loadExistingRequests();
+        } else {
+          showToast(result.error || 'Failed to resend email', 'error');
+        }
+      } catch (error) {
+        console.error('Error resending email:', error);
+        showToast('Failed to resend email', 'error');
       }
     };
 

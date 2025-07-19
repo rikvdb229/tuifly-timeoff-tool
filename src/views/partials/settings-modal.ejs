@@ -103,9 +103,15 @@
               </p>
 
               <!-- Email Method Selection -->
+              <!-- ✅ FIXED: Card-only clicking, NO radio buttons -->
               <div class="row mb-3">
                 <div class="col-md-6 mb-2">
-                  <div class="card email-method-card h-100" id="automaticCard">
+                  <div
+                    class="card email-method-card h-100 cursor-pointer"
+                    id="automaticCard"
+                    onclick="selectEmailPreference('automatic')"
+                    style="transition: all 0.2s"
+                  >
                     <div class="card-body text-center p-3">
                       <div class="mb-2">
                         <i class="bi bi-robot fs-2 text-primary"></i>
@@ -114,52 +120,32 @@
                       <p class="card-text small text-muted mb-2">
                         Emails sent automatically when you create requests
                       </p>
-                      <div class="form-check d-flex justify-content-center">
-                        <input
-                          class="form-check-input"
-                          type="radio"
-                          name="emailPreference"
-                          id="automatic"
-                          value="automatic"
-                        />
-                        <label class="form-check-label ms-2" for="automatic">
-                          Choose
-                        </label>
-                      </div>
-                      <small class="text-muted">
-                        <i class="bi bi-info-circle"></i>
-                        Requires Gmail access
-                      </small>
+                      <small class="text-muted"
+                        >Requires Gmail access for convenience</small
+                      >
+                      <!-- ✅ NO RADIO BUTTON - completely removed -->
                     </div>
                   </div>
                 </div>
-
                 <div class="col-md-6 mb-2">
-                  <div class="card email-method-card h-100" id="manualCard">
+                  <div
+                    class="card email-method-card h-100 cursor-pointer"
+                    id="manualCard"
+                    onclick="selectEmailPreference('manual')"
+                    style="transition: all 0.2s"
+                  >
                     <div class="card-body text-center p-3">
                       <div class="mb-2">
-                        <i class="bi bi-clipboard fs-2 text-success"></i>
+                        <i class="bi bi-envelope fs-2 text-success"></i>
                       </div>
                       <h6 class="card-title mb-2">📧 Manual</h6>
                       <p class="card-text small text-muted mb-2">
-                        Copy email content and send from your email client
+                        Copy email content and send from your own email client
                       </p>
-                      <div class="form-check d-flex justify-content-center">
-                        <input
-                          class="form-check-input"
-                          type="radio"
-                          name="emailPreference"
-                          id="manual"
-                          value="manual"
-                        />
-                        <label class="form-check-label ms-2" for="manual">
-                          Choose
-                        </label>
-                      </div>
-                      <small class="text-muted">
-                        <i class="bi bi-shield-check"></i>
-                        Full privacy
-                      </small>
+                      <small class="text-muted"
+                        >Full privacy - no Gmail access needed</small
+                      >
+                      <!-- ✅ NO RADIO BUTTON - completely removed -->
                     </div>
                   </div>
                 </div>

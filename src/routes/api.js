@@ -262,67 +262,72 @@ router.post('/requests/group', async (req, res) => {
         flightNumber:
           dateObj.type.toUpperCase() === 'FLIGHT' ? dateObj.flightNumber : null,
         customMessage: customMessage || null,
-        emailMode: req.user.emailPreference, // ADD THIS LINE
+        emailMode: req.user.emailPreference, // ✅ Use current user preference
       });
     });
 
-    const newRequests = await Promise.all(requestPromises);
+    const createdRequests = await Promise.all(requestPromises);
 
-    // 🚀 NEW: Attempt to send email for the group
-    let emailStatus = {
-      sent: false,
-      error: null,
-      canRetry: false,
-    };
+    // ✅ NEW: For manual mode, generate group email content
+    if (req.user.emailPreference === 'manual') {
+      // Generate group email content using the first request
+      const firstRequest = createdRequests[0];
+      const groupEmailContent = await firstRequest.generateGroupEmailContent(
+        req.user
+      );
 
-    if (req.user.canSendEmails()) {
-      try {
-        console.log(
-          `Attempting to send group email for ${newRequests.length} requests...`
-        );
-        const gmailService = require('../services/gmailService');
-        const emailResult = await gmailService.sendEmail(req.user, newRequests);
-
-        // Mark all requests as having email sent
-        await Promise.all(
-          newRequests.map((request) =>
-            request.markEmailSent(emailResult.messageId, emailResult.threadId)
-          )
-        );
-
-        emailStatus.sent = true;
-        console.log(
-          `✅ Group email sent successfully for ${newRequests.length} requests`
-        );
-      } catch (emailError) {
-        console.error('Group email sending failed:', emailError);
-        emailStatus.error = emailError.message;
-        emailStatus.canRetry = true;
-
-        console.log(
-          `⚠️ Group requests created but email failed: ${emailError.message}`
-        );
+      // Store the email content in ALL requests in the group
+      for (const request of createdRequests) {
+        await request.storeManualEmailContent(groupEmailContent);
       }
-    } else {
-      emailStatus.error =
-        'Gmail not configured - please re-login to grant Gmail permissions';
-      emailStatus.canRetry = true;
-      emailStatus.authUrl = '/auth/google';
+    } else if (req.user.emailPreference === 'automatic') {
+      // Handle automatic mode (existing logic)
+      try {
+        const GmailService = require('../services/gmailService');
+
+        if (GmailService.needsReauthorization(req.user)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Gmail authorization required',
+            message:
+              'Please authorize Gmail access to send emails automatically',
+            authRequired: true,
+            authUrl: '/auth/google',
+          });
+        }
+
+        const gmailService = new GmailService();
+        const emailResult = await gmailService.sendEmail(
+          req.user,
+          createdRequests
+        );
+
+        // Mark all requests as email sent
+        for (const request of createdRequests) {
+          await request.markEmailSent(
+            emailResult.messageId,
+            emailResult.threadId
+          );
+        }
+      } catch (emailError) {
+        console.error('Email send failed:', emailError);
+
+        // Mark all requests as email failed
+        for (const request of createdRequests) {
+          await request.markEmailFailed(emailError.message);
+        }
+      }
     }
 
-    // Reload requests to get updated email fields
-    for (const request of newRequests) {
-      await request.reload();
-    }
-
-    res.status(201).json({
+    res.json({
       success: true,
-      data: newRequests,
-      groupId,
-      emailStatus,
-      message: emailStatus.sent
-        ? `Group request created with ${newRequests.length} days and email sent successfully`
-        : `Group request created with ${newRequests.length} days but email could not be sent`,
+      message: `Group request created successfully with ${createdRequests.length} date(s)`,
+      data: {
+        requests: createdRequests.map((r) => r.toJSON()),
+        groupId,
+        emailMode: req.user.emailPreference,
+        totalDates: createdRequests.length,
+      },
     });
   } catch (error) {
     console.error('Error creating group request:', error);
@@ -577,36 +582,116 @@ router.put('/requests/:id', async (req, res) => {
 router.delete('/requests/:id', async (req, res) => {
   try {
     const requestId = parseInt(req.params.id);
-    const request = await TimeOffRequest.deleteByIdAndUser(
+
+    if (isNaN(requestId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid request ID',
+      });
+    }
+
+    // Use existing findByPkAndUser method
+    const request = await TimeOffRequest.findByPkAndUser(
       requestId,
       req.user.id
     );
 
-    res.json({
-      success: true,
-      data: request,
-      message: 'Time-off request deleted successfully',
-    });
-  } catch (error) {
-    console.error('Error deleting request:', error);
-
-    if (error.message === 'Request not found') {
+    if (!request) {
       return res.status(404).json({
         success: false,
         error: 'Request not found',
       });
     }
 
-    if (error.message === 'Request cannot be deleted') {
+    // Check if request can be deleted using existing method
+    if (!request.canBeDeleted()) {
       return res.status(403).json({
         success: false,
-        error: 'Request cannot be deleted',
+        error: 'Only pending or denied requests can be deleted',
       });
     }
 
+    // Delete the request
+    await request.destroy();
+
+    res.json({
+      success: true,
+      message: 'Request deleted successfully',
+      data: { id: requestId },
+    });
+  } catch (error) {
+    console.error('Error deleting request:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to delete request',
+      message: error.message,
+    });
+  }
+});
+router.delete('/requests/:id/delete-group', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await TimeOffRequest.findByPkAndUser(id, req.user.id);
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        error: 'Request not found',
+      });
+    }
+
+    if (!request.groupId) {
+      return res.status(400).json({
+        success: false,
+        error: 'This is not a group request',
+      });
+    }
+
+    // Get all requests in the group
+    const groupRequests = await TimeOffRequest.getByGroupIdAndUser(
+      request.groupId,
+      req.user.id
+    );
+
+    if (groupRequests.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'No requests found in this group',
+      });
+    }
+
+    // Check if any request in the group cannot be deleted
+    const cannotDelete = groupRequests.filter(
+      (req) => req.status !== 'PENDING' || req.manualEmailConfirmed
+    );
+
+    if (cannotDelete.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error:
+          'Cannot delete group: some requests are already processed or confirmed',
+        details: `${cannotDelete.length} out of ${groupRequests.length} requests cannot be deleted`,
+      });
+    }
+
+    // Delete all requests in the group
+    const deletePromises = groupRequests.map((req) => req.destroy());
+    await Promise.all(deletePromises);
+
+    res.json({
+      success: true,
+      message: `Group request deleted successfully`,
+      data: {
+        deletedCount: groupRequests.length,
+        groupId: request.groupId,
+        deletedRequestIds: groupRequests.map((req) => req.id),
+      },
+    });
+  } catch (error) {
+    console.error('Error deleting group request:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete group request',
       message: error.message,
     });
   }

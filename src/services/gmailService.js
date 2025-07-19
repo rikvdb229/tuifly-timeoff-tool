@@ -95,7 +95,7 @@ class GmailService {
             line = `${EMAIL_AM_OFF_LABEL} - ${formattedDate}`;
             break;
           case 'FLIGHT':
-            line = `${EMAIL_FLIGHT_LABEL} ${request.flightNumber} - ${formattedDate}`;
+            line = `REQ FLIGHT ${request.flightNumber} - ${formattedDate}`; // ✅ FIXED: REQ FLIGHT
             break;
           default:
             line = `${request.type} - ${formattedDate}`;

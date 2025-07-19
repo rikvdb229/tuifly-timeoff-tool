@@ -81,10 +81,8 @@
                   </p>
                   <p class="mb-2">
                     <strong>Subject:</strong>
-                    <span id="emailSubject"
-                      ><%= env.EMPLOYEE_CODE %> CREW REQUEST - 2025 -
-                      January</span
-                    >
+                    <span id="emailSubject">Loading...</span>
+                    <!-- ✅ FIXED: Remove hardcoded subject -->
                   </p>
                   <div class="border-top pt-2 mt-2">
                     <p class="mb-1">Dear,</p>
@@ -98,6 +96,10 @@
                     >
                       <!-- Custom message will appear here -->
                     </p>
+                    <div
+                      id="customMessageSpacer"
+                      style="display: none; height: 1rem"
+                    ></div>
                     <p class="mb-0">
                       <span id="userSignature"
                         ><%= user.signature || user.name || 'User' %></span

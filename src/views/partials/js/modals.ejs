@@ -14,6 +14,14 @@
       const iconElement = document.getElementById('confirmIcon');
       const confirmButton = document.getElementById('confirmAction');
 
+      // ✅ FIX: Calculate proper z-index based on existing modals
+      const existingModals = document.querySelectorAll('.modal.show');
+      const baseZIndex = 1050; // Bootstrap modal base z-index
+      const newZIndex = baseZIndex + existingModals.length * 10 + 10;
+
+      // Apply z-index to modal
+      modal.style.zIndex = newZIndex;
+
       // Reset modal styling
       modalContent.className = 'modal-content';
 
@@ -40,20 +48,26 @@
         confirmButton.innerHTML = '<i class="bi bi-check-lg me-1"></i>Confirm';
       }
 
+      // ✅ FIX: Use backdrop: false to prevent conflicts with existing modals
+      const bootstrapModal = new bootstrap.Modal(modal, {
+        backdrop: 'static',
+        keyboard: true,
+      });
+
       // Show modal
-      const bootstrapModal = new bootstrap.Modal(modal);
       bootstrapModal.show();
 
-      // Handle confirmation
+      // ✅ FIX: Clean up event listeners to prevent memory leaks
       const handleConfirm = () => {
         bootstrapModal.hide();
         confirmButton.removeEventListener('click', handleConfirm);
+        modal.removeEventListener('hidden.bs.modal', handleCancel);
         resolve(true);
       };
 
-      // Handle cancellation
       const handleCancel = () => {
         confirmButton.removeEventListener('click', handleConfirm);
+        modal.removeEventListener('hidden.bs.modal', handleCancel);
         resolve(false);
       };
 

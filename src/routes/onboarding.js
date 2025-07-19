@@ -27,6 +27,13 @@ const onboardingSchema = Joi.object({
     'string.max': 'Signature must not exceed 200 characters',
     'any.required': 'Signature is required',
   }),
+  // ✅ ADD: Email preference validation
+  emailPreference: Joi.string()
+    .valid('automatic', 'manual')
+    .default('manual')
+    .messages({
+      'any.only': 'Email preference must be either "automatic" or "manual"',
+    }),
 });
 
 // Onboarding page
@@ -82,7 +89,7 @@ router.post('/complete', requireAuth, async (req, res) => {
       });
     }
 
-    const { name, code, signature } = value;
+    const { name, code, signature, emailPreference } = value;
 
     // Check if code is already taken
     const existingUser = await User.findByCode(code);
@@ -99,17 +106,17 @@ router.post('/complete', requireAuth, async (req, res) => {
       });
     }
 
-    // Update user with onboarding data
+    // Update user with onboarding data including email preference
     const user = await updateUserOnboarding(req.session.userId, {
       name,
       code: code.toUpperCase(),
       signature,
+      emailPreference, // ✅ ADD: Include email preference
     });
 
     // Update session
     req.session.needsOnboarding = false;
 
-    // 🚨 FIXED: Check if user can use app after onboarding completion
     // Fetch fresh user data to ensure we have the latest state
     const updatedUser = await User.findByPk(req.session.userId);
 

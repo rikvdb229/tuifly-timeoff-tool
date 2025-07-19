@@ -130,15 +130,15 @@ async function updateUserOnboarding(userId, onboardingData) {
       name: onboardingData.name,
       code: onboardingData.code,
       signature: onboardingData.signature,
+      emailPreference: onboardingData.emailPreference || 'manual', // ✅ ADD: Email preference
       onboardedAt: new Date(),
     });
 
-    // 🚨 NEW: Send admin notification AFTER onboarding completion
+    // Send admin notification AFTER onboarding completion
     if (!user.isAdmin) {
       console.log(
-        `📧 User completed onboarding: ${user.email} - Sending admin notification`
+        `📧 User completed onboarding: ${user.email} - Email preference: ${onboardingData.emailPreference || 'manual'}`
       );
-      await notifyAdminsOfNewUser(user);
     }
 
     return user;

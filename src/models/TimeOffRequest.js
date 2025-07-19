@@ -450,18 +450,19 @@ function defineTimeOffRequest(sequelize) {
     if (this.customMessage) {
       bodyLines.push('');
       bodyLines.push(this.customMessage);
+      bodyLines.push(''); // ✅ Extra line break after custom message
     }
 
     bodyLines.push('');
-    bodyLines.push(user.signature || `Brgds,\n${user.name || 'Your Name'}`);
+    bodyLines.push(
+      user.signature || `Brgds,\n${user.name || user.email.split('@')[0]}`
+    );
 
-    const emailContent = {
-      to: process.env.TUIFLY_APPROVER_EMAIL || 'scheduling@tuifly.be',
-      subject: subject,
+    return {
+      subject,
       body: bodyLines.join('\n'),
+      to: process.env.TUIFLY_APPROVER_EMAIL || 'scheduling@tuifly.be',
     };
-
-    return emailContent;
   };
 
   TimeOffRequest.getByGroupIdAndUser = async function (groupId, userId) {

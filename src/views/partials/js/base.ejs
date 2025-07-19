@@ -301,21 +301,59 @@
     });
   }
   // Email preference functions (replace the duplicate functions with this single set)
+  // ✅ UPDATED: Email preference functions (no radio buttons)
+  function selectEmailPreference(preference) {
+    // No radio button to update - we'll track selection via card styles and direct API call
+
+    // Update card styles to show selection
+    document.querySelectorAll('.email-method-card').forEach((card) => {
+      card.classList.remove(
+        'border-primary',
+        'border-success',
+        'bg-light',
+        'selected'
+      );
+    });
+
+    const selectedCard = document.getElementById(`${preference}Card`);
+    if (selectedCard) {
+      selectedCard.classList.add('bg-light', 'selected');
+      if (preference === 'automatic') {
+        selectedCard.classList.add('border-primary');
+      } else {
+        selectedCard.classList.add('border-success');
+      }
+    }
+
+    // Store current selection
+    window.currentEmailPreference = preference;
+
+    // Immediately update the preference via API
+    updateEmailPreference(preference);
+  }
+
+  // ✅ UPDATED: Load email preferences without radio buttons
   function loadEmailPreferences(emailPrefData) {
-    console.log('Loading email preferences:', emailPrefData); // Debug line
+    console.log('Loading email preferences:', emailPrefData);
 
     if (!emailPrefData) {
-      // If no email preference data, load it separately
       loadEmailPreferencesFromAPI();
       return;
     }
 
-    // Set radio button
     const currentPref = emailPrefData.current || emailPrefData.emailPreference;
-    const radioButton = document.querySelector(
-      `input[name="emailPreference"][value="${currentPref}"]`
+
+    // Store current preference
+    window.currentEmailPreference = currentPref;
+
+    const headerEmailModeBadge = document.getElementById(
+      'headerEmailModeBadge'
     );
-    if (radioButton) radioButton.checked = true;
+    if (headerEmailModeBadge) {
+      headerEmailModeBadge.textContent =
+        currentPref === 'automatic' ? '🤖 Automatic' : '📧 Manual';
+      headerEmailModeBadge.className = `badge ms-1 ${currentPref === 'automatic' ? 'bg-primary' : 'bg-success'}`;
+    }
 
     // Update status badge
     const emailPrefBadge = document.getElementById('emailPrefBadge');
@@ -342,18 +380,42 @@
     `;
     }
 
-    // Show Gmail auth section if needed
-    const gmailAuthSection = document.getElementById('gmailAuthSection');
-    if (gmailAuthSection) {
-      if (currentPref === 'automatic' && !emailPrefData.gmailScopeGranted) {
-        gmailAuthSection.style.display = 'block';
-      } else {
-        gmailAuthSection.style.display = 'none';
-      }
-    }
+    // Update card highlights (no radio buttons to check)
+    updateEmailMethodCardHighlights(currentPref);
+  }
+
+  function updateEmailMethodCardHighlights(preference) {
+    // Clear all selections
+    document.querySelectorAll('.email-method-card').forEach((card) => {
+      card.classList.remove(
+        'border-primary',
+        'border-success',
+        'bg-light',
+        'selected'
+      );
+    });
 
     // Highlight selected card
-    updateEmailMethodCardHighlights(currentPref);
+    const selectedCard = document.getElementById(`${preference}Card`);
+    if (selectedCard) {
+      selectedCard.classList.add('bg-light', 'selected');
+      if (preference === 'automatic') {
+        selectedCard.classList.add('border-primary');
+      } else {
+        selectedCard.classList.add('border-success');
+      }
+    }
+  }
+  // ✅ ADD: User education for mixed email modes
+  function showEmailModeTransitionMessage(oldMode, newMode) {
+    if (oldMode !== newMode) {
+      const message =
+        newMode === 'automatic'
+          ? 'Switched to automatic email mode. New requests will be sent automatically. Existing manual requests keep their current status.'
+          : 'Switched to manual email mode. New requests will require manual email sending. Existing automatic requests keep their current status.';
+
+      showToast(message, 'info', 8000); // Show for 8 seconds
+    }
   }
 
   async function loadEmailPreferencesFromAPI() {
@@ -363,26 +425,16 @@
 
       if (data.success) {
         loadEmailPreferences(data.data);
+      } else {
+        console.error('Failed to load email preferences:', data.error);
       }
     } catch (error) {
       console.error('Error loading email preferences from API:', error);
     }
   }
-
-  function updateEmailMethodCardHighlights(preference) {
-    const automaticCard = document.getElementById('automaticCard');
-    const manualCard = document.getElementById('manualCard');
-
-    if (automaticCard)
-      automaticCard.classList.toggle(
-        'border-primary',
-        preference === 'automatic'
-      );
-    if (manualCard)
-      manualCard.classList.toggle('border-success', preference === 'manual');
-  }
-
   async function updateEmailPreference(preference) {
+    const oldMode = window.currentEmailPreference; // ✅ ADD: Store old mode
+
     try {
       const response = await fetch('/settings/email-preference', {
         method: 'PUT',
@@ -396,6 +448,15 @@
 
       if (data.success) {
         showToast(`Email preference updated to ${preference}`, 'success');
+
+        // ✅ ADD: Show transition message
+        showEmailModeTransitionMessage(oldMode, preference);
+
+        // ✅ REFRESH CALENDAR if calendar exists
+        if (typeof loadExistingRequests === 'function') {
+          console.log('Refreshing calendar after email preference change...');
+          await loadExistingRequests();
+        }
 
         // Reload email preferences to update UI
         loadEmailPreferencesFromAPI();

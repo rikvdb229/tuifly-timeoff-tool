@@ -138,4 +138,29 @@
       padding-top: 15px;
     }
   }
+  .email-method-card {
+    transition: all 0.2s ease-in-out;
+    border: 2px solid #dee2e6;
+  }
+
+  .email-method-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: #adb5bd;
+  }
+
+  .email-method-card.selected {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .cursor-pointer {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  /* Ensure cards have equal height */
+  .email-method-card.h-100 {
+    min-height: 180px;
+  }
 </style>
