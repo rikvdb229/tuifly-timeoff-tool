@@ -62,6 +62,21 @@ function defineTimeOffRequest(sequelize) {
         allowNull: true,
         comment: 'Timestamp when email was sent',
       },
+      emailFailed: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        comment: 'Whether automatic email sending failed',
+      },
+      emailFailedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'Timestamp when email sending failed',
+      },
+      emailFailedReason: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Reason why email failed (for debugging)',
+      },
       gmailMessageId: {
         type: DataTypes.STRING,
         allowNull: true,
@@ -222,7 +237,29 @@ function defineTimeOffRequest(sequelize) {
       emailSent: new Date(),
       gmailMessageId,
       gmailThreadId,
+      // Clear any previous failure state
+      emailFailed: false,
+      emailFailedAt: null,
+      emailFailedReason: null,
     });
+  };
+  TimeOffRequest.prototype.markEmailFailed = function (reason) {
+    return this.update({
+      emailFailed: true,
+      emailFailedAt: new Date(),
+      emailFailedReason: reason,
+      emailSent: null, // Clear any previous success
+      gmailMessageId: null,
+      gmailThreadId: null,
+    });
+  };
+
+  TimeOffRequest.prototype.canResendEmail = function () {
+    return (
+      this.emailFailed &&
+      this.status === 'PENDING' &&
+      this.emailMode === 'automatic'
+    );
   };
 
   TimeOffRequest.prototype.markReplyReceived = function (
@@ -264,14 +301,14 @@ function defineTimeOffRequest(sequelize) {
 
   TimeOffRequest.prototype.getEmailStatus = function () {
     if (this.emailMode === 'automatic') {
-      if (this.emailSent) return 'sent'; // ✅
-      if (this.emailSent === false) return 'failed'; // ❌ (when explicitly failed)
-      return 'sending'; // 🔄
+      if (this.emailSent) return 'sent';
+      if (this.emailFailed) return 'failed'; // Use the new emailFailed field
+      return 'not_sent';
     } else {
       // manual mode
-      if (this.manualEmailConfirmed) return 'confirmed'; // ✅
-      if (this.manualEmailContent) return 'ready'; // 📧
-      return 'not_sent'; // ⚠️
+      if (this.manualEmailConfirmed) return 'confirmed';
+      if (this.manualEmailContent) return 'ready';
+      return 'not_sent';
     }
   };
 
@@ -292,7 +329,7 @@ function defineTimeOffRequest(sequelize) {
     const status = this.getEmailStatus();
     const labelMap = {
       sent: 'Email Sent',
-      failed: 'Email Failed',
+      failed: `Email Failed${this.emailFailedReason ? ': ' + this.emailFailedReason : ''}`,
       sending: 'Sending Email',
       confirmed: 'Email Confirmed Sent',
       ready: 'Ready to Copy',
@@ -338,6 +375,11 @@ function defineTimeOffRequest(sequelize) {
 
   TimeOffRequest.createGroupRequest = async function (userId, requestData) {
     const { dates, customMessage } = requestData;
+
+    // Get user to determine email mode
+    const User = require('./index').User;
+    const user = await User.findByPk(userId);
+
     const groupId = uuidv4();
     const requests = [];
 
@@ -350,11 +392,76 @@ function defineTimeOffRequest(sequelize) {
         type: dateInfo.type,
         flightNumber: dateInfo.flightNumber || null,
         customMessage,
+        emailMode: user ? user.emailPreference : 'manual', // ADD THIS LINE
       });
       requests.push(request);
     }
 
     return requests;
+  };
+  TimeOffRequest.prototype.generateGroupEmailContent = async function (user) {
+    // Get all requests in the same group
+    const groupRequests = await TimeOffRequest.getByGroupIdAndUser(
+      this.groupId,
+      this.userId
+    );
+
+    // Sort by date
+    groupRequests.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+
+    // Generate subject based on first month
+    const firstDate = new Date(groupRequests[0].startDate);
+    const month = firstDate.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    });
+    const subject = `${user.code || 'RVB'} - CREW REQUEST - ${month}`;
+
+    // Generate body with all dates
+    let bodyLines = ['Dear,', ''];
+
+    groupRequests.forEach((request) => {
+      let line = `${request.startDate} - `;
+
+      // Convert type to display format
+      switch (request.type) {
+        case 'REQ_DO':
+          line += 'REQ DO';
+          break;
+        case 'PM_OFF':
+          line += 'PM OFF';
+          break;
+        case 'AM_OFF':
+          line += 'AM OFF';
+          break;
+        case 'FLIGHT':
+          line += 'FLIGHT';
+          break;
+        default:
+          line += request.type;
+      }
+
+      if (request.flightNumber) {
+        line += ` ${request.flightNumber}`;
+      }
+      bodyLines.push(line);
+    });
+
+    if (this.customMessage) {
+      bodyLines.push('');
+      bodyLines.push(this.customMessage);
+    }
+
+    bodyLines.push('');
+    bodyLines.push(user.signature || `Brgds,\n${user.name || 'Your Name'}`);
+
+    const emailContent = {
+      to: process.env.TUIFLY_APPROVER_EMAIL || 'scheduling@tuifly.be',
+      subject: subject,
+      body: bodyLines.join('\n'),
+    };
+
+    return emailContent;
   };
 
   TimeOffRequest.getByGroupIdAndUser = async function (groupId, userId) {

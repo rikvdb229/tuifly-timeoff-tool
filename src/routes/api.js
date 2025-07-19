@@ -262,6 +262,7 @@ router.post('/requests/group', async (req, res) => {
         flightNumber:
           dateObj.type.toUpperCase() === 'FLIGHT' ? dateObj.flightNumber : null,
         customMessage: customMessage || null,
+        emailMode: req.user.emailPreference, // ADD THIS LINE
       });
     });
 
@@ -770,10 +771,11 @@ router.post('/requests/:id/mark-email-sent', async (req, res) => {
       });
     }
 
-    if (request.emailMode !== 'manual') {
+    // Check user's email preference
+    if (req.user.emailPreference !== 'manual') {
       return res.status(400).json({
         success: false,
-        error: 'This request is not in manual email mode',
+        error: 'This action is only available for users in manual email mode',
       });
     }
 
@@ -784,23 +786,94 @@ router.post('/requests/:id/mark-email-sent', async (req, res) => {
       });
     }
 
-    await request.markManualEmailSent();
+    // 🔥 NEW: Handle group requests - mark ALL requests in the group as sent
+    let updatedRequests = [];
 
-    res.json({
-      success: true,
-      message: 'Email marked as sent successfully',
-      data: {
-        emailStatus: request.getEmailStatus(),
-        emailStatusIcon: request.getEmailStatusIcon(),
-        emailStatusLabel: request.getEmailStatusLabel(),
-        emailSent: request.emailSent,
-      },
-    });
+    if (request.groupId) {
+      // Get all requests in the group
+      const groupRequests = await TimeOffRequest.getByGroupIdAndUser(
+        request.groupId,
+        req.user.id
+      );
+
+      // Mark all requests in the group as manually sent
+      for (const groupRequest of groupRequests) {
+        if (!groupRequest.manualEmailConfirmed) {
+          await groupRequest.markManualEmailSent();
+          updatedRequests.push(groupRequest);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Email marked as sent for group of ${updatedRequests.length} request(s)`,
+        data: {
+          updatedRequests: updatedRequests.length,
+          groupId: request.groupId,
+          emailStatus: 'confirmed',
+          emailStatusIcon: '✅',
+          emailStatusLabel: 'Email Confirmed Sent',
+        },
+      });
+    } else {
+      // Single request
+      await request.markManualEmailSent();
+
+      res.json({
+        success: true,
+        message: 'Email marked as sent successfully',
+        data: {
+          updatedRequests: 1,
+          emailStatus: request.getEmailStatus(),
+          emailStatusIcon: request.getEmailStatusIcon(),
+          emailStatusLabel: request.getEmailStatusLabel(),
+        },
+      });
+    }
   } catch (error) {
     console.error('Error marking email as sent:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to mark email as sent',
+      message: error.message,
+    });
+  }
+});
+router.get('/requests/:id/group-email-content', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await TimeOffRequest.findByPkAndUser(id, req.user.id);
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        error: 'Request not found',
+      });
+    }
+
+    let emailContent;
+
+    if (request.groupId) {
+      // Generate group email content
+      emailContent = await request.generateGroupEmailContent(req.user);
+    } else {
+      // Generate single request email content
+      emailContent = request.generateSingleEmailContent(req.user);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        emailContent,
+        isGroup: !!request.groupId,
+        groupId: request.groupId,
+      },
+    });
+  } catch (error) {
+    console.error('Error generating email content:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate email content',
       message: error.message,
     });
   }
