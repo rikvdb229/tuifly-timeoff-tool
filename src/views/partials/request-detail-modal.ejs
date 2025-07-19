@@ -1,0 +1,491 @@
+<div
+  class="modal fade"
+  id="requestDetailModal"
+  tabindex="-1"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-calendar-event text-primary"></i>
+          <span id="modalTitle">Request Details</span>
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Request Information -->
+        <div class="row">
+          <div class="col-md-6">
+            <h6>
+              <i class="bi bi-info-circle text-info me-2"></i>Request
+              Information
+            </h6>
+            <table class="table table-sm table-borderless">
+              <tr>
+                <td><strong>Type:</strong></td>
+                <td><span id="requestType" class="badge bg-primary"></span></td>
+              </tr>
+              <tr id="messageRow" style="display: none">
+                <td><strong>Message:</strong></td>
+                <td id="requestMessage"></td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="col-md-6">
+            <h6>
+              <i class="bi bi-envelope text-warning me-2"></i>Email Status
+            </h6>
+            <div class="card bg-light">
+              <div class="card-body">
+                <div class="d-flex align-items-center">
+                  <span id="emailStatusIcon" class="fs-4 me-3"></span>
+                  <div>
+                    <strong id="emailStatusText"></strong>
+                    <div
+                      id="emailStatusDetails"
+                      class="text-muted small mt-1"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Request Dates with Inline Status Buttons -->
+        <div class="mt-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6>
+              <i class="bi bi-calendar-check text-success me-2"></i>Request
+              Dates
+            </h6>
+
+            <!-- Bulk Action Buttons (only show if email sent and has multiple dates) -->
+            <div id="bulkActions" style="display: none">
+              <small class="text-muted me-2">Bulk Actions:</small>
+              <div class="btn-group btn-group-sm" role="group">
+                <button
+                  type="button"
+                  class="btn btn-outline-danger"
+                  onclick="bulkUpdateStatus('DENIED')"
+                  title="Deny All"
+                >
+                  <i class="bi bi-x-circle"></i> All
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-warning"
+                  onclick="bulkUpdateStatus('PENDING')"
+                  title="Reset All to Pending"
+                >
+                  <i class="bi bi-hourglass"></i> All
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-success"
+                  onclick="bulkUpdateStatus('APPROVED')"
+                  title="Approve All"
+                >
+                  <i class="bi bi-check-circle"></i> All
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dates List -->
+          <div id="requestDatesList" class="border rounded p-3 bg-light">
+            <!-- Dates will be populated here by JavaScript -->
+          </div>
+        </div>
+
+        <!-- Email Content Section (Manual Mode Only) -->
+        <div id="emailContentSection" style="display: none">
+          <hr class="my-4" />
+          <h6>
+            <i class="bi bi-envelope-plus me-2"></i>
+            Email Content to Copy
+          </h6>
+          <div class="card bg-light">
+            <div class="card-body">
+              <div class="mb-2">
+                <label class="fw-bold small">To:</label>
+                <div class="input-group input-group-sm">
+                  <input
+                    type="text"
+                    class="form-control"
+                    readonly
+                    id="emailTo"
+                  />
+                  <button
+                    class="btn btn-outline-secondary"
+                    type="button"
+                    data-copy-target="emailTo"
+                  >
+                    <i class="bi bi-clipboard"></i> Copy
+                  </button>
+                </div>
+              </div>
+              <div class="mb-2">
+                <label class="fw-bold small">Subject:</label>
+                <div class="input-group input-group-sm">
+                  <input
+                    type="text"
+                    class="form-control"
+                    readonly
+                    id="emailSubject"
+                  />
+                  <button
+                    class="btn btn-outline-secondary"
+                    type="button"
+                    data-copy-target="emailSubject"
+                  >
+                    <i class="bi bi-clipboard"></i> Copy
+                  </button>
+                </div>
+              </div>
+              <div class="mb-0">
+                <label class="fw-bold small">Body:</label>
+                <div class="input-group">
+                  <textarea
+                    class="form-control"
+                    rows="6"
+                    readonly
+                    id="emailBody"
+                    style="resize: none"
+                  ></textarea>
+                  <button
+                    class="btn btn-outline-secondary"
+                    type="button"
+                    data-copy-target="emailBody"
+                  >
+                    <i class="bi bi-clipboard"></i> Copy
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="bi bi-x-lg me-1"></i>Close
+        </button>
+        <div id="modalActions">
+          <!-- Dynamic action buttons will be inserted here -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Additional styles for the inline status buttons */
+  #requestDatesList .btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  #requestDatesList .btn.active {
+    font-weight: bold;
+  }
+
+  .date-row {
+    border-bottom: 1px solid #dee2e6;
+    padding: 0.75rem 0;
+  }
+
+  .date-row:last-child {
+    border-bottom: none;
+  }
+</style>
+
+<script>
+  // Modal management functions
+  window.showRequestDetailModal = function (request, dateStr) {
+    // Make sure existingRequests is available globally
+    if (typeof window.existingRequests === 'undefined') {
+      window.existingRequests = existingRequests;
+    }
+
+    // Populate modal with request data
+    populateRequestModal(request, dateStr);
+
+    // Show modal
+    const modal = new bootstrap.Modal(
+      document.getElementById('requestDetailModal')
+    );
+    modal.show();
+  };
+
+  function populateRequestModal(request, dateStr) {
+    const requestEmailMode = request.emailMode || 'automatic';
+
+    // Set title
+    document.getElementById('modalTitle').textContent =
+      `Request Details - ${dateStr}`;
+
+    // Request info
+    document.getElementById('requestType').textContent = getDisplayType(
+      request.type
+    );
+
+    // Custom message
+    const messageRow = document.getElementById('messageRow');
+    if (request.customMessage) {
+      document.getElementById('requestMessage').textContent =
+        request.customMessage;
+      messageRow.style.display = 'table-row';
+    } else {
+      messageRow.style.display = 'none';
+    }
+
+    // Email status
+    const emailStatus = getEmailStatusInfo(request);
+    document.getElementById('emailStatusIcon').textContent = emailStatus.icon;
+    document.getElementById('emailStatusText').textContent = emailStatus.title;
+    document.getElementById('emailStatusDetails').textContent =
+      emailStatus.details;
+
+    // Populate dates with inline status buttons
+    populateRequestDates(request);
+
+    // Email content section (only for manual mode requests)
+    const emailContentSection = document.getElementById('emailContentSection');
+    if (requestEmailMode === 'manual' && !request.manualEmailConfirmed) {
+      populateEmailContent(request);
+      emailContentSection.style.display = 'block';
+    } else {
+      emailContentSection.style.display = 'none';
+    }
+
+    // Modal actions (simplified - no status buttons here anymore)
+    populateModalActions(request);
+  }
+  async function populateRequestDates(request) {
+    const datesContainer = document.getElementById('requestDatesList');
+    const bulkActions = document.getElementById('bulkActions');
+
+    // Show loading state
+    datesContainer.innerHTML =
+      '<div class="text-center py-3"><div class="spinner-border spinner-border-sm" role="status"></div> Loading dates...</div>';
+
+    let requestsToShow = [request];
+
+    // If it's a group request, get all requests in the group
+    if (request.groupId) {
+      try {
+        const response = await fetch(
+          `/api/requests/${request.id}/group-details`
+        );
+        const result = await response.json();
+        if (result.success) {
+          requestsToShow = result.data.requests;
+          requestsToShow.sort(
+            (a, b) => new Date(a.startDate) - new Date(b.startDate)
+          );
+        }
+      } catch (error) {
+        console.error('Error loading group details:', error);
+        datesContainer.innerHTML =
+          '<div class="text-danger">Error loading request details</div>';
+        return;
+      }
+    }
+
+    // Check if email is sent and can update status
+    const requestEmailMode = request.emailMode || 'automatic';
+    const emailSent =
+      (requestEmailMode === 'automatic' && request.emailSent) ||
+      (requestEmailMode === 'manual' && request.manualEmailConfirmed);
+
+    // Show bulk actions if multiple dates and email sent
+    if (requestsToShow.length > 1 && emailSent) {
+      bulkActions.style.display = 'flex';
+    } else {
+      bulkActions.style.display = 'none';
+    }
+
+    // Generate dates HTML
+    const datesHTML = requestsToShow
+      .map(
+        (req) => `
+    <div class="d-flex justify-content-between align-items-center date-row">
+      <div class="flex-grow-1">
+        <strong>${req.startDate}</strong>
+        <span class="text-muted ms-2">${getDisplayType(req.type)}</span>
+        ${req.flightNumber ? `<span class="text-muted ms-1">(${req.flightNumber})</span>` : ''}
+      </div>
+      
+      <div class="d-flex align-items-center">
+        <!-- Current Status Badge -->
+        <span class="badge bg-${getStatusColor(req.status)} me-3" id="status-badge-${req.id}">${req.status}</span>
+        
+        <!-- Inline Status Buttons (only if email sent) -->
+        ${
+          emailSent
+            ? `
+          <div class="btn-group btn-group-sm" role="group">
+            <button type="button" 
+                    class="btn btn-outline-danger ${req.status === 'DENIED' ? 'active' : ''}" 
+                    onclick="updateIndividualStatus(${req.id}, 'DENIED')"
+                    title="Deny"
+                    id="deny-btn-${req.id}">
+              <i class="bi bi-x"></i>
+            </button>
+            <button type="button" 
+                    class="btn btn-outline-warning ${req.status === 'PENDING' ? 'active' : ''}" 
+                    onclick="updateIndividualStatus(${req.id}, 'PENDING')"
+                    title="Pending"
+                    id="pending-btn-${req.id}">
+              <i class="bi bi-hourglass"></i>
+            </button>
+            <button type="button" 
+                    class="btn btn-outline-success ${req.status === 'APPROVED' ? 'active' : ''}" 
+                    onclick="updateIndividualStatus(${req.id}, 'APPROVED')"
+                    title="Approve"
+                    id="approve-btn-${req.id}">
+              <i class="bi bi-check"></i>
+            </button>
+          </div>
+        `
+            : `
+          <small class="text-muted">Send email first to update status</small>
+        `
+        }
+      </div>
+    </div>
+  `
+      )
+      .join('');
+
+    datesContainer.innerHTML =
+      datesHTML || '<div class="text-muted">No dates found</div>';
+  }
+
+  function populateEmailContent(request) {
+    const approverEmail =
+      window.TUIFLY_CONFIG?.APPROVER_EMAIL || 'scheduling@tuifly.be';
+
+    let emailContent;
+    if (request.groupId) {
+      emailContent = generateGroupEmailContent(request);
+    } else {
+      emailContent = generateSingleEmailContent(request);
+    }
+
+    document.getElementById('emailTo').value = approverEmail;
+    document.getElementById('emailSubject').value = emailContent.subject;
+    document.getElementById('emailBody').value = emailContent.body;
+  }
+
+  function populateModalActions(request) {
+    const requestEmailMode = request.emailMode || 'automatic';
+    const actionsContainer = document.getElementById('modalActions');
+    let actions = '';
+
+    // Mark as sent (manual mode only, not yet sent)
+    if (requestEmailMode === 'manual' && !request.manualEmailConfirmed) {
+      actions += `
+      <button type="button" class="btn btn-success me-2" onclick="markEmailAsSent(${request.id})">
+        <i class="bi bi-check-lg me-1"></i>Mark as Sent
+      </button>
+    `;
+    }
+
+    // Resend (automatic mode only, if failed)
+    if (requestEmailMode === 'automatic' && request.emailFailed) {
+      actions += `
+      <button type="button" class="btn btn-warning me-2" onclick="resendEmail(${request.id})">
+        <i class="bi bi-arrow-repeat me-1"></i>Resend Email
+      </button>
+    `;
+    }
+
+    // Delete (if pending and not sent)
+    const canDelete =
+      request.status === 'PENDING' &&
+      ((requestEmailMode === 'automatic' && !request.emailSent) ||
+        (requestEmailMode === 'manual' && !request.manualEmailConfirmed));
+
+    if (canDelete) {
+      const isGroup = request.groupId ? true : false;
+      const deleteText = isGroup ? 'Delete Group' : 'Delete';
+
+      actions += `
+      <button type="button" class="btn btn-outline-danger" onclick="deleteRequest(${request.id}, ${isGroup})">
+        <i class="bi bi-trash me-1"></i>${deleteText}
+      </button>
+    `;
+    }
+
+    actionsContainer.innerHTML = actions;
+  }
+
+  // Helper functions
+  function getDisplayType(type) {
+    const types = {
+      REQ_DO: 'DO',
+      PM_OFF: 'PM',
+      AM_OFF: 'AM',
+      FLIGHT: 'FL',
+    };
+    return types[type] || type;
+  }
+
+  function getStatusColor(status) {
+    const colors = {
+      APPROVED: 'success',
+      DENIED: 'danger',
+      PENDING: 'warning',
+    };
+    return colors[status] || 'secondary';
+  }
+
+  function getEmailStatusInfo(request) {
+    const requestEmailMode = request.emailMode || 'automatic';
+
+    if (requestEmailMode === 'automatic') {
+      if (request.emailSent) {
+        return {
+          icon: '✅',
+          title: 'Email Sent',
+          details: `Sent automatically on ${new Date(request.emailSent).toLocaleString()}`,
+        };
+      } else if (request.emailFailed) {
+        return {
+          icon: '❌',
+          title: 'Email Failed',
+          details: 'Email failed to send automatically',
+        };
+      } else {
+        return {
+          icon: '⏳',
+          title: 'Email Pending',
+          details: 'Email will be sent automatically',
+        };
+      }
+    } else {
+      if (request.manualEmailConfirmed) {
+        return {
+          icon: '✅',
+          title: 'Email Sent',
+          details: 'You confirmed the email was sent manually',
+        };
+      } else {
+        return {
+          icon: '📧',
+          title: 'Email Ready',
+          details: 'Copy the email content below and send manually',
+        };
+      }
+    }
+  }
+</script>

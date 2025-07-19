@@ -142,6 +142,17 @@ function defineTimeOffRequest(sequelize) {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      statusUpdateMethod: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        comment:
+          'How the status was updated: manual_user_update, auto_reply_detection, admin_override',
+      },
+      statusUpdatedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'When the status was last updated',
+      },
     },
     {
       tableName: 'time_off_requests',

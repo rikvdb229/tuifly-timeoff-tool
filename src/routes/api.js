@@ -247,6 +247,12 @@ router.post('/requests/group', async (req, res) => {
       });
     }
 
+    console.log('🔍 Creating group request with data:', {
+      dates,
+      customMessage,
+      userPreference: req.user.emailPreference,
+    });
+
     // Generate group ID for all requests
     const { v4: uuidv4 } = require('uuid');
     const groupId = uuidv4();
@@ -262,30 +268,46 @@ router.post('/requests/group', async (req, res) => {
         flightNumber:
           dateObj.type.toUpperCase() === 'FLIGHT' ? dateObj.flightNumber : null,
         customMessage: customMessage || null,
-        emailMode: req.user.emailPreference, // ✅ Use current user preference
+        emailMode: req.user.emailPreference,
       });
     });
 
     const createdRequests = await Promise.all(requestPromises);
+    console.log(
+      '✅ Created requests:',
+      createdRequests.map((r) => ({
+        id: r.id,
+        startDate: r.startDate,
+        type: r.type,
+      }))
+    );
 
-    // ✅ NEW: For manual mode, generate group email content
+    let emailResponse = {
+      sent: false,
+      message: 'Group request created successfully',
+    };
+
     if (req.user.emailPreference === 'manual') {
-      // Generate group email content using the first request
+      // Manual mode logic...
       const firstRequest = createdRequests[0];
       const groupEmailContent = await firstRequest.generateGroupEmailContent(
         req.user
       );
 
-      // Store the email content in ALL requests in the group
       for (const request of createdRequests) {
         await request.storeManualEmailContent(groupEmailContent);
       }
+
+      emailResponse.message = `Group request created successfully with ${createdRequests.length} date(s). Email content ready to copy.`;
     } else if (req.user.emailPreference === 'automatic') {
-      // Handle automatic mode (existing logic)
+      // Handle automatic mode
       try {
+        console.log('🔍 Attempting automatic email send...');
+
         const GmailService = require('../services/gmailService');
 
         if (GmailService.needsReauthorization(req.user)) {
+          console.log('❌ Gmail authorization needed');
           return res.status(400).json({
             success: false,
             error: 'Gmail authorization required',
@@ -296,11 +318,58 @@ router.post('/requests/group', async (req, res) => {
           });
         }
 
+        console.log('✅ Gmail authorization OK, creating service...');
         const gmailService = new GmailService();
+
+        // ✅ POTENTIAL FIX 1: Ensure requests have all required fields loaded
+        const requestsWithFullData = await Promise.all(
+          createdRequests.map((req) => TimeOffRequest.findByPk(req.id))
+        );
+
+        console.log(
+          '🔍 Requests for email:',
+          requestsWithFullData.map((r) => ({
+            id: r.id,
+            startDate: r.startDate,
+            endDate: r.endDate,
+            type: r.type,
+            flightNumber: r.flightNumber,
+            customMessage: r.customMessage,
+          }))
+        );
+
+        console.log('🔍 User data for email:', {
+          code: req.user.code,
+          name: req.user.name,
+          email: req.user.email,
+          signature: req.user.signature ? 'Present' : 'Missing',
+        });
+
+        // ✅ POTENTIAL FIX 2: Test email content generation first
+        try {
+          const emailContent = gmailService.generateEmailContent(
+            req.user,
+            requestsWithFullData
+          );
+          console.log('✅ Email content generated:', {
+            subject: emailContent.subject,
+            to: emailContent.to,
+            bodyLength: emailContent.text?.length || 0,
+            bodyPreview: emailContent.text?.substring(0, 100) + '...',
+          });
+        } catch (contentError) {
+          console.error('❌ Email content generation failed:', contentError);
+          throw new Error(
+            `Email content generation failed: ${contentError.message}`
+          );
+        }
+
+        console.log('🔍 Sending email...');
         const emailResult = await gmailService.sendEmail(
           req.user,
-          createdRequests
+          requestsWithFullData
         );
+        console.log('✅ Email sent successfully:', emailResult);
 
         // Mark all requests as email sent
         for (const request of createdRequests) {
@@ -309,28 +378,43 @@ router.post('/requests/group', async (req, res) => {
             emailResult.threadId
           );
         }
+
+        emailResponse.sent = true;
+        emailResponse.messageId = emailResult.messageId;
+        emailResponse.message = `Group request created successfully with ${createdRequests.length} date(s) and email sent automatically`;
       } catch (emailError) {
-        console.error('Email send failed:', emailError);
+        console.error('❌ Email send failed with full details:', {
+          message: emailError.message,
+          stack: emailError.stack,
+          code: emailError.code,
+        });
 
         // Mark all requests as email failed
         for (const request of createdRequests) {
           await request.markEmailFailed(emailError.message);
         }
+
+        emailResponse.sent = false;
+        emailResponse.error = emailError.message;
+        emailResponse.message = `Group request created successfully with ${createdRequests.length} date(s) but email failed to send: ${emailError.message}`;
       }
     }
 
     res.json({
       success: true,
-      message: `Group request created successfully with ${createdRequests.length} date(s)`,
+      message: emailResponse.message,
       data: {
         requests: createdRequests.map((r) => r.toJSON()),
         groupId,
         emailMode: req.user.emailPreference,
         totalDates: createdRequests.length,
+        emailSent: emailResponse.sent,
+        emailError: emailResponse.error || null,
+        messageId: emailResponse.messageId || null,
       },
     });
   } catch (error) {
-    console.error('Error creating group request:', error);
+    console.error('❌ Group request creation failed:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to create group request',
@@ -744,15 +828,10 @@ router.get('/gmail/status', async (req, res) => {
     });
   }
 });
-
-// POST resend email for specific request
 router.post('/requests/:id/resend-email', async (req, res) => {
   try {
-    const requestId = parseInt(req.params.id);
-    const request = await TimeOffRequest.findByPkAndUser(
-      requestId,
-      req.user.id
-    );
+    const { id } = req.params;
+    const request = await TimeOffRequest.findByPkAndUser(id, req.user.id);
 
     if (!request) {
       return res.status(404).json({
@@ -761,44 +840,217 @@ router.post('/requests/:id/resend-email', async (req, res) => {
       });
     }
 
-    if (!req.user.canSendEmails()) {
-      return res.status(403).json({
+    // Check if user is in automatic mode
+    if (req.user.emailPreference !== 'automatic') {
+      return res.status(400).json({
         success: false,
-        error: 'Gmail not configured for this user',
-        message: 'Please re-login to grant Gmail permissions',
-        needsAuth: true,
+        error: 'Resend is only available in automatic email mode',
+      });
+    }
+
+    // Check Gmail authorization
+    const GmailService = require('../services/gmailService');
+    if (GmailService.needsReauthorization(req.user)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Gmail authorization required',
+        message: 'Please authorize Gmail access to send emails automatically',
+        authRequired: true,
         authUrl: '/auth/google',
       });
     }
 
-    try {
-      console.log(`Sending email for request ${requestId}...`);
-      const gmailService = require('../services/gmailService');
-      const emailResult = await gmailService.sendEmail(req.user, [request]);
+    let requestsToResend = [request];
 
-      // Update email fields in database
-      await request.markEmailSent(emailResult.messageId, emailResult.threadId);
-      await request.reload();
+    // If it's a group request, get all requests in the group
+    if (request.groupId) {
+      requestsToResend = await TimeOffRequest.getByGroupIdAndUser(
+        request.groupId,
+        req.user.id
+      );
+    }
+
+    // Attempt to send email
+    try {
+      console.log(`Resending email for request ${id}...`);
+      const gmailService = new GmailService();
+      const emailResult = await gmailService.sendEmail(
+        req.user,
+        requestsToResend
+      );
+
+      // Mark all requests as email sent
+      const updatePromises = requestsToResend.map((req) =>
+        req.markEmailSent(emailResult.messageId, emailResult.threadId)
+      );
+      await Promise.all(updatePromises);
 
       res.json({
         success: true,
-        data: request,
-        message: 'Email sent successfully',
+        message: `Email ${request.groupId ? 'group ' : ''}resent successfully`,
+        data: {
+          updatedCount: requestsToResend.length,
+          isGroup: request.groupId ? true : false,
+          groupId: request.groupId,
+          messageId: emailResult.messageId,
+          threadId: emailResult.threadId,
+          to: emailResult.to,
+          subject: emailResult.subject,
+        },
       });
     } catch (emailError) {
-      console.error('Email send failed:', emailError);
+      console.error('Email resend failed:', emailError);
+
+      // Mark all requests as email failed
+      const updatePromises = requestsToResend.map((req) =>
+        req.markEmailFailed(emailError.message)
+      );
+      await Promise.all(updatePromises);
+
       res.status(500).json({
         success: false,
-        error: 'Failed to send email',
+        error: 'Failed to resend email',
         message: emailError.message,
         canRetry: true,
+        data: {
+          updatedCount: requestsToResend.length,
+          isGroup: request.groupId ? true : false,
+        },
       });
     }
   } catch (error) {
     console.error('Error in resend email:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to send email',
+      error: 'Failed to resend email',
+      message: error.message,
+    });
+  }
+});
+// POST resend email for specific request
+router.post('/requests/group', async (req, res) => {
+  try {
+    const { dates, customMessage } = req.body;
+
+    if (!dates || !Array.isArray(dates) || dates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid dates array',
+        message:
+          'Provide array of date objects with date, type, and optional flightNumber',
+      });
+    }
+
+    // Generate group ID for all requests
+    const { v4: uuidv4 } = require('uuid');
+    const groupId = uuidv4();
+
+    // Create all requests in the group
+    const requestPromises = dates.map((dateObj) => {
+      return TimeOffRequest.create({
+        userId: req.user.id,
+        groupId,
+        startDate: dateObj.date,
+        endDate: dateObj.date,
+        type: dateObj.type.toUpperCase(),
+        flightNumber:
+          dateObj.type.toUpperCase() === 'FLIGHT' ? dateObj.flightNumber : null,
+        customMessage: customMessage || null,
+        emailMode: req.user.emailPreference,
+      });
+    });
+
+    const createdRequests = await Promise.all(requestPromises);
+
+    // Initialize email response
+    let emailResponse = {
+      sent: false,
+      message: 'Group request created successfully',
+    };
+
+    if (req.user.emailPreference === 'manual') {
+      // MANUAL MODE: Generate group email content
+      const firstRequest = createdRequests[0];
+      const groupEmailContent = await firstRequest.generateGroupEmailContent(
+        req.user
+      );
+
+      // Store the email content in ALL requests in the group
+      for (const request of createdRequests) {
+        await request.storeManualEmailContent(groupEmailContent);
+      }
+
+      emailResponse.message = `Group request created successfully with ${createdRequests.length} date(s). Email content ready to copy.`;
+    } else if (req.user.emailPreference === 'automatic') {
+      // AUTOMATIC MODE: Send email automatically
+      try {
+        const GmailService = require('../services/gmailService');
+
+        // Check Gmail authorization using static method
+        if (GmailService.needsReauthorization(req.user)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Gmail authorization required',
+            message:
+              'Please authorize Gmail access to send emails automatically',
+            authRequired: true,
+            authUrl: '/auth/google',
+          });
+        }
+
+        // Create Gmail service instance
+        const gmailService = new GmailService();
+        const emailResult = await gmailService.sendEmail(
+          req.user,
+          createdRequests
+        );
+
+        // Mark all requests as email sent
+        for (const request of createdRequests) {
+          await request.markEmailSent(
+            emailResult.messageId,
+            emailResult.threadId
+          );
+        }
+
+        // Update email response for success
+        emailResponse.sent = true;
+        emailResponse.messageId = emailResult.messageId;
+        emailResponse.message = `Group request created successfully with ${createdRequests.length} date(s) and email sent automatically`;
+      } catch (emailError) {
+        console.error('Email send failed:', emailError);
+
+        // Mark all requests as email failed
+        for (const request of createdRequests) {
+          await request.markEmailFailed(emailError.message);
+        }
+
+        // Update email response for failure
+        emailResponse.sent = false;
+        emailResponse.error = emailError.message;
+        emailResponse.message = `Group request created successfully with ${createdRequests.length} date(s) but email failed to send`;
+      }
+    }
+
+    // Return response with proper email status
+    res.json({
+      success: true,
+      message: emailResponse.message,
+      data: {
+        requests: createdRequests.map((r) => r.toJSON()),
+        groupId,
+        emailMode: req.user.emailPreference,
+        totalDates: createdRequests.length,
+        emailSent: emailResponse.sent,
+        emailError: emailResponse.error || null,
+        messageId: emailResponse.messageId || null,
+      },
+    });
+  } catch (error) {
+    console.error('Error creating group request:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create group request',
       message: error.message,
     });
   }
@@ -963,9 +1215,7 @@ router.get('/requests/:id/group-email-content', async (req, res) => {
     });
   }
 });
-
-// POST retry email sending (uses existing Gmail service)
-router.post('/requests/:id/retry-email', async (req, res) => {
+router.get('/requests/:id/group-details', async (req, res) => {
   try {
     const { id } = req.params;
     const request = await TimeOffRequest.findByPkAndUser(id, req.user.id);
@@ -977,59 +1227,70 @@ router.post('/requests/:id/retry-email', async (req, res) => {
       });
     }
 
-    if (!req.user.canSendEmails()) {
-      return res.status(400).json({
-        success: false,
-        error: 'User cannot send automatic emails',
-        message: 'Gmail permissions required for automatic email sending',
-      });
-    }
-
-    try {
-      // Use existing Gmail service
-      const emailResult = await gmailService.sendEmail(req.user, [request]);
-
-      await request.markEmailSent(emailResult.messageId, emailResult.threadId);
-
-      res.json({
+    if (!request.groupId) {
+      // If it's not a group request, return just this request
+      return res.json({
         success: true,
-        message: 'Email sent successfully',
         data: {
-          emailStatus: 'sent',
-          emailStatusIcon: '✅',
-          emailStatusLabel: 'Email Sent',
-          messageId: emailResult.messageId,
+          groupId: null,
+          requests: [request.toJSON()],
+          totalRequests: 1,
+          statusSummary: {
+            pending: request.status === 'PENDING' ? 1 : 0,
+            approved: request.status === 'APPROVED' ? 1 : 0,
+            denied: request.status === 'DENIED' ? 1 : 0,
+          },
         },
       });
-    } catch (emailError) {
-      console.error('Gmail retry failed:', emailError);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to send email',
-        message: emailError.message,
-      });
     }
+
+    // Get all requests in the group
+    const groupRequests = await TimeOffRequest.getByGroupIdAndUser(
+      request.groupId,
+      req.user.id
+    );
+
+    // Sort by date
+    groupRequests.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+
+    res.json({
+      success: true,
+      data: {
+        groupId: request.groupId,
+        requests: groupRequests.map((r) => r.toJSON()),
+        totalRequests: groupRequests.length,
+        statusSummary: {
+          pending: groupRequests.filter((r) => r.status === 'PENDING').length,
+          approved: groupRequests.filter((r) => r.status === 'APPROVED').length,
+          denied: groupRequests.filter((r) => r.status === 'DENIED').length,
+        },
+      },
+    });
   } catch (error) {
-    console.error('Error retrying email:', error);
+    console.error('Error getting group details:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to retry email',
+      error: 'Failed to get group details',
       message: error.message,
     });
   }
 });
-
 // PUT manually override request status
 router.put('/requests/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, reason } = req.body;
+    const {
+      status,
+      method = 'manual_user_update',
+      updateGroup = false,
+    } = req.body;
 
-    if (!status || !['PENDING', 'APPROVED', 'DENIED'].includes(status)) {
+    // Validate status
+    if (!['APPROVED', 'DENIED', 'PENDING'].includes(status)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid status',
-        message: 'Status must be PENDING, APPROVED, or DENIED',
+        message: 'Status must be APPROVED, DENIED, or PENDING',
       });
     }
 
@@ -1042,20 +1303,161 @@ router.put('/requests/:id/status', async (req, res) => {
       });
     }
 
-    const updates = { status };
-    if (status !== 'PENDING') {
-      updates.approvalDate = new Date();
-    }
-    if (status === 'DENIED' && reason) {
-      updates.denialReason = reason;
+    // Check if request can be updated
+    const requestEmailMode = request.emailMode || 'automatic';
+    const emailSent =
+      (requestEmailMode === 'automatic' && request.emailSent) ||
+      (requestEmailMode === 'manual' && request.manualEmailConfirmed);
+
+    if (!emailSent) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot update status before email is sent',
+        message: 'Please send the email first before updating the status',
+      });
     }
 
-    await request.update(updates);
+    let requestsToUpdate = [request];
+
+    // If updateGroup is true and it's a group request, update all requests in the group
+    if (updateGroup && request.groupId) {
+      requestsToUpdate = await TimeOffRequest.getByGroupIdAndUser(
+        request.groupId,
+        req.user.id
+      );
+    }
+
+    // Update request status
+    const updateData = {
+      status: status,
+      statusUpdateMethod: method,
+      statusUpdatedAt: new Date(),
+    };
+
+    // Set approval/denial date
+    if (status === 'APPROVED') {
+      updateData.approvalDate = new Date();
+      updateData.denialReason = null;
+    } else if (status === 'DENIED') {
+      updateData.approvalDate = null;
+      // Could add denialReason field here if needed
+    } else if (status === 'PENDING') {
+      // Reset both dates for pending
+      updateData.approvalDate = null;
+      updateData.denialReason = null;
+    }
+
+    // Update all requests
+    const updatePromises = requestsToUpdate.map((req) =>
+      req.update(updateData)
+    );
+    await Promise.all(updatePromises);
 
     res.json({
       success: true,
-      message: `Request status updated to ${status}`,
-      data: request,
+      message: `Request${requestsToUpdate.length > 1 ? 's' : ''} marked as ${status.toLowerCase()} successfully`,
+      data: {
+        updatedCount: requestsToUpdate.length,
+        status: status,
+        statusUpdatedAt: updateData.statusUpdatedAt,
+        isGroup: request.groupId ? true : false,
+        groupId: request.groupId,
+        method: method,
+        updateGroup: updateGroup,
+      },
+    });
+  } catch (error) {
+    console.error('Error updating request status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update request status',
+      message: error.message,
+    });
+  }
+});
+// PUT update request status (user manual update)
+router.put('/requests/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, method = 'manual_user_update' } = req.body;
+
+    // Validate status
+    if (!['APPROVED', 'DENIED', 'PENDING'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid status',
+        message: 'Status must be APPROVED, DENIED, or PENDING',
+      });
+    }
+
+    const request = await TimeOffRequest.findByPkAndUser(id, req.user.id);
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        error: 'Request not found',
+      });
+    }
+
+    // Check if request can be updated
+    const requestEmailMode = request.emailMode || 'automatic';
+    const emailSent =
+      (requestEmailMode === 'automatic' && request.emailSent) ||
+      (requestEmailMode === 'manual' && request.manualEmailConfirmed);
+
+    if (!emailSent) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot update status before email is sent',
+        message: 'Please send the email first before updating the status',
+      });
+    }
+
+    // Update request status
+    const updateData = {
+      status: status,
+      statusUpdateMethod: method,
+      statusUpdatedAt: new Date(),
+    };
+
+    // Set approval/denial date
+    if (status === 'APPROVED') {
+      updateData.approvalDate = new Date();
+      updateData.denialReason = null; // Clear any previous denial reason
+    } else if (status === 'DENIED') {
+      updateData.approvalDate = null; // Clear any previous approval date
+      // You could add a denialReason field here if you want to track why it was denied
+    }
+
+    await request.update(updateData);
+
+    // If it's a group request, optionally update all requests in the group
+    let updatedCount = 1;
+    if (request.groupId) {
+      const groupRequests = await TimeOffRequest.getByGroupIdAndUser(
+        request.groupId,
+        req.user.id
+      );
+
+      // Update all requests in the group to have the same status
+      const updatePromises = groupRequests
+        .filter((r) => r.id !== request.id) // Don't update the same request twice
+        .map((r) => r.update(updateData));
+
+      await Promise.all(updatePromises);
+      updatedCount = groupRequests.length;
+    }
+
+    res.json({
+      success: true,
+      message: `Request${updatedCount > 1 ? 's' : ''} marked as ${status.toLowerCase()} successfully`,
+      data: {
+        updatedCount,
+        status: status,
+        statusUpdatedAt: updateData.statusUpdatedAt,
+        isGroup: request.groupId ? true : false,
+        groupId: request.groupId,
+      },
     });
   } catch (error) {
     console.error('Error updating request status:', error);
