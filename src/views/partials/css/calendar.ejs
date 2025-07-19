@@ -417,4 +417,66 @@
   textarea {
     resize: none !important;
   }
+  .legend-container {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    background-color: #f8f9fa !important;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  .legend-email-item {
+    font-size: 0.75rem;
+    color: #6c757d;
+    white-space: nowrap;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .legend-container .row {
+      text-align: center;
+    }
+
+    .legend-container .col-md-6 {
+      margin-bottom: 0.5rem;
+    }
+
+    .legend-container .d-flex {
+      justify-content: center;
+    }
+  }
+  .legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  #legendModal .modal-dialog {
+    max-width: 300px;
+  }
+
+  #legendModal .modal-body {
+    padding: 1rem 1.5rem;
+  }
+
+  #legendModal h6 {
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+  }
+
+  #legendModal small {
+    font-size: 0.8rem;
+    color: #495057;
+  }
 </style>
