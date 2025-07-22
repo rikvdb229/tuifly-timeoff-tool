@@ -77,6 +77,8 @@ router.get('/', (req, res) => {
       'POST /api/requests': 'Create new time-off request',
       'POST /api/requests/group':
         'Create group time-off request (consecutive dates)',
+      'POST /api/requests/group-manual':
+        'Create group request with manual email already sent',
       'PUT /api/requests/:id': 'Update time-off request',
       'DELETE /api/requests/:id': 'Delete time-off request',
       'GET /api/requests/:id': 'Get specific time-off request',
@@ -1049,6 +1051,85 @@ router.post('/requests/group', async (req, res) => {
     });
   }
 });
+
+// POST create group time-off request with manual email confirmation
+router.post('/requests/group-manual', async (req, res) => {
+  try {
+    const { dates, customMessage } = req.body;
+
+    if (!dates || !Array.isArray(dates) || dates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid dates array',
+        message:
+          'Provide array of date objects with date, type, and optional flightNumber',
+      });
+    }
+
+    // Ensure user is in manual mode
+    if (req.user.emailPreference !== 'manual') {
+      return res.status(400).json({
+        success: false,
+        error: 'Manual request creation only available for users in manual email mode',
+      });
+    }
+
+    console.log('🔍 Creating manual group request with data:', {
+      dates,
+      customMessage,
+      userPreference: req.user.emailPreference,
+    });
+
+    // Generate group ID for all requests
+    const groupId = uuidv4();
+
+    // Create all requests in the group with manual email confirmed
+    const requestPromises = dates.map((dateObj) => {
+      return TimeOffRequest.create({
+        userId: req.user.id,
+        groupId,
+        startDate: dateObj.date,
+        endDate: dateObj.date,
+        type: dateObj.type.toUpperCase(),
+        flightNumber:
+          dateObj.type.toUpperCase() === 'FLIGHT' ? dateObj.flightNumber : null,
+        customMessage: customMessage || null,
+        emailMode: 'manual',
+        manualEmailConfirmed: true,
+        manualEmailConfirmedAt: new Date(),
+      });
+    });
+
+    const createdRequests = await Promise.all(requestPromises);
+    console.log(
+      '✅ Created manual requests:',
+      createdRequests.map((r) => ({
+        id: r.id,
+        startDate: r.startDate,
+        type: r.type,
+        manualEmailConfirmed: r.manualEmailConfirmed,
+      }))
+    );
+
+    res.status(201).json({
+      success: true,
+      message: `Group request created successfully with ${createdRequests.length} date(s). Email marked as sent.`,
+      data: {
+        groupId,
+        requestCount: createdRequests.length,
+        requests: createdRequests.map((r) => r.toJSON()),
+      },
+    });
+  } catch (error) {
+    console.error('Error creating manual group request:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create manual group request',
+      message: error.message,
+    });
+  }
+});
+
 // GET email content for a specific request (manual mode)
 router.get('/requests/:id/email-content', async (req, res) => {
   try {

@@ -571,6 +571,77 @@ window.submitGroupRequest = async function () {
   }
 };
 
+// Submit group request in manual mode (mark as sent and create)
+window.submitGroupRequestManual = async function () {
+  if (window.isSubmitting) return;
+
+  const customMessage = document.getElementById('customMessage').value.trim();
+  const submitButton = document.getElementById('markAsSentAndCreate');
+
+  // Validate flight numbers
+  const flightDates = window.selectedDates.filter((d) => d.type === 'FLIGHT');
+  for (const date of flightDates) {
+    if (!date.flightNumber || !date.flightNumber.startsWith('TB')) {
+      window.showToast('Flight numbers must start with "TB"', 'error');
+      return;
+    }
+  }
+
+  if (window.validateConsecutiveDates && !window.validateConsecutiveDates(window.selectedDates.map((d) => d.date))) {
+    window.showToast('Selected dates must be consecutive', 'error');
+    return;
+  }
+
+  if (window.selectedDates.length === 0) return;
+
+  window.isSubmitting = true;
+  submitButton.disabled = true;
+  submitButton.innerHTML =
+    '<i class="bi bi-hourglass-split me-1"></i>Creating Request...';
+
+  try {
+    console.log('Submitting manual group request with dates:', window.selectedDates);
+    const response = await fetch('/api/requests/group-manual', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dates: window.selectedDates,
+        customMessage: customMessage || null,
+      }),
+    });
+
+    const result = await response.json();
+    console.log('Manual group request result:', result);
+
+    if (result.success) {
+      const modal = bootstrap.Modal.getInstance(
+        document.getElementById('groupRequestModal')
+      );
+      modal.hide();
+
+      window.selectedDates = [];
+      if (window.calendar) {
+        window.calendar.updateDateSelection();
+        window.calendar.updateFloatingButton();
+      }
+
+      await loadExistingRequests();
+      window.showToast(result.message, 'success');
+    } else {
+      window.showToast(result.error, 'error');
+    }
+  } catch (error) {
+    console.error('Error creating manual group request:', error);
+    window.showToast('Failed to create request', 'error');
+  } finally {
+    window.isSubmitting = false;
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.innerHTML = '<i class="bi bi-check2 me-1"></i>Mark as Sent & Create Request';
+    }
+  }
+};
+
 // Centralized email generation (matches gmailService.js)
 function generateEmailContentLikeGmailService(user, requests) {
   const firstRequest = requests[0];

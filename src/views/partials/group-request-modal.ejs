@@ -63,15 +63,15 @@
             </div>
           </div>
 
-          <!-- Request Preview Section -->
-          <div class="mb-4">
+          <!-- Auto Mode: Request Preview Section -->
+          <div class="mb-4" id="autoModePreview">
             <label class="form-label fw-bold">
               <i class="bi bi-eye me-1"></i>
               Request Preview
             </label>
             <div class="card">
               <div class="card-body">
-                <h6 class="card-title">Email that will be sent:</h6>
+                <h6 class="card-title">Email that will be sent automatically:</h6>
                 <div class="bg-light p-3 rounded">
                   <p class="mb-2">
                     <strong>To:</strong>
@@ -82,7 +82,6 @@
                   <p class="mb-2">
                     <strong>Subject:</strong>
                     <span id="emailSubject">Loading...</span>
-                    <!-- ✅ FIXED: Remove hardcoded subject -->
                   </p>
                   <div class="border-top pt-2 mt-2">
                     <p class="mb-1">Dear,</p>
@@ -106,6 +105,89 @@
                       >
                     </p>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Manual Mode: Email Copy Section -->
+          <div class="mb-4" id="manualModeEmailCopy" style="display: none;">
+            <label class="form-label fw-bold">
+              <i class="bi bi-envelope-plus me-1"></i>
+              Email Content to Copy
+            </label>
+            <div class="card">
+              <div class="card-body">
+                <h6 class="card-title">Copy this content to your email client:</h6>
+                
+                <div class="mb-2">
+                  <label class="fw-bold small">To:</label>
+                  <div class="input-group input-group-sm">
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="manualEmailTo"
+                      value="<%= env.TUIFLY_APPROVER_EMAIL %>"
+                      readonly
+                    >
+                    <button
+                      class="btn btn-outline-secondary"
+                      type="button"
+                      data-copy-target="manualEmailTo"
+                      title="Copy email address"
+                    >
+                      <i class="bi bi-clipboard"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="mb-2">
+                  <label class="fw-bold small">Subject:</label>
+                  <div class="input-group input-group-sm">
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="manualEmailSubject"
+                      readonly
+                    >
+                    <button
+                      class="btn btn-outline-secondary"
+                      type="button"
+                      data-copy-target="manualEmailSubject"
+                      title="Copy subject"
+                    >
+                      <i class="bi bi-clipboard"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="mb-2">
+                  <label class="fw-bold small">Body:</label>
+                  <div class="input-group input-group-sm">
+                    <textarea
+                      class="form-control"
+                      id="manualEmailBody"
+                      rows="8"
+                      readonly
+                    ></textarea>
+                    <button
+                      class="btn btn-outline-secondary"
+                      type="button"
+                      data-copy-target="manualEmailBody"
+                      title="Copy email body"
+                    >
+                      <i class="bi bi-clipboard"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="text-center mt-3">
+                  <button type="button" class="btn btn-outline-primary btn-sm me-2" id="openMailClientBtn">
+                    <i class="bi bi-envelope-open me-1"></i>Open in Mail Client
+                  </button>
+                  <small class="text-muted d-block mt-2">
+                    Copy the content above and paste it into your email client, then mark as sent below.
+                  </small>
                 </div>
               </div>
             </div>
@@ -152,6 +234,8 @@
           <i class="bi bi-x-circle me-1"></i>
           Cancel
         </button>
+        
+        <!-- Auto Mode Button -->
         <button
           type="button"
           class="btn btn-primary"
@@ -160,6 +244,18 @@
         >
           <i class="bi bi-send me-1"></i>
           Create Request
+        </button>
+        
+        <!-- Manual Mode Button -->
+        <button
+          type="button"
+          class="btn btn-success"
+          data-action="markAsSentAndCreate"
+          id="markAsSentAndCreate"
+          style="display: none;"
+        >
+          <i class="bi bi-check2 me-1"></i>
+          Mark as Sent & Create Request
         </button>
       </div>
     </div>
