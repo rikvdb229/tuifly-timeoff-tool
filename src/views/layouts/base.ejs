@@ -47,13 +47,32 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Include base JavaScript -->
-    <%- include('../partials/js/base') %>
-    <%- include('../partials/js/modals') %>
+    <!-- Core utility JavaScript - Replaced EJS includes with static files -->
+    <script src="/js/core/constants.js"></script>
+    <script src="/js/core/api-client.js"></script>
+    <script src="/js/core/notifications.js"></script>
+    <script src="/js/core/utils.js"></script>
+    
+    <!-- Component JavaScript - Replaced <%- include('../partials/js/modals') %> -->
+    <script src="/js/components/modals.js"></script>
     
     <!-- Page-specific JavaScript -->
     <% if (typeof additionalJS !== 'undefined') { %>
-        <%- include('../partials/js/' + additionalJS) %>
+        <% if (Array.isArray(additionalJS)) { %>
+            <% additionalJS.forEach(function(jsFile) { %>
+                <% if (jsFile.startsWith('../')) { %>
+                    <script src="/js/<%= jsFile.replace('../', '') %>.js"></script>
+                <% } else { %>
+                    <script src="/js/pages/<%= jsFile %>.js"></script>
+                <% } %>
+            <% }); %>
+        <% } else { %>
+            <% if (additionalJS.startsWith('../')) { %>
+                <script src="/js/<%= additionalJS.replace('../', '') %>.js"></script>
+            <% } else { %>
+                <script src="/js/pages/<%= additionalJS %>.js"></script>
+            <% } %>
+        <% } %>
     <% } %>
 </body>
 </html>

@@ -6,7 +6,7 @@
 // ===================================================================
 // AUTHENTICATION & SESSION
 // ===================================================================
-export const AUTH = {
+const AUTH = {
   MAX_LOGIN_ATTEMPTS: 5,
   SESSION_TIMEOUT_MS: 24 * 60 * 60 * 1000, // 24 hours
   TOKEN_REFRESH_INTERVAL_MS: 15 * 60 * 1000, // 15 minutes
@@ -16,7 +16,7 @@ export const AUTH = {
 // ===================================================================
 // HTTP & API
 // ===================================================================
-export const HTTP = {
+const HTTP = {
   REQUEST_TIMEOUT_MS: 30 * 1000, // 30 seconds
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY_MS: 1000,
@@ -25,7 +25,7 @@ export const HTTP = {
   RATE_LIMIT_WINDOW_MS: 60 * 1000, // 1 minute
 };
 
-export const HTTP_STATUS = {
+const HTTP_STATUS = {
   OK: 200,
   CREATED: 201,
   NO_CONTENT: 204,
@@ -43,7 +43,7 @@ export const HTTP_STATUS = {
 // ===================================================================
 // TIME-OFF REQUEST SYSTEM
 // ===================================================================
-export const REQUEST_TYPES = {
+const REQUEST_TYPES = {
   VACATION: 'vacation',
   SICK_LEAVE: 'sick_leave',
   PERSONAL: 'personal',
@@ -52,7 +52,7 @@ export const REQUEST_TYPES = {
   OTHER: 'other',
 };
 
-export const REQUEST_STATUS = {
+const REQUEST_STATUS = {
   PENDING: 'pending',
   APPROVED: 'approved',
   DENIED: 'denied',
@@ -60,7 +60,7 @@ export const REQUEST_STATUS = {
   EXPIRED: 'expired',
 };
 
-export const REQUEST_PRIORITY = {
+const REQUEST_PRIORITY = {
   LOW: 'low',
   NORMAL: 'normal',
   HIGH: 'high',
@@ -70,7 +70,7 @@ export const REQUEST_PRIORITY = {
 // ===================================================================
 // BUSINESS RULES
 // ===================================================================
-export const BUSINESS_RULES = {
+const BUSINESS_RULES = {
   MIN_ADVANCE_DAYS: 60,
   MAX_ADVANCE_DAYS: 120,
   MAX_DAYS_PER_REQUEST: 4,
@@ -85,7 +85,7 @@ export const BUSINESS_RULES = {
 // ===================================================================
 // CALENDAR & DATES
 // ===================================================================
-export const CALENDAR = {
+const CALENDAR = {
   DAYS_IN_WEEK: 7,
   MONTHS_IN_YEAR: 12,
   DAYS_TO_SHOW: 90, // Default calendar view range
@@ -94,7 +94,7 @@ export const CALENDAR = {
   WEEKEND_DAYS: [0, 6], // Sunday = 0, Saturday = 6
 };
 
-export const DATE_FORMATS = {
+const DATE_FORMATS = {
   DISPLAY: 'MMM dd, yyyy',
   INPUT: 'yyyy-MM-dd',
   DATETIME: 'yyyy-MM-dd HH:mm:ss',
@@ -106,7 +106,7 @@ export const DATE_FORMATS = {
 // ===================================================================
 // EMAIL SYSTEM
 // ===================================================================
-export const EMAIL = {
+const EMAIL = {
   TYPES: {
     MANUAL: 'manual',
     AUTOMATIC: 'automatic',
@@ -127,7 +127,7 @@ export const EMAIL = {
 // ===================================================================
 // USER INTERFACE
 // ===================================================================
-export const UI = {
+const UI = {
   TOAST_DURATION_MS: 5000,
   ERROR_TOAST_DURATION_MS: 8000,
   MODAL_ANIMATION_MS: 300,
@@ -138,7 +138,7 @@ export const UI = {
   PAGINATION_MAX_SIZE: 100,
 };
 
-export const TOAST_TYPES = {
+const TOAST_TYPES = {
   SUCCESS: 'success',
   ERROR: 'error',
   WARNING: 'warning',
@@ -146,7 +146,7 @@ export const TOAST_TYPES = {
   PRIMARY: 'primary',
 };
 
-export const MODAL_TYPES = {
+const MODAL_TYPES = {
   INFO: 'info',
   WARNING: 'warning',
   DANGER: 'danger',
@@ -156,7 +156,7 @@ export const MODAL_TYPES = {
 // ===================================================================
 // VALIDATION PATTERNS
 // ===================================================================
-export const VALIDATION = {
+const VALIDATION = {
   EMAIL_PATTERN: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   PILOT_CODE_PATTERN: /^[A-Z]{3}$/,
   PHONE_PATTERN: /^[\+]?[1-9][\d]{0,15}$/,
@@ -164,7 +164,7 @@ export const VALIDATION = {
   TIME_PATTERN: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
 };
 
-export const VALIDATION_MESSAGES = {
+const VALIDATION_MESSAGES = {
   REQUIRED: 'This field is required',
   EMAIL_INVALID: 'Please enter a valid email address',
   PILOT_CODE_INVALID: 'Pilot code must be exactly 3 uppercase letters',
@@ -180,7 +180,7 @@ export const VALIDATION_MESSAGES = {
 // ===================================================================
 // STORAGE KEYS
 // ===================================================================
-export const STORAGE_KEYS = {
+const STORAGE_KEYS = {
   USER_PREFERENCES: 'tuifly_user_preferences',
   ONBOARDING_DATA: 'tuifly_onboarding_data',
   CALENDAR_FILTER: 'tuifly_calendar_filter',
@@ -194,7 +194,7 @@ export const STORAGE_KEYS = {
 // ===================================================================
 // APPLICATION SETTINGS
 // ===================================================================
-export const APP = {
+const APP = {
   NAME: 'TUIfly Time-Off Tool',
   VERSION: '2.0.0',
   SUPPORT_EMAIL: 'scheduling@tuifly.be',
@@ -204,13 +204,13 @@ export const APP = {
   MAINTENANCE_CHECK_INTERVAL_MS: 60 * 1000, // Check every minute
 };
 
-export const THEMES = {
+const THEMES = {
   LIGHT: 'light',
   DARK: 'dark',
   AUTO: 'auto',
 };
 
-export const LANGUAGES = {
+const LANGUAGES = {
   ENGLISH: 'en',
   DUTCH: 'nl',
   FRENCH: 'fr',
@@ -220,7 +220,7 @@ export const LANGUAGES = {
 // ===================================================================
 // ERROR CODES
 // ===================================================================
-export const ERROR_CODES = {
+const ERROR_CODES = {
   // Network errors
   NETWORK_ERROR: 'NETWORK_ERROR',
   TIMEOUT: 'TIMEOUT',
@@ -254,7 +254,7 @@ export const ERROR_CODES = {
 // ===================================================================
 // FEATURE FLAGS
 // ===================================================================
-export const FEATURES = {
+const FEATURES = {
   GMAIL_INTEGRATION: true,
   CALENDAR_SYNC: true,
   MOBILE_NOTIFICATIONS: false,
@@ -273,7 +273,7 @@ export const FEATURES = {
  * @param {string} type - Request type constant
  * @returns {string} Display name
  */
-export function getRequestTypeDisplay(type) {
+function getRequestTypeDisplay(type) {
   const displays = {
     [REQUEST_TYPES.VACATION]: 'Vacation',
     [REQUEST_TYPES.SICK_LEAVE]: 'Sick Leave',
@@ -290,7 +290,7 @@ export function getRequestTypeDisplay(type) {
  * @param {string} status - Request status constant
  * @returns {string} Display name
  */
-export function getRequestStatusDisplay(status) {
+function getRequestStatusDisplay(status) {
   const displays = {
     [REQUEST_STATUS.PENDING]: 'Pending Review',
     [REQUEST_STATUS.APPROVED]: 'Approved',
@@ -306,7 +306,7 @@ export function getRequestStatusDisplay(status) {
  * @param {string} status - Request status constant
  * @returns {string} CSS class
  */
-export function getRequestStatusClass(status) {
+function getRequestStatusClass(status) {
   const classes = {
     [REQUEST_STATUS.PENDING]: 'text-warning',
     [REQUEST_STATUS.APPROVED]: 'text-success',
@@ -322,7 +322,7 @@ export function getRequestStatusClass(status) {
  * @param {string} feature - Feature key
  * @returns {boolean} Whether feature is enabled
  */
-export function isFeatureEnabled(feature) {
+function isFeatureEnabled(feature) {
   return FEATURES[feature] === true;
 }
 
@@ -332,7 +332,7 @@ export function isFeatureEnabled(feature) {
  * @param {Object} params - Parameters to replace
  * @returns {string} Formatted message
  */
-export function formatValidationMessage(message, params = {}) {
+function formatValidationMessage(message, params = {}) {
   let formatted = message;
   Object.entries(params).forEach(([key, value]) => {
     formatted = formatted.replace(new RegExp(`\\{${key}\\}`, 'g'), value);

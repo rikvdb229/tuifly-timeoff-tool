@@ -294,4 +294,4 @@ window.APIClient = APIClient;
 window.APIError = APIError;
 window.apiClient = apiClient;
 
-export { APIClient, APIError, apiClient as default };
+// Export statements removed for browser compatibility - objects are available globally

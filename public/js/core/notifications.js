@@ -447,4 +447,4 @@ window.showToast = (message, type, options) => notificationManager.showToast(mes
 window.showError = (message, options) => notificationManager.error(message, options);
 window.showSuccess = (message, options) => notificationManager.success(message, options);
 
-export { NotificationManager, notificationManager as default };
+// Export statements removed for browser compatibility - objects are available globally
