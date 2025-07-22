@@ -1,7 +1,12 @@
 // src/models/TimeOffRequest.js
-const { DataTypes } = require('sequelize');
+const { DataTypes, Op } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
 
+/**
+ * Defines the TimeOffRequest model for the database
+ * @param {Object} sequelize - Sequelize instance
+ * @returns {Object} TimeOffRequest model with associations and instance methods
+ */
 function defineTimeOffRequest(sequelize) {
   const TimeOffRequest = sequelize.define(
     'TimeOffRequest',
@@ -489,7 +494,6 @@ function defineTimeOffRequest(sequelize) {
     endDate,
     excludeGroupId
   ) {
-    const { Op } = require('sequelize');
 
     const whereClause = {
       userId,
@@ -524,7 +528,6 @@ function defineTimeOffRequest(sequelize) {
   };
 
   TimeOffRequest.getStatusCountsForUser = async function (userId) {
-    const { Op } = require('sequelize');
 
     const counts = await this.findAll({
       where: { userId },
@@ -585,7 +588,6 @@ function defineTimeOffRequest(sequelize) {
 
   // NEW METHOD: Get requests that need reply checking
   TimeOffRequest.getRequestsNeedingReplyCheck = async function (userId) {
-    const { Op } = require('sequelize');
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
     return await this.findAll({

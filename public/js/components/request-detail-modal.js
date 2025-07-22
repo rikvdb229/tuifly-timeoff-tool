@@ -3,7 +3,18 @@
  * Handles request detail modal functionality
  */
 
-// Modal management functions
+/**
+ * Shows the request detail modal with comprehensive request information
+ * @param {Object} request - The request object containing details
+ * @param {string} request.id - Unique request identifier
+ * @param {string} request.emailMode - Email mode ('automatic' or 'manual')
+ * @param {boolean} request.emailSent - Whether email has been sent
+ * @param {boolean} request.manualEmailConfirmed - Whether manual email is confirmed
+ * @param {string} request.customMessage - Optional custom message
+ * @param {string} request.groupId - Group identifier if part of group request
+ * @param {string} dateStr - Formatted date string for display
+ * @returns {Promise<void>}
+ */
 window.showRequestDetailModal = async function (request, dateStr) {
   // Ensure existingRequests is available globally (for any remaining client-side functions)
   if (typeof window.existingRequests === 'undefined') {
@@ -41,6 +52,13 @@ window.showRequestDetailModal = async function (request, dateStr) {
   modal.show();
 };
 
+/**
+ * Populates the request detail modal with request data and UI elements
+ * @param {Object} request - The request object to display
+ * @param {string} dateStr - Formatted date string
+ * @returns {Promise<void>}
+ * @private
+ */
 async function populateRequestModal(request, dateStr) {
   const requestEmailMode = request.emailMode || 'automatic';
 
@@ -77,7 +95,6 @@ async function populateRequestModal(request, dateStr) {
   // Email content section (only for manual mode requests)
   const emailContentSection = document.getElementById('emailContentSection');
   if (requestEmailMode === 'manual' && !request.manualEmailConfirmed) {
-    console.log('🔍 Showing email content section for manual mode');
     if (emailContentSection) emailContentSection.style.display = 'block';
 
     setTimeout(() => {
@@ -91,6 +108,17 @@ async function populateRequestModal(request, dateStr) {
   populateModalActions(request);
 }
 
+/**
+ * Populates the request dates section with status buttons and bulk actions
+ * @param {Object} request - The request object containing date information
+ * @param {string} request.id - Request ID
+ * @param {string} request.groupId - Group ID if part of group request
+ * @param {string} request.emailMode - Email sending mode
+ * @param {boolean} request.emailSent - Whether email has been sent
+ * @param {boolean} request.manualEmailConfirmed - Manual email confirmation status
+ * @returns {Promise<void>}
+ * @private
+ */
 async function populateRequestDates(request) {
   const datesContainer = document.getElementById('requestDatesList');
   const bulkActions = document.getElementById('bulkActions');
@@ -208,6 +236,16 @@ async function populateRequestDates(request) {
   });
 }
 
+/**
+ * Populates email content fields for manual email mode
+ * @param {Object} request - The request object with email content
+ * @param {Object} request.manualEmailContent - Email content object
+ * @param {string} request.manualEmailContent.to - Recipient email
+ * @param {string} request.manualEmailContent.subject - Email subject
+ * @param {string} request.manualEmailContent.body - Email body content
+ * @returns {void}
+ * @private
+ */
 function populateEmailContent(request) {
   const approverEmail =
     window.TUIFLY_CONFIG?.APPROVER_EMAIL || 'scheduling@tuifly.be';
@@ -228,7 +266,6 @@ function populateEmailContent(request) {
     // Set SUBJECT field
     if (subjectField) {
       subjectField.value = emailContent.subject || '';
-      console.log('✅ Set SUBJECT field:', subjectField.value);
     } else {
       console.error('❌ emailSubjectDetail field not found!');
     }
@@ -244,6 +281,18 @@ function populateEmailContent(request) {
   console.warn('⚠️ No stored email content found');
 }
 
+/**
+ * Populates the modal footer with appropriate action buttons based on request state
+ * @param {Object} request - The request object
+ * @param {string} request.emailMode - Email mode ('automatic' or 'manual')
+ * @param {boolean} request.manualEmailConfirmed - Manual email confirmation status
+ * @param {boolean} request.emailFailed - Whether automatic email failed
+ * @param {string} request.status - Request status ('PENDING', 'APPROVED', 'DENIED')
+ * @param {boolean} request.emailSent - Whether email has been sent
+ * @param {string} request.groupId - Group ID if part of group request
+ * @returns {void}
+ * @private
+ */
 function populateModalActions(request) {
   const requestEmailMode = request.emailMode || 'automatic';
   const actionsContainer = document.getElementById('modalActions');
@@ -325,6 +374,11 @@ function populateModalActions(request) {
 }
 
 // Add the openInMailClient function
+/**
+ * Opens the user's default mail client with pre-filled email content
+ * @param {number|string} requestId - The ID of the request (used for context)
+ * @returns {void}
+ */
 function openInMailClient(requestId) {
   const toField = document.getElementById('emailTo');
   const subjectField = document.getElementById('emailSubjectDetail');
@@ -344,11 +398,6 @@ function openInMailClient(requestId) {
 
   // Create mailto link
   const mailtoLink = `mailto:${to}?subject=${subject}&body=${body}`;
-
-  console.log(
-    'Opening mailto link:',
-    mailtoLink.substring(0, 100) + '...'
-  );
 
   // Try to open the mailto link
   try {
@@ -370,6 +419,11 @@ function openInMailClient(requestId) {
 }
 
 // Helper functions
+/**
+ * Converts internal request type to display-friendly format
+ * @param {string} type - Internal request type ('REQ_DO', 'PM_OFF', 'AM_OFF', 'FLIGHT')
+ * @returns {string} Display format ('DO', 'PM', 'AM', 'FL')
+ */
 function getDisplayType(type) {
   const types = {
     REQ_DO: 'DO',
@@ -380,6 +434,11 @@ function getDisplayType(type) {
   return types[type] || type;
 }
 
+/**
+ * Gets Bootstrap color class for request status
+ * @param {string} status - Request status ('APPROVED', 'DENIED', 'PENDING')
+ * @returns {string} Bootstrap color class ('success', 'danger', 'warning', 'secondary')
+ */
 function getStatusColor(status) {
   const colors = {
     APPROVED: 'success',
@@ -389,6 +448,18 @@ function getStatusColor(status) {
   return colors[status] || 'secondary';
 }
 
+/**
+ * Gets email status information for display in the modal
+ * @param {Object} request - The request object
+ * @param {string} request.emailMode - Email mode ('automatic' or 'manual')
+ * @param {boolean} request.emailSent - Whether automatic email was sent
+ * @param {boolean} request.emailFailed - Whether automatic email failed
+ * @param {boolean} request.manualEmailConfirmed - Whether manual email was confirmed
+ * @returns {Object} Status information object
+ * @returns {string} returns.icon - Emoji icon for status
+ * @returns {string} returns.title - Status title
+ * @returns {string} returns.details - Status details description
+ */
 function getEmailStatusInfo(request) {
   const requestEmailMode = request.emailMode || 'automatic';
 
@@ -429,10 +500,13 @@ function getEmailStatusInfo(request) {
   }
 }
 
-// Add bulk actions functions
+/**
+ * Updates status for all requests in a group (bulk action)
+ * @param {string} status - New status to apply ('APPROVED', 'DENIED', 'PENDING')
+ * @returns {void}
+ */
 window.bulkUpdateStatus = function(status) {
   // Implementation will be in calendar.js where the actual bulk update logic exists
-  console.log('Bulk update status to:', status);
 };
 
 // Event delegation for modal interactions

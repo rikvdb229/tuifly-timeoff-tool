@@ -2,7 +2,11 @@
 const { Sequelize } = require('sequelize');
 const { createClient } = require('redis');
 
-// PostgreSQL configuration
+/**
+ * Gets PostgreSQL database configuration from environment variables
+ * @returns {Object} Database configuration object
+ * @throws {Error} When DATABASE_URL environment variable is missing
+ */
 const getDatabaseConfig = () => {
   if (!process.env.DATABASE_URL) {
     throw new Error(
@@ -69,6 +73,11 @@ redisClient.on('end', () => {
 });
 
 // Test database connection
+/**
+ * Tests PostgreSQL database connection
+ * @returns {Promise<void>}
+ * @throws {Error} When connection fails
+ */
 async function testConnection() {
   try {
     await sequelize.authenticate();
@@ -107,6 +116,11 @@ async function testConnection() {
 }
 
 // Initialize Redis connection
+/**
+ * Initializes Redis client and tests connection
+ * @returns {Promise<void>}
+ * @throws {Error} When Redis connection fails
+ */
 async function initializeRedis() {
   try {
     if (!redisClient.isReady) {

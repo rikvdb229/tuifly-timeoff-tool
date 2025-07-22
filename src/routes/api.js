@@ -4,6 +4,7 @@ const { requireAuth, requireOnboarding } = require('../middleware/auth');
 const { TimeOffRequest, User } = require('../models');
 const gmailService = require('../services/gmailService');
 const { Op } = require('sequelize');
+const { v4: uuidv4 } = require('uuid');
 const Joi = require('joi');
 
 const router = express.Router();
@@ -254,7 +255,6 @@ router.post('/requests/group', async (req, res) => {
     });
 
     // Generate group ID for all requests
-    const { v4: uuidv4 } = require('uuid');
     const groupId = uuidv4();
 
     // Create all requests in the group
@@ -304,9 +304,8 @@ router.post('/requests/group', async (req, res) => {
       try {
         console.log('🔍 Attempting automatic email send...');
 
-        const GmailService = require('../services/gmailService');
 
-        if (GmailService.needsReauthorization(req.user)) {
+        if (gmailService.needsReauthorization(req.user)) {
           console.log('❌ Gmail authorization needed');
           return res.status(400).json({
             success: false,
@@ -319,7 +318,7 @@ router.post('/requests/group', async (req, res) => {
         }
 
         console.log('✅ Gmail authorization OK, creating service...');
-        const gmailService = new GmailService();
+        const gmailService = new gmailService();
 
         // ✅ POTENTIAL FIX 1: Ensure requests have all required fields loaded
         const requestsWithFullData = await Promise.all(
@@ -849,8 +848,7 @@ router.post('/requests/:id/resend-email', async (req, res) => {
     }
 
     // Check Gmail authorization
-    const GmailService = require('../services/gmailService');
-    if (GmailService.needsReauthorization(req.user)) {
+    if (gmailService.needsReauthorization(req.user)) {
       return res.status(400).json({
         success: false,
         error: 'Gmail authorization required',
@@ -873,7 +871,7 @@ router.post('/requests/:id/resend-email', async (req, res) => {
     // Attempt to send email
     try {
       console.log(`Resending email for request ${id}...`);
-      const gmailService = new GmailService();
+      const gmailService = new gmailService();
       const emailResult = await gmailService.sendEmail(
         req.user,
         requestsToResend
@@ -942,7 +940,6 @@ router.post('/requests/group', async (req, res) => {
     }
 
     // Generate group ID for all requests
-    const { v4: uuidv4 } = require('uuid');
     const groupId = uuidv4();
 
     // Create all requests in the group
@@ -984,10 +981,9 @@ router.post('/requests/group', async (req, res) => {
     } else if (req.user.emailPreference === 'automatic') {
       // AUTOMATIC MODE: Send email automatically
       try {
-        const GmailService = require('../services/gmailService');
 
         // Check Gmail authorization using static method
-        if (GmailService.needsReauthorization(req.user)) {
+        if (gmailService.needsReauthorization(req.user)) {
           return res.status(400).json({
             success: false,
             error: 'Gmail authorization required',
@@ -999,7 +995,7 @@ router.post('/requests/group', async (req, res) => {
         }
 
         // Create Gmail service instance
-        const gmailService = new GmailService();
+        const gmailService = new gmailService();
         const emailResult = await gmailService.sendEmail(
           req.user,
           createdRequests

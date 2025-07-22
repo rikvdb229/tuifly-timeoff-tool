@@ -20,14 +20,12 @@ let gmailAuthorized = false;
 // ===================================================================
 function saveOnboardingData() {
   sessionStorage.setItem('onboardingData', JSON.stringify(onboardingData));
-  console.log('Saved onboarding data:', onboardingData);
 }
 
 function loadOnboardingData() {
   const saved = sessionStorage.getItem('onboardingData');
   if (saved) {
     onboardingData = JSON.parse(saved);
-    console.log('Loaded onboarding data:', onboardingData);
     
     // Restore form fields if they exist
     const nameField = document.getElementById('name');

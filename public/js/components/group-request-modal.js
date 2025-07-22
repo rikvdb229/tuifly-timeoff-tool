@@ -8,7 +8,17 @@ if (typeof window.TUIFLY_CONFIG === 'undefined') {
   window.TUIFLY_CONFIG = {};
 }
 
-// This will be populated by the server-rendered data in the template
+/**
+ * Updates the global TUIfly configuration with server-rendered data
+ * @param {Object} config - Configuration object from server
+ * @param {string} config.APPROVER_EMAIL - Email address of the approver
+ * @param {string} config.EMPLOYEE_CODE - Employee code
+ * @param {string} config.EMPLOYEE_NAME - Employee name
+ * @param {number} config.MIN_ADVANCE_DAYS - Minimum advance notice days
+ * @param {number} config.MAX_ADVANCE_DAYS - Maximum advance notice days
+ * @param {number} config.MAX_DAYS_PER_REQUEST - Maximum days per request
+ * @returns {void}
+ */
 window.updateTUIFlyConfig = function(config) {
   window.TUIFLY_CONFIG = {
     ...window.TUIFLY_CONFIG,
@@ -16,7 +26,11 @@ window.updateTUIFlyConfig = function(config) {
   };
 };
 
-// Update message counter
+/**
+ * Updates the character counter display for the custom message textarea
+ * @param {number} length - Current character count
+ * @returns {void}
+ */
 function updateMessageCounter(length) {
   const counter = document.getElementById('messageCounter');
   if (counter) {
@@ -24,17 +38,24 @@ function updateMessageCounter(length) {
   }
 }
 
-// Update request preview based on current form data
+/**
+ * Updates the email preview section based on current form data
+ * This function is expanded by calendar JavaScript for real preview functionality
+ * @returns {void}
+ */
 function updateRequestPreview() {
   // This function will be expanded in the calendar JavaScript to show real preview
-  console.log('Request preview updated');
 }
 
-// Submit group request
+/**
+ * Submits a group time-off request
+ * Implementation is handled by calendar.js for actual form processing
+ * @returns {Promise<void>}
+ * @throws {Error} When submission fails
+ */
 async function submitGroupRequest() {
   try {
     // Implementation will be in calendar.js
-    console.log('Submitting group request...');
   } catch (error) {
     console.error('Error submitting group request:', error);
   }

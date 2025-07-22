@@ -268,77 +268,6 @@ const FEATURES = {
 // UTILITY FUNCTIONS
 // ===================================================================
 
-/**
- * Get display name for request type
- * @param {string} type - Request type constant
- * @returns {string} Display name
- */
-function getRequestTypeDisplay(type) {
-  const displays = {
-    [REQUEST_TYPES.VACATION]: 'Vacation',
-    [REQUEST_TYPES.SICK_LEAVE]: 'Sick Leave',
-    [REQUEST_TYPES.PERSONAL]: 'Personal Day',
-    [REQUEST_TYPES.TRAINING]: 'Training',
-    [REQUEST_TYPES.COMPENSATORY]: 'Compensatory Time',
-    [REQUEST_TYPES.OTHER]: 'Other',
-  };
-  return displays[type] || type;
-}
-
-/**
- * Get display name for request status
- * @param {string} status - Request status constant
- * @returns {string} Display name
- */
-function getRequestStatusDisplay(status) {
-  const displays = {
-    [REQUEST_STATUS.PENDING]: 'Pending Review',
-    [REQUEST_STATUS.APPROVED]: 'Approved',
-    [REQUEST_STATUS.DENIED]: 'Denied',
-    [REQUEST_STATUS.CANCELLED]: 'Cancelled',
-    [REQUEST_STATUS.EXPIRED]: 'Expired',
-  };
-  return displays[status] || status;
-}
-
-/**
- * Get CSS class for request status
- * @param {string} status - Request status constant
- * @returns {string} CSS class
- */
-function getRequestStatusClass(status) {
-  const classes = {
-    [REQUEST_STATUS.PENDING]: 'text-warning',
-    [REQUEST_STATUS.APPROVED]: 'text-success',
-    [REQUEST_STATUS.DENIED]: 'text-danger',
-    [REQUEST_STATUS.CANCELLED]: 'text-muted',
-    [REQUEST_STATUS.EXPIRED]: 'text-secondary',
-  };
-  return classes[status] || 'text-muted';
-}
-
-/**
- * Check if a feature is enabled
- * @param {string} feature - Feature key
- * @returns {boolean} Whether feature is enabled
- */
-function isFeatureEnabled(feature) {
-  return FEATURES[feature] === true;
-}
-
-/**
- * Format validation message with parameters
- * @param {string} message - Message template
- * @param {Object} params - Parameters to replace
- * @returns {string} Formatted message
- */
-function formatValidationMessage(message, params = {}) {
-  let formatted = message;
-  Object.entries(params).forEach(([key, value]) => {
-    formatted = formatted.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
-  });
-  return formatted;
-}
 
 // Make constants available globally for backwards compatibility
 if (typeof window !== 'undefined') {
@@ -364,10 +293,5 @@ if (typeof window !== 'undefined') {
     LANGUAGES,
     ERROR_CODES,
     FEATURES,
-    getRequestTypeDisplay,
-    getRequestStatusDisplay,
-    getRequestStatusClass,
-    isFeatureEnabled,
-    formatValidationMessage,
   };
 }

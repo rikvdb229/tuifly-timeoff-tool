@@ -3,9 +3,12 @@
  * Handles settings modal functionality
  */
 
-// Email preference selection
+/**
+ * Handles email preference selection in the settings modal
+ * @param {string} preference - Email preference type ('manual' or 'automatic')
+ * @returns {void}
+ */
 function selectEmailPreference(preference) {
-  console.log('Selecting email preference:', preference);
   
   // Update visual selection
   const cards = document.querySelectorAll('.email-method-card');
@@ -34,9 +37,11 @@ function selectEmailPreference(preference) {
   }
 }
 
-// Gmail authorization functions
+/**
+ * Initiates Gmail authorization process for automatic email sending
+ * @returns {void}
+ */
 function authorizeGmail() {
-  console.log('Authorizing Gmail...');
   if (window.handleGmailAuth) {
     window.handleGmailAuth();
   } else {
@@ -45,31 +50,41 @@ function authorizeGmail() {
   }
 }
 
+/**
+ * Checks the current Gmail authorization status
+ * @returns {void}
+ */
 function checkGmailAuth() {
-  console.log('Checking Gmail authorization...');
   if (window.checkGmailAuthStatus) {
     window.checkGmailAuthStatus();
   }
 }
 
+/**
+ * Shows Gmail authorization information modal
+ * @returns {void}
+ */
 function showGmailAuth() {
-  console.log('Showing Gmail authorization...');
   if (window.showGmailAuthModal) {
     window.showGmailAuthModal();
   }
 }
 
-// Settings form handlers
+/**
+ * Resets all settings to their default values
+ * @returns {void}
+ */
 function resetSettings() {
-  console.log('Resetting settings to defaults...');
   if (window.handleResetSettings) {
     window.handleResetSettings();
   }
 }
 
-// Account deletion
+/**
+ * Initiates account deletion confirmation process
+ * @returns {void}
+ */
 function confirmDeleteAccount() {
-  console.log('Confirming account deletion...');
   if (window.handleDeleteAccount) {
     window.handleDeleteAccount();
   }

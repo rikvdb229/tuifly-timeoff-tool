@@ -1,6 +1,11 @@
 // src/models/User.js
 const { DataTypes } = require('sequelize');
 
+/**
+ * Defines the User model for the database
+ * @param {Object} sequelize - Sequelize instance
+ * @returns {Object} User model with all associations and methods
+ */
 function defineUser(sequelize) {
   const User = sequelize.define(
     'User',

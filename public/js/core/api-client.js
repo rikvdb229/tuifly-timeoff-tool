@@ -171,42 +171,6 @@ class APIClient {
     return new APIError('Request failed', 500, 'UNKNOWN_ERROR', { originalError: error.message });
   }
 
-  /**
-   * Set default authorization header
-   * @param {string} token - Authorization token
-   */
-  setAuthToken(token) {
-    if (token) {
-      this.defaultHeaders.Authorization = `Bearer ${token}`;
-    } else {
-      delete this.defaultHeaders.Authorization;
-    }
-  }
-
-  /**
-   * Set custom timeout
-   * @param {number} ms - Timeout in milliseconds
-   */
-  setTimeout(ms) {
-    this.timeout = ms;
-  }
-
-  /**
-   * Add custom header
-   * @param {string} name - Header name
-   * @param {string} value - Header value
-   */
-  setHeader(name, value) {
-    this.defaultHeaders[name] = value;
-  }
-
-  /**
-   * Remove custom header
-   * @param {string} name - Header name
-   */
-  removeHeader(name) {
-    delete this.defaultHeaders[name];
-  }
 }
 
 /**

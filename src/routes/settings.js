@@ -2,6 +2,7 @@
 const express = require('express');
 const { requireAuth, requireOnboarding } = require('../middleware/auth');
 const { User, UserSetting } = require('../models');
+const { Op } = require('sequelize');
 
 const router = express.Router();
 
@@ -208,7 +209,7 @@ router.put('/profile', async (req, res) => {
     const existingUser = await User.findOne({
       where: {
         code: code.toUpperCase(),
-        id: { [require('sequelize').Op.ne]: req.user.id },
+        id: { [Op.ne]: req.user.id },
       },
     });
 

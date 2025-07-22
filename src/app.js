@@ -42,8 +42,7 @@ app.use(
         connectSrc: [
           "'self'",
           'https://accounts.google.com',
-          'http://localhost:3000', // Add your development domain
-          'https://your-production-domain.com', // Add your production domain
+          'http://localhost:3000',
         ],
         frameSrc: ["'self'", 'https://accounts.google.com'],
       },

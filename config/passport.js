@@ -3,13 +3,19 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const { User, createUser } = require('../src/models');
 
-// Get basic scopes (for initial login)
+/**
+ * Gets basic OAuth scopes for Google authentication (initial login)
+ * @returns {string[]} Array of basic OAuth scope strings
+ */
 const getBasicScopes = () => {
   const scopes = process.env.GOOGLE_SCOPES_BASIC;
   return scopes ? scopes.split(' ') : ['profile', 'email', 'openid'];
 };
 
-// Get Gmail scopes (for automatic email)
+/**
+ * Gets Gmail OAuth scopes for automatic email sending
+ * @returns {string[]} Array of Gmail OAuth scope strings including send and read permissions
+ */
 const getGmailScopes = () => {
   const scopes = process.env.GOOGLE_SCOPES_GMAIL;
   return scopes ? scopes.split(' ') : ['profile', 'email', 'openid', 'https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/gmail.readonly'];

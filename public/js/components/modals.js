@@ -15,12 +15,6 @@ window.updateRequestStatus = async function (
   newStatus,
   updateGroup = false
 ) {
-  console.log(
-    'updateRequestStatus called:',
-    requestId,
-    newStatus,
-    updateGroup
-  );
 
   const statusText = newStatus === 'APPROVED' ? 'approve' : 'deny';
   const groupText = updateGroup ? ' entire group' : '';

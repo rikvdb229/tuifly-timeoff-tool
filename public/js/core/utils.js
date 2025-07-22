@@ -5,7 +5,10 @@
 
 // Base JavaScript functions for all pages
 
-// Modern logout function using modernConfirm
+/**
+ * Handles user logout with confirmation dialog
+ * @returns {Promise<void>}
+ */
 async function logout() {
   const confirmed = await modernConfirm(
     'Are you sure you want to logout? You will be redirected to the login page.',
@@ -20,6 +23,10 @@ async function logout() {
 }
 
 // Settings modal functions
+/**
+ * Opens the settings modal and loads current settings
+ * @returns {Promise<void>}
+ */
 async function openSettingsModal() {
   const modal = new bootstrap.Modal(document.getElementById('settingsModal'));
   modal.show();
@@ -28,6 +35,12 @@ async function openSettingsModal() {
   await loadSettings();
 }
 
+/**
+ * Loads user settings, preferences, and Gmail status from the server
+ * Updates the settings modal UI with current values
+ * @returns {Promise<void>}
+ * @throws {Error} When settings cannot be loaded from the server
+ */
 async function loadSettings() {
   const settingsLoading = document.getElementById('settingsLoading');
   const settingsContent = document.getElementById('settingsContent');
@@ -95,7 +108,11 @@ async function loadSettings() {
 let currentEmailPreference = 'manual';
 let gmailConnected = false;
 
-// Load Gmail status (called when settings modal opens)
+/**
+ * Loads Gmail connection status and email preference from the server
+ * @returns {Promise<void>}
+ * @throws {Error} When Gmail status cannot be retrieved
+ */
 async function loadGmailStatus() {
   try {
     const response = await fetch('/settings/gmail-status');
@@ -111,7 +128,12 @@ async function loadGmailStatus() {
   }
 }
 
-// Update email preference UI
+/**
+ * Updates the email preference UI based on current Gmail connection status
+ * and email preference setting. Updates status badges, card highlights, and
+ * visibility of Gmail authorization section
+ * @returns {void}
+ */
 function updateEmailPreferenceUI() {
   // Update email mode status (only thing we show now)
   const emailModeStatus = document.getElementById('emailModeStatus');
@@ -158,7 +180,12 @@ function updateEmailPreferenceUI() {
   }
 }
 
-// ✅ NEW: Email preference functions for card-based UI
+/**
+ * Handles selection of email preference from the card-based UI
+ * Shows Gmail authorization if automatic mode is selected but Gmail not connected
+ * @param {string} preference - Either 'manual' or 'automatic'
+ * @returns {void}
+ */
 function selectEmailPreference(preference) {
   console.log(`Selecting email preference: ${preference}`);
   
@@ -179,7 +206,13 @@ function selectEmailPreference(preference) {
   updateEmailPreference(preference);
 }
 
-// ✅ NEW: Update email preference via API
+/**
+ * Updates the email preference setting via API call
+ * Handles success/failure states and UI updates
+ * @param {string} preference - Either 'manual' or 'automatic'
+ * @returns {Promise<void>}
+ * @throws {Error} When API call fails or preference cannot be updated
+ */
 async function updateEmailPreference(preference) {
   const oldMode = currentEmailPreference;
 
@@ -236,7 +269,12 @@ async function updateEmailPreference(preference) {
   }
 }
 
-// ✅ NEW: Update card highlights based on current preference
+/**
+ * Updates visual highlights for email method cards based on current preference
+ * Clears all existing highlights and applies styling to the selected card
+ * @param {string} preference - Either 'manual' or 'automatic'
+ * @returns {void}
+ */
 function updateEmailMethodCardHighlights(preference) {
   // Clear all selections
   document.querySelectorAll('.email-method-card').forEach((card) => {
@@ -260,7 +298,14 @@ function updateEmailMethodCardHighlights(preference) {
   }
 }
 
-// Load email preferences (called from loadSettings)
+/**
+ * Loads email preferences from server data and updates UI
+ * Called from loadSettings to initialize email preference state
+ * @param {Object} data - Server response data containing email preferences
+ * @param {string} data.emailPreference - Current email preference ('manual' or 'automatic')
+ * @param {boolean} data.gmailConnected - Whether Gmail is connected
+ * @returns {void}
+ */
 function loadEmailPreferences(data) {
   currentEmailPreference = data.emailPreference || 'manual';
   gmailConnected = data.gmailConnected || false;
@@ -298,7 +343,12 @@ window.authorizeGmail = async function() {
   await connectGmail();
 };
 
-// ✅ NEW: Connect Gmail function
+/**
+ * Initiates Gmail OAuth connection process
+ * Sets redirect target and redirects user to Gmail authorization
+ * @returns {Promise<void>}
+ * @throws {Error} When Gmail connection setup fails
+ */
 async function connectGmail() {
   try {
     const authorizeBtn = document.getElementById('authorizeGmailBtn');
@@ -329,7 +379,12 @@ async function connectGmail() {
   }
 }
 
-// ✅ NEW: Disconnect Gmail function
+/**
+ * Disconnects Gmail integration and switches to manual email mode
+ * Shows confirmation dialog before proceeding
+ * @returns {Promise<void>}
+ * @throws {Error} When Gmail disconnection fails
+ */
 async function disconnectGmail() {
   if (!confirm('Are you sure you want to disconnect Gmail? This will switch your email preference to manual mode.')) {
     return;
@@ -456,7 +511,16 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-// Toast notification system
+/**
+ * Displays a toast notification with Bootstrap styling
+ * Creates toast container if it doesn't exist, shows toast with appropriate styling
+ * @param {string} message - The message to display in the toast
+ * @param {string} [type='info'] - Toast type: 'info', 'success', 'error', or 'warning'
+ * @returns {void}
+ * @example
+ * showToast('Profile updated successfully', 'success');
+ * showToast('Failed to load data', 'error');
+ */
 function showToast(message, type = 'info') {
   // Create toast container if it doesn't exist
   let toastContainer = document.querySelector('.toast-container');
@@ -511,7 +575,12 @@ function showToast(message, type = 'info') {
   });
 }
 
-// Delete user account
+/**
+ * Deletes the user account with double confirmation
+ * Shows confirmation dialog and requires typing 'DELETE' to confirm
+ * @returns {Promise<void>}
+ * @throws {Error} When account deletion fails
+ */
 async function deleteAccount() {
   const confirmed = confirm(
     'Are you absolutely sure you want to delete your account?\n\n' +
@@ -555,7 +624,14 @@ async function deleteAccount() {
   }
 }
 
-// Utility functions
+/**
+ * Formats a date to a readable string format
+ * @param {Date|string|number} date - Date to format
+ * @returns {string} Formatted date string in 'MMM dd, yyyy' format
+ * @example
+ * formatDate(new Date()) // Returns 'Jul 22, 2025'
+ * formatDate('2025-07-22') // Returns 'Jul 22, 2025'
+ */
 function formatDate(date) {
   return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -564,6 +640,13 @@ function formatDate(date) {
   });
 }
 
+/**
+ * Formats a date to include both date and time
+ * @param {Date|string|number} date - Date to format
+ * @returns {string} Formatted date-time string in 'MMM dd, yyyy, hh:mm AM/PM' format
+ * @example
+ * formatDateTime(new Date()) // Returns 'Jul 22, 2025, 02:30 PM'
+ */
 function formatDateTime(date) {
   return new Date(date).toLocaleString('en-US', {
     year: 'numeric',
@@ -574,7 +657,11 @@ function formatDateTime(date) {
   });
 }
 
-// Reset settings to defaults
+/**
+ * Resets all settings to their default values
+ * Shows confirmation dialog before resetting form values
+ * @returns {void}
+ */
 function resetSettings() {
   if (confirm('Are you sure you want to reset all settings to defaults?')) {
     // Reset form values to defaults
@@ -592,7 +679,11 @@ function resetSettings() {
   }
 }
 
-// Confirm delete account (called from danger zone)
+/**
+ * Wrapper function to confirm and delete user account
+ * Called from the danger zone section in settings
+ * @returns {void}
+ */
 function confirmDeleteAccount() {
   deleteAccount();
 }
