@@ -479,6 +479,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       nextBtn.setAttribute('data-listener-added', 'true');
     }
+
+    // Settings button
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn && !settingsBtn.hasAttribute('data-listener-added')) {
+      settingsBtn.addEventListener('click', () => {
+        if (window.openSettingsModal) {
+          window.openSettingsModal();
+        }
+      });
+      settingsBtn.setAttribute('data-listener-added', 'true');
+    }
   }, 100);
 
   // Submit group request listener
