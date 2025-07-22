@@ -59,12 +59,16 @@ router.get('/', requireAuth, async (req, res) => {
     const gmailError = req.query.error?.includes('gmail');
     const step = req.query.step || '1';
 
-    res.render('pages/onboarding', {
+    res.render('layouts/base', {
       title: 'Welcome - Complete Your Profile',
+      body: '../pages/onboarding',
       user: user.toSafeObject(),
       gmailSuccess,  // ✅ ADD: Pass Gmail success status
       gmailError,    // ✅ ADD: Pass Gmail error status  
       step: step,    // ✅ ADD: Pass step to template
+      includeNavbar: false,
+      additionalCSS: ['onboarding'],
+      additionalJS: ['onboarding'],
       globalSettings: {
         MIN_ADVANCE_DAYS: process.env.MIN_ADVANCE_DAYS || 60,
         MAX_ADVANCE_DAYS: process.env.MAX_ADVANCE_DAYS || 120,
@@ -74,9 +78,13 @@ router.get('/', requireAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('Onboarding page error:', error);
-    res.status(500).render('pages/error', {
+    res.status(500).render('layouts/base', {
       title: 'Error',
+      body: '../pages/error',
       error: 'Failed to load onboarding page',
+      includeNavbar: false,
+      additionalCSS: ['error'],
+      additionalJS: []
     });
   }
 });

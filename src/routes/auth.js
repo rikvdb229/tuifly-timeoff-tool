@@ -32,10 +32,14 @@ router.get('/', (req, res) => {
 
 // Login page
 router.get('/login', requireGuest, (req, res) => {
-  res.render('pages/login', {
-    title: 'Login - TUIfly Time-Off',
+  res.render('layouts/base', {
+    title: 'Login',
+    body: '../pages/login',
     error: req.query.error,
     message: req.query.message,
+    includeNavbar: false,
+    additionalCSS: ['auth'],
+    additionalJS: ['login']
   });
 });
 
@@ -96,15 +100,23 @@ router.get('/waiting-approval', async (req, res) => {
     }
 
     // Render waiting approval page
-    res.render('pages/waiting-approval', {
+    res.render('layouts/base', {
       title: 'Waiting for Approval - TUIfly Time-Off',
+      body: '../pages/waiting-approval',
       user: user.toSafeObject(),
+      includeNavbar: true,
+      additionalCSS: [],
+      additionalJS: []
     });
   } catch (error) {
     console.error('Error in waiting-approval route:', error);
-    res.status(500).render('pages/error', {
+    res.status(500).render('layouts/base', {
       title: 'Error',
+      body: '../pages/error',
       error: 'Failed to load waiting approval page',
+      includeNavbar: false,
+      additionalCSS: ['error'],
+      additionalJS: []
     });
   }
 });

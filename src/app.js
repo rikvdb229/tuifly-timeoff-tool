@@ -148,10 +148,14 @@ app.use((req, res) => {
     });
   }
 
-  res.status(404).render('pages/error', {
+  res.status(404).render('layouts/base', {
     title: 'Page Not Found',
+    body: '../pages/error',
     error: 'The page you are looking for does not exist.',
     statusCode: 404,
+    includeNavbar: false,
+    additionalCSS: ['error'],
+    additionalJS: []
   });
 });
 
@@ -180,10 +184,14 @@ app.use((err, req, res, next) => {
     });
   }
 
-  res.status(statusCode).render('pages/error', {
+  res.status(statusCode).render('layouts/base', {
     title: 'Error',
+    body: '../pages/error',
     error: message,
     statusCode,
+    includeNavbar: false,
+    additionalCSS: ['error'],
+    additionalJS: []
   });
 });
 

@@ -60,10 +60,14 @@ router.get('/', async (req, res) => {
   try {
     const userSettings = await UserSetting.getUserSettings(req.user.id);
 
-    res.render('pages/settings', {
+    res.render('layouts/base', {
       title: 'Settings - TUIfly Time-Off',
+      body: '../pages/settings',
       user: req.user.toSafeObject(),
       userSettings,
+      includeNavbar: true,
+      additionalCSS: ['settings'],
+      additionalJS: ['settings'],
       globalSettings: {
         MIN_ADVANCE_DAYS: process.env.MIN_ADVANCE_DAYS || 60,
         MAX_ADVANCE_DAYS: process.env.MAX_ADVANCE_DAYS || 120,
@@ -73,9 +77,13 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Settings page error:', error);
-    res.status(500).render('pages/error', {
+    res.status(500).render('layouts/base', {
       title: 'Error',
+      body: '../pages/error',
       error: 'Failed to load settings page',
+      includeNavbar: false,
+      additionalCSS: ['error'],
+      additionalJS: []
     });
   }
 });

@@ -1,0 +1,91 @@
+/**
+ * TUIfly Time-Off Tool - Error Page Styles
+ * Styles for error pages with consistent TUIfly branding
+ */
+
+:root {
+    --tuifly-blue: #007bff;
+    --tuifly-yellow: #ffc107;
+}
+
+.error-page-body {
+    background: linear-gradient(135deg, var(--tuifly-blue) 0%, #0056b3 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.error-container {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    max-width: 500px;
+    width: 100%;
+    margin: 20px;
+}
+
+.error-header {
+    background: linear-gradient(135deg, var(--tuifly-blue) 0%, #0056b3 100%);
+    color: white;
+    padding: 30px;
+    text-align: center;
+}
+
+.error-header i {
+    font-size: 4rem;
+    margin-bottom: 10px;
+}
+
+.error-body {
+    padding: 40px 30px;
+    text-align: center;
+}
+
+.error-code {
+    font-size: 3rem;
+    font-weight: bold;
+    color: var(--tuifly-blue);
+    margin-bottom: 20px;
+}
+
+.error-page-body .btn-primary {
+    background: var(--tuifly-blue);
+    border-color: var(--tuifly-blue);
+    padding: 12px 30px;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.error-page-body .btn-primary:hover {
+    background: #0056b3;
+    border-color: #0056b3;
+    transform: translateY(-2px);
+}
+
+.error-page-body .btn-outline-secondary {
+    border-color: #6c757d;
+    color: #6c757d;
+    padding: 12px 30px;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.error-page-body .btn-outline-secondary:hover {
+    background: #6c757d;
+    border-color: #6c757d;
+    transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+    .error-header {
+        padding: 20px;
+    }
+    
+    .error-body {
+        padding: 30px 20px;
+    }
+}
