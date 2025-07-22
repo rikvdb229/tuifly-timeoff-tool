@@ -33,6 +33,32 @@ body {
   }
 }
 
+/* Email Preference Card Styles */
+.email-method-card {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.email-method-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.email-method-card.selected {
+  border-width: 2px !important;
+}
+
+.email-method-card.selected.border-primary {
+  border-color: var(--bs-primary) !important;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.email-method-card.selected.border-success {
+  border-color: var(--bs-success) !important;
+  box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+}
+
 .cursor-pointer {
   cursor: pointer;
   user-select: none;
