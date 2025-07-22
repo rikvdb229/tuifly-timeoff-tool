@@ -11,7 +11,7 @@ const getBasicScopes = () => {
 
 // Get Gmail scopes (for automatic email)
 const getGmailScopes = () => {
-  const scopes = process.env.GOOGLE_SCOPES_FULL;
+  const scopes = process.env.GOOGLE_SCOPES_GMAIL;
   return scopes ? scopes.split(' ') : ['profile', 'email', 'openid', 'https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/gmail.readonly'];
 };
 
