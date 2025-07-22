@@ -112,10 +112,15 @@
 
           <!-- Manual Mode: Email Copy Section -->
           <div class="mb-4" id="manualModeEmailCopy" style="display: none;">
-            <label class="form-label fw-bold">
-              <i class="bi bi-envelope-plus me-1"></i>
-              Email Content to Copy
-            </label>
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <label class="form-label fw-bold mb-0">
+                <i class="bi bi-envelope-plus me-1"></i>
+                Email Content to Copy
+              </label>
+              <button type="button" class="btn btn-outline-primary btn-sm" id="openMailClientBtn">
+                <i class="bi bi-envelope-open me-1"></i>Open in Mail Client
+              </button>
+            </div>
             <div class="card">
               <div class="card-body">
                 <h6 class="card-title">Copy this content to your email client:</h6>
@@ -181,13 +186,10 @@
                   </div>
                 </div>
 
-                <div class="d-flex align-items-center justify-content-between mt-3">
+                <div class="text-center mt-3">
                   <small class="text-muted">
-                    Copy the content above and paste it into your email client, then mark as sent below.
+                    Copy this content and send it manually via email.
                   </small>
-                  <button type="button" class="btn btn-outline-primary btn-sm" id="openMailClientBtn">
-                    <i class="bi bi-envelope-open me-1"></i>Open in Mail Client
-                  </button>
                 </div>
               </div>
             </div>
@@ -243,7 +245,7 @@
           id="submitGroupRequest"
         >
           <i class="bi bi-send me-1"></i>
-          Create Request
+          Send
         </button>
         
         <!-- Manual Mode Button -->
@@ -255,7 +257,7 @@
           style="display: none;"
         >
           <i class="bi bi-check2 me-1"></i>
-          Mark as Sent & Create Request
+          Mark as Sent
         </button>
       </div>
     </div>

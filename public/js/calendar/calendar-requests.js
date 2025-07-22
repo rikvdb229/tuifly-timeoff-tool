@@ -566,7 +566,7 @@ window.submitGroupRequest = async function () {
     window.isSubmitting = false;
     if (submitButton) {
       submitButton.disabled = false;
-      submitButton.innerHTML = '<i class="bi bi-send me-1"></i>Submit Request';
+      submitButton.innerHTML = '<i class="bi bi-send me-1"></i>Send';
     }
   }
 };
@@ -637,7 +637,7 @@ window.submitGroupRequestManual = async function () {
     window.isSubmitting = false;
     if (submitButton) {
       submitButton.disabled = false;
-      submitButton.innerHTML = '<i class="bi bi-check2 me-1"></i>Mark as Sent & Create Request';
+      submitButton.innerHTML = '<i class="bi bi-check2 me-1"></i>Mark as Sent';
     }
   }
 };
