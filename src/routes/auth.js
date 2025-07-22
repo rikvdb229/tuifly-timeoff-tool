@@ -172,8 +172,8 @@ router.get(
   requireAuth, // User must be logged in first
   authRateLimit,
   passport.authenticate('google-gmail', {
-    scope: process.env.GOOGLE_SCOPES_FULL
-      ? process.env.GOOGLE_SCOPES_FULL.split(' ')
+    scope: process.env.GOOGLE_SCOPES_GMAIL
+      ? process.env.GOOGLE_SCOPES_GMAIL.split(' ')
       : ['profile', 'email', 'openid', 'https://www.googleapis.com/auth/gmail.send'],
     prompt: 'consent', // Force consent screen for Gmail permissions
   })
