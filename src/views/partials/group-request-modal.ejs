@@ -56,7 +56,7 @@
               rows="4"
               maxlength="500"
               placeholder="Enter any additional information about your time-off request (e.g., vacation, wedding, medical appointment, etc.)"
-              oninput="updateMessageCounter(this.value.length); updateRequestPreview()"
+              data-action="updateMessage"
             ></textarea>
             <div class="form-text">
               <span id="messageCounter">0</span>/500 characters
@@ -155,7 +155,7 @@
         <button
           type="button"
           class="btn btn-primary"
-          onclick="submitGroupRequest()"
+          data-action="submitGroupRequest"
           id="submitGroupRequest"
         >
           <i class="bi bi-send me-1"></i>
@@ -168,33 +168,14 @@
 
 <script>
   // Update global JavaScript variables with environment values
-  window.TUIFLY_CONFIG = {
-    APPROVER_EMAIL: '<%= env.TUIFLY_APPROVER_EMAIL %>',
-    EMPLOYEE_CODE: '<%= env.EMPLOYEE_CODE %>',
-    EMPLOYEE_NAME: '<%= env.EMPLOYEE_NAME %>',
-    MIN_ADVANCE_DAYS: '<%= env.MIN_ADVANCE_DAYS %>',
-    MAX_ADVANCE_DAYS: '<%= env.MAX_ADVANCE_DAYS %>',
-    MAX_DAYS_PER_REQUEST: '<%= env.MAX_DAYS_PER_REQUEST %>',
-  };
-
-  // Update message counter
-  function updateMessageCounter(length) {
-    document.getElementById('messageCounter').textContent = length;
-  }
-
-  // Update request preview based on current form data
-  function updateRequestPreview() {
-    // This function will be expanded in the calendar JavaScript to show real preview
-    console.log('Request preview updated');
-  }
-
-  // Submit group request
-  async function submitGroupRequest() {
-    try {
-      // Implementation will be in calendar.js
-      console.log('Submitting group request...');
-    } catch (error) {
-      console.error('Error submitting group request:', error);
-    }
+  if (typeof window.updateTUIFlyConfig === 'function') {
+    window.updateTUIFlyConfig({
+      APPROVER_EMAIL: '<%= env.TUIFLY_APPROVER_EMAIL %>',
+      EMPLOYEE_CODE: '<%= env.EMPLOYEE_CODE %>',
+      EMPLOYEE_NAME: '<%= env.EMPLOYEE_NAME %>',
+      MIN_ADVANCE_DAYS: '<%= env.MIN_ADVANCE_DAYS %>',
+      MAX_ADVANCE_DAYS: '<%= env.MAX_ADVANCE_DAYS %>',
+      MAX_DAYS_PER_REQUEST: '<%= env.MAX_DAYS_PER_REQUEST %>',
+    });
   }
 </script>

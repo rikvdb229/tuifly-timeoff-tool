@@ -114,7 +114,7 @@
         <div class="col-md-6 mb-3">
           <div class="card email-method-card h-100" 
                id="manualCard" 
-               onclick="selectEmailPreference('manual')"
+               data-preference="manual"
                style="cursor: pointer; transition: all 0.3s ease;">
             <div class="card-body text-center p-4">
               <div class="mb-3">
@@ -136,7 +136,7 @@
         <div class="col-md-6 mb-3">
           <div class="card email-method-card h-100" 
                id="automaticCard" 
-               onclick="selectEmailPreference('automatic')"
+               data-preference="automatic"
                style="cursor: pointer; transition: all 0.3s ease;">
             <div class="card-body text-center p-4">
               <div class="mb-3">
@@ -166,7 +166,7 @@
         To use automatic email sending, you need to authorize Gmail access.
         This allows the application to send emails on your behalf.
       </p>
-      <button type="button" class="btn btn-primary" onclick="authorizeGmail()" id="authorizeGmailBtn">
+      <button type="button" class="btn btn-primary" data-action="authorizeGmail" id="authorizeGmailBtn">
         <i class="bi bi-google me-2"></i>
         Authorize Gmail Access
       </button>
@@ -182,10 +182,10 @@
         Having issues with email sending? Check your Gmail authorization status.
       </p>
       <div class="d-flex gap-2">
-        <button type="button" class="btn btn-outline-primary btn-sm" onclick="checkGmailAuth()">
+        <button type="button" class="btn btn-outline-primary btn-sm" data-action="checkGmailAuth">
           <i class="bi bi-search me-1"></i>Check Status
         </button>
-        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="showGmailAuth()">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-action="showGmailAuth">
           <i class="bi bi-google me-1"></i>Show Authorization
         </button>
       </div>
@@ -269,7 +269,7 @@
                 <button
                   type="button"
                   class="btn btn-outline-secondary ms-2"
-                  onclick="resetSettings()"
+                  data-action="resetSettings"
                 >
                   <i class="bi bi-arrow-clockwise me-1"></i>
                   Reset to Defaults
@@ -328,7 +328,7 @@
               <button
                 type="button"
                 class="btn btn-outline-danger"
-                onclick="confirmDeleteAccount()"
+                data-action="confirmDeleteAccount"
               >
                 <i class="bi bi-trash me-1"></i>
                 Delete Account
