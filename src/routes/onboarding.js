@@ -1,4 +1,4 @@
-// src/routes/onboarding.js - COMPLETE FIXED VERSION
+// src/routes/onboarding.js - MERGED VERSION (Original + Split OAuth)
 const express = require('express');
 const { requireAuth } = require('../middleware/auth');
 const { User, updateUserOnboarding } = require('../models');
@@ -27,7 +27,7 @@ const onboardingSchema = Joi.object({
     'string.max': 'Signature must not exceed 200 characters',
     'any.required': 'Signature is required',
   }),
-  // ✅ ADD: Email preference validation
+  // ✅ ADD: Email preference validation for split OAuth
   emailPreference: Joi.string()
     .valid('automatic', 'manual')
     .default('manual')
@@ -54,9 +54,17 @@ router.get('/', requireAuth, async (req, res) => {
       }
     }
 
+    // ✅ ADD: Check for Gmail OAuth success/error (for split OAuth flow)
+    const gmailSuccess = req.query.gmail_success === '1';
+    const gmailError = req.query.error?.includes('gmail');
+    const step = req.query.step || '1';
+
     res.render('pages/onboarding', {
       title: 'Welcome - Complete Your Profile',
       user: user.toSafeObject(),
+      gmailSuccess,  // ✅ ADD: Pass Gmail success status
+      gmailError,    // ✅ ADD: Pass Gmail error status  
+      step: step,    // ✅ ADD: Pass step to template
       globalSettings: {
         MIN_ADVANCE_DAYS: process.env.MIN_ADVANCE_DAYS || 60,
         MAX_ADVANCE_DAYS: process.env.MAX_ADVANCE_DAYS || 120,
@@ -73,7 +81,26 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-// Complete onboarding - FIXED VERSION
+// ✅ ADD: Start Gmail OAuth flow (for split OAuth)
+router.post('/start-gmail-oauth', requireAuth, async (req, res) => {
+  try {
+    // Set redirect target after Gmail OAuth completes
+    req.session.gmailOAuthRedirect = '/onboarding?gmail_success=1&step=4';
+    
+    res.json({
+      success: true,
+      redirectUrl: '/auth/google/gmail',
+    });
+  } catch (error) {
+    console.error('Error starting Gmail OAuth:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start Gmail authorization',
+    });
+  }
+});
+
+// Complete onboarding - MERGED VERSION
 router.post('/complete', requireAuth, async (req, res) => {
   try {
     const { error, value } = onboardingSchema.validate(req.body);
@@ -91,7 +118,7 @@ router.post('/complete', requireAuth, async (req, res) => {
 
     const { name, code, signature, emailPreference } = value;
 
-    // Check if code is already taken
+    // ✅ KEEP: Original code uniqueness check
     const existingUser = await User.findByCode(code);
     if (existingUser && existingUser.id !== req.session.userId) {
       return res.status(400).json({
@@ -106,7 +133,23 @@ router.post('/complete', requireAuth, async (req, res) => {
       });
     }
 
-    // Update user with onboarding data including email preference
+    // ✅ ADD: Check if user chose automatic email but doesn't have Gmail permissions
+    if (emailPreference === 'automatic') {
+      const user = await User.findByPk(req.session.userId);
+      if (!user.gmailScopeGranted || !user.gmailAccessToken) {
+        return res.status(400).json({
+          success: false,
+          error: 'Gmail permissions required for automatic email',
+          details: [{
+            field: 'emailPreference',
+            message: 'Gmail authorization is required for automatic email sending',
+          }],
+          requiresGmailAuth: true,
+        });
+      }
+    }
+
+    // ✅ KEEP: Original user update logic with added email preference
     const user = await updateUserOnboarding(req.session.userId, {
       name,
       code: code.toUpperCase(),
@@ -130,6 +173,7 @@ router.post('/complete', requireAuth, async (req, res) => {
         message: 'Profile completed successfully! Welcome to TUIfly Time-Off.',
         user: updatedUser.toSafeObject(),
         redirect: '/',
+        redirectUrl: '/', // ✅ ADD: Alternative redirect property
       });
     } else {
       // User needs admin approval - go to waiting page
@@ -142,6 +186,7 @@ router.post('/complete', requireAuth, async (req, res) => {
           'Profile completed successfully! Your account is now pending admin approval.',
         user: updatedUser.toSafeObject(),
         redirect: '/auth/waiting-approval',
+        redirectUrl: '/auth/waiting-approval', // ✅ ADD: Alternative redirect property
       });
     }
   } catch (error) {
@@ -153,7 +198,7 @@ router.post('/complete', requireAuth, async (req, res) => {
   }
 });
 
-// Check code availability
+// ✅ KEEP: Original code availability check
 router.post('/check-code', requireAuth, async (req, res) => {
   try {
     const { code } = req.body;
@@ -184,6 +229,25 @@ router.post('/check-code', requireAuth, async (req, res) => {
     res.status(500).json({
       available: false,
       message: 'Error checking code availability',
+    });
+  }
+});
+
+// ✅ ADD: Check Gmail authorization status (for onboarding)
+router.get('/gmail-status', requireAuth, async (req, res) => {
+  try {
+    const user = await User.findByPk(req.session.userId);
+    
+    res.json({
+      success: true,
+      gmailAuthorized: user.gmailScopeGranted && !!user.gmailAccessToken,
+      emailPreference: user.emailPreference,
+    });
+  } catch (error) {
+    console.error('Error checking Gmail status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check Gmail status',
     });
   }
 });

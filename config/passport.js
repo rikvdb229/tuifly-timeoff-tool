@@ -1,106 +1,139 @@
-// config/passport.js - UNIFIED OAUTH VERSION using environment variables
+// config/passport.js - SPLIT OAUTH VERSION
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const { User, createUser } = require('../src/models');
 
-// Get scopes from environment variable (space-separated)
-const getOAuthScopes = () => {
-  const scopes = process.env.GOOGLE_SCOPES;
-  return scopes ? scopes.split(' ') : ['profile', 'email'];
+// Get basic scopes (for initial login)
+const getBasicScopes = () => {
+  const scopes = process.env.GOOGLE_SCOPES_BASIC;
+  return scopes ? scopes.split(' ') : ['profile', 'email', 'openid'];
 };
 
-console.log('🔧 OAuth Scopes:', getOAuthScopes());
+// Get Gmail scopes (for automatic email)
+const getGmailScopes = () => {
+  const scopes = process.env.GOOGLE_SCOPES_FULL;
+  return scopes ? scopes.split(' ') : ['profile', 'email', 'openid', 'https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/gmail.readonly'];
+};
 
-// Configure Google OAuth strategy with Gmail permissions
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.GOOGLE_REDIRECT_URI || '/auth/google/callback',
-      scope: getOAuthScopes(),
-      accessType: 'offline', // Required for refresh tokens
-      prompt: 'consent', // Force consent to get refresh token
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        console.log('🔍 OAuth tokens received:', {
-          hasAccessToken: !!accessToken,
-          hasRefreshToken: !!refreshToken,
-          userId: profile.id,
-          email: profile.emails[0]?.value,
-        });
+console.log('🔧 Basic OAuth Scopes:', getBasicScopes());
+console.log('🔧 Gmail OAuth Scopes:', getGmailScopes());
 
-        // Check if user already exists
-        let user = await User.findByGoogleId(profile.id);
+// Strategy 1: Basic Google OAuth (for initial login)
+passport.use('google-basic', new GoogleStrategy(
+  {
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: process.env.GOOGLE_REDIRECT_URI || '/auth/google/callback',
+    scope: getBasicScopes(),
+    accessType: 'offline',
+    prompt: 'select_account',
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+      console.log('🔍 Basic OAuth tokens received:', {
+        hasAccessToken: !!accessToken,
+        hasRefreshToken: !!refreshToken,
+        userId: profile.id,
+        email: profile.emails[0]?.value,
+      });
 
-        if (user) {
-          // Update existing user with new tokens and profile info
-          const updates = {
-            lastLoginAt: new Date(),
-          };
+      // Check if user already exists
+      let user = await User.findByGoogleId(profile.id);
 
-          // Update profile picture if changed
-          if (user.profilePicture !== profile.photos[0]?.value) {
-            updates.profilePicture = profile.photos[0]?.value || null;
-          }
+      if (user) {
+        // Update existing user with basic info
+        const updates = {
+          lastLoginAt: new Date(),
+        };
 
-          // Update name from Google profile if not set yet
-          const googleName =
-            profile.displayName ||
-            `${profile.name?.givenName || ''} ${profile.name?.familyName || ''}`.trim();
-          if (!user.name && googleName) {
-            updates.name = googleName;
-          }
-
-          // 🚀 CRITICAL: Update Gmail tokens from OAuth
-          if (accessToken) {
-            updates.gmailAccessToken = accessToken;
-            updates.gmailScopeGranted = true;
-          }
-
-          if (refreshToken) {
-            updates.gmailRefreshToken = refreshToken;
-          }
-
-          // Calculate token expiry (usually 1 hour from now)
-          updates.gmailTokenExpiry = new Date(Date.now() + 3600 * 1000); // 1 hour
-
-          await user.update(updates);
-
-          console.log(`✅ Updated user ${user.email} with Gmail permissions`);
-          return done(null, user);
+        // Update profile picture if changed
+        if (user.profilePicture !== profile.photos[0]?.value) {
+          updates.profilePicture = profile.photos[0]?.value || null;
         }
 
-        // Create new user with Google profile AND Gmail permissions
+        // Update name from Google profile if not set yet
         const googleName =
           profile.displayName ||
           `${profile.name?.givenName || ''} ${profile.name?.familyName || ''}`.trim();
+        if (!user.name && googleName) {
+          updates.name = googleName;
+        }
 
-        const userData = {
-          googleId: profile.id,
-          email: profile.emails[0].value,
-          name: googleName || null,
-          profilePicture: profile.photos[0]?.value || null,
-          lastLoginAt: new Date(),
-          // 🚀 NEW: Set Gmail permissions during user creation
-          gmailAccessToken: accessToken,
-          gmailRefreshToken: refreshToken,
-          gmailTokenExpiry: new Date(Date.now() + 3600 * 1000), // 1 hour
-          gmailScopeGranted: !!accessToken,
-        };
-
-        user = await createUser(userData);
-
-        console.log(`✅ Created new user ${user.email} with Gmail permissions`);
+        await user.update(updates);
+        console.log(`✅ Updated existing user ${user.email} (basic login)`);
         return done(null, user);
-      } catch (error) {
-        console.error('Google OAuth error:', error);
-        return done(error, null);
       }
+
+      // Create new user (WITHOUT Gmail permissions initially)
+      const googleName =
+        profile.displayName ||
+        `${profile.name?.givenName || ''} ${profile.name?.familyName || ''}`.trim();
+
+      const userData = {
+        googleId: profile.id,
+        email: profile.emails[0].value,
+        name: googleName || null,
+        profilePicture: profile.photos[0]?.value || null,
+        lastLoginAt: new Date(),
+        // NOT setting Gmail tokens yet - user will grant these during onboarding
+        gmailScopeGranted: false,
+      };
+
+      user = await createUser(userData);
+      console.log(`✅ Created new user ${user.email} (basic permissions only)`);
+      return done(null, user);
+    } catch (error) {
+      console.error('Google OAuth (basic) error:', error);
+      return done(error, null);
     }
-  )
-);
+  }
+));
+
+// Strategy 2: Gmail Google OAuth (for automatic email users)
+passport.use('google-gmail', new GoogleStrategy(
+  {
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: process.env.GOOGLE_GMAIL_REDIRECT_URI || '/auth/google/gmail/callback',
+    scope: getGmailScopes(),
+    accessType: 'offline',
+    prompt: 'consent', // Force consent to get Gmail permissions
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+      console.log('🔍 Gmail OAuth tokens received:', {
+        hasAccessToken: !!accessToken,
+        hasRefreshToken: !!refreshToken,
+        userId: profile.id,
+        email: profile.emails[0]?.value,
+      });
+
+      // Find existing user (should already exist from basic login)
+      const user = await User.findByGoogleId(profile.id);
+
+      if (!user) {
+        console.error('❌ User not found during Gmail OAuth - this should not happen');
+        return done(new Error('User not found during Gmail OAuth'), null);
+      }
+
+      // Update user with Gmail permissions
+      const updates = {
+        gmailAccessToken: accessToken,
+        gmailRefreshToken: refreshToken,
+        gmailTokenExpiry: new Date(Date.now() + 3600 * 1000), // 1 hour
+        gmailScopeGranted: true,
+        lastLoginAt: new Date(),
+      };
+
+      await user.update(updates);
+      console.log(`✅ Updated user ${user.email} with Gmail permissions`);
+      return done(null, user);
+    } catch (error) {
+      console.error('Google OAuth (Gmail) error:', error);
+      return done(error, null);
+    }
+  }
+));
 
 // Serialize user for session
 passport.serializeUser((user, done) => {

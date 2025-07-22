@@ -88,111 +88,108 @@
           </div>
           <!-- Email Preferences Card -->
           <div class="card mb-3">
-            <div class="card-header">
-              <h6 class="mb-0">
-                <i class="bi bi-envelope-gear me-2"></i>
-                Email Preferences
-                <span id="emailPrefBadge" class="badge bg-secondary ms-2"
-                  >Loading...</span
-                >
-              </h6>
-            </div>
-            <div class="card-body">
-              <p class="card-text text-muted mb-3">
-                Choose how you want to handle time-off request emails.
-              </p>
-
-              <!-- Email Method Selection -->
-              <!-- ✅ FIXED: Card-only clicking, NO radio buttons -->
-              <div class="row mb-3">
-                <div class="col-md-6 mb-2">
-                  <div
-                    class="card email-method-card h-100 cursor-pointer"
-                    id="automaticCard"
-                    onclick="selectEmailPreference('automatic')"
-                    style="transition: all 0.2s"
-                  >
-                    <div class="card-body text-center p-3">
-                      <div class="mb-2">
-                        <i class="bi bi-robot fs-2 text-primary"></i>
-                      </div>
-                      <h6 class="card-title mb-2">🤖 Automatic</h6>
-                      <p class="card-text small text-muted mb-2">
-                        Emails sent automatically when you create requests
-                      </p>
-                      <small class="text-muted"
-                        >Requires Gmail access for convenience</small
-                      >
-                      <!-- ✅ NO RADIO BUTTON - completely removed -->
-                    </div>
-                  </div>
-                </div>
-                <div class="col-md-6 mb-2">
-                  <div
-                    class="card email-method-card h-100 cursor-pointer"
-                    id="manualCard"
-                    onclick="selectEmailPreference('manual')"
-                    style="transition: all 0.2s"
-                  >
-                    <div class="card-body text-center p-3">
-                      <div class="mb-2">
-                        <i class="bi bi-envelope fs-2 text-success"></i>
-                      </div>
-                      <h6 class="card-title mb-2">📧 Manual</h6>
-                      <p class="card-text small text-muted mb-2">
-                        Copy email content and send from your own email client
-                      </p>
-                      <small class="text-muted"
-                        >Full privacy - no Gmail access needed</small
-                      >
-                      <!-- ✅ NO RADIO BUTTON - completely removed -->
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Gmail Authorization Section -->
-              <div
-                id="gmailAuthSection"
-                class="alert alert-info"
-                style="display: none"
-              >
-                <div class="d-flex align-items-center">
-                  <i class="bi bi-google text-primary fs-5 me-2"></i>
-                  <div class="flex-grow-1">
-                    <h6 class="mb-1">Gmail Authorization Required</h6>
-                    <p class="mb-2 small">
-                      To use automatic email sending, grant Gmail permissions.
-                    </p>
-                    <button
-                      id="authorizeGmailBtn"
-                      class="btn btn-outline-primary btn-sm"
-                    >
-                      <i class="bi bi-google"></i> Authorize Gmail
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Current Status -->
-              <div class="row">
-                <div class="col-md-6">
-                  <small class="text-muted">Current Mode:</small>
-                  <div id="emailModeStatus">
-                    <i class="bi bi-circle-fill text-secondary"></i>
-                    <span>Loading...</span>
-                  </div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">Gmail Access:</small>
-                  <div id="gmailAccessStatus">
-                    <i class="bi bi-circle-fill text-secondary"></i>
-                    <span>Loading...</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+  <div class="card-header">
+    <h6 class="mb-0">
+      <i class="bi bi-envelope me-2"></i>
+      Email Preferences
+    </h6>
+  </div>
+  <div class="card-body">
+    
+    <!-- Email Method Selection -->
+    <div class="mb-4">
+      <label class="form-label">Email Method:</label>
+      <div class="row">
+        <div class="col-md-6 mb-2">
+          <div class="form-check">
+            <input 
+              class="form-check-input" 
+              type="radio" 
+              name="emailMethod" 
+              id="emailMethodManual" 
+              value="manual"
+              onchange="handleEmailMethodChange('manual')"
+            >
+            <label class="form-check-label" for="emailMethodManual">
+              <i class="bi bi-envelope text-success me-2"></i>
+              <strong>Manual</strong>
+              <div class="text-muted small">Copy & paste email content</div>
+            </label>
           </div>
+        </div>
+        <div class="col-md-6 mb-2">
+          <div class="form-check">
+            <input 
+              class="form-check-input" 
+              type="radio" 
+              name="emailMethod" 
+              id="emailMethodAutomatic" 
+              value="automatic"
+              onchange="handleEmailMethodChange('automatic')"
+            >
+            <label class="form-check-label" for="emailMethodAutomatic">
+              <i class="bi bi-robot text-primary me-2"></i>
+              <strong>Automatic</strong>
+              <div class="text-muted small">Sent via Gmail API</div>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gmail Authorization Section -->
+    <div id="gmailAuthSection" class="alert alert-info" style="display: none;">
+      <h6 class="alert-heading">
+        <i class="bi bi-google me-2"></i>
+        Gmail Authorization Required
+      </h6>
+      <p class="mb-3">
+        To use automatic email sending, you need to authorize Gmail access.
+      </p>
+      <button 
+        type="button" 
+        class="btn btn-primary btn-sm" 
+        id="authorizeGmailBtn"
+        onclick="connectGmail()"
+      >
+        <i class="bi bi-google me-2"></i>
+        Authorize Gmail Access
+      </button>
+    </div>
+
+    <!-- Gmail Connection Status -->
+    <div class="row">
+      <div class="col-md-6">
+        <small class="text-muted">Current Mode:</small>
+        <div id="emailModeStatus">
+          <i class="bi bi-circle-fill text-secondary"></i>
+          <span>Loading...</span>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <small class="text-muted">Gmail Connection:</small>
+        <div id="gmailConnectionStatus">
+          <i class="bi bi-circle-fill text-secondary"></i>
+          <span>Loading...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Disconnect Gmail Button (shown when connected) -->
+    <div id="gmailDisconnectSection" class="mt-3" style="display: none;">
+      <button 
+        type="button" 
+        class="btn btn-outline-danger btn-sm" 
+        onclick="disconnectGmail()"
+      >
+        <i class="bi bi-x-circle me-1"></i>
+        Disconnect Gmail
+      </button>
+      <small class="text-muted ms-2">This will switch you to manual email mode</small>
+    </div>
+
+  </div>
+</div>
 
           <!-- App Settings -->
           <div class="card mb-3">

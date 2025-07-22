@@ -1,4 +1,4 @@
-// src/routes/auth.js - COMPLETE FIXED VERSION
+// src/routes/auth.js - SPLIT OAUTH VERSION
 const express = require('express');
 const passport = require('../../config/passport');
 const {
@@ -16,14 +16,16 @@ router.get('/', (req, res) => {
     message: 'TUIfly Time-Off Authentication',
     endpoints: {
       'GET /auth/login': 'Login page',
-      'GET /auth/google': 'Initiate Google OAuth',
-      'GET /auth/google/callback': 'Google OAuth callback',
+      'GET /auth/google': 'Initiate basic Google OAuth',
+      'GET /auth/google/gmail': 'Initiate Gmail Google OAuth',
+      'GET /auth/google/callback': 'Basic Google OAuth callback',
+      'GET /auth/google/gmail/callback': 'Gmail Google OAuth callback',
       'GET /auth/status': 'Check authentication status',
       'GET /auth/waiting-approval': 'Waiting for approval page',
       'POST /auth/logout': 'Logout user',
       'DELETE /auth/account': 'Delete user account',
     },
-    authenticated: !!req.session?.userId,
+    authenticated: !req.session?.userId,
     user: req.user?.toSafeObject() || null,
   });
 });
@@ -107,27 +109,29 @@ router.get('/waiting-approval', async (req, res) => {
   }
 });
 
-// Initiate Google OAuth
-// Initiate Google OAuth with environment-configured scopes
-// Initiate Google OAuth with environment-configured scopes
+// ===================================================================
+// BASIC GOOGLE OAUTH (Initial Login - No Gmail Permissions)
+// ===================================================================
+
+// Initiate basic Google OAuth (profile + email only)
 router.get(
   '/google',
   requireGuest,
   authRateLimit,
-  passport.authenticate('google', {
-    scope: process.env.GOOGLE_SCOPES
-      ? process.env.GOOGLE_SCOPES.split(' ')
-      : ['profile', 'email'],
-    prompt: 'select_account', // Force account selection
+  passport.authenticate('google-basic', {
+    scope: process.env.GOOGLE_SCOPES_BASIC
+      ? process.env.GOOGLE_SCOPES_BASIC.split(' ')
+      : ['profile', 'email', 'openid'],
+    prompt: 'select_account',
   })
 );
 
-// Google OAuth callback with Gmail permission verification
+// Basic Google OAuth callback
 router.get(
   '/google/callback',
-  passport.authenticate('google', {
+  passport.authenticate('google-basic', {
     failureRedirect: '/auth/login?error=oauth_failed',
-    session: false, // We'll handle session manually
+    session: false,
   }),
   async (req, res) => {
     try {
@@ -136,15 +140,7 @@ router.get(
       req.session.googleId = req.user.googleId;
       req.session.email = req.user.email;
 
-      // 🚀 CHECK: Verify Gmail permissions were granted
-      if (!req.user.gmailScopeGranted || !req.user.gmailAccessToken) {
-        console.log(`⚠️ User ${req.user.email} denied Gmail permissions`);
-        return res.redirect(
-          '/auth/login?error=gmail_permission_required&message=Gmail access is required for this app to function properly'
-        );
-      }
-
-      console.log(`✅ User ${req.user.email} logged in with Gmail permissions`);
+      console.log(`✅ User ${req.user.email} logged in with basic permissions`);
 
       // Check if user needs onboarding
       if (!req.user.isOnboarded()) {
@@ -152,14 +148,73 @@ router.get(
         return res.redirect('/onboarding');
       }
 
+      // Check if user can use app (admin or approved)
+      if (!req.user.canUseApp()) {
+        return res.redirect('/auth/waiting-approval');
+      }
+
       // Success - redirect to dashboard
       res.redirect('/?message=login_success');
     } catch (error) {
-      console.error('OAuth callback error:', error);
+      console.error('Basic OAuth callback error:', error);
       res.redirect('/auth/login?error=callback_error');
     }
   }
 );
+
+// ===================================================================
+// GMAIL GOOGLE OAUTH (For Automatic Email Users)
+// ===================================================================
+
+// Initiate Gmail Google OAuth (includes Gmail send permissions)
+router.get(
+  '/google/gmail',
+  requireAuth, // User must be logged in first
+  authRateLimit,
+  passport.authenticate('google-gmail', {
+    scope: process.env.GOOGLE_SCOPES_FULL
+      ? process.env.GOOGLE_SCOPES_FULL.split(' ')
+      : ['profile', 'email', 'openid', 'https://www.googleapis.com/auth/gmail.send'],
+    prompt: 'consent', // Force consent screen for Gmail permissions
+  })
+);
+
+// Gmail Google OAuth callback
+router.get(
+  '/google/gmail/callback',
+  passport.authenticate('google-gmail', {
+    failureRedirect: '/onboarding?error=gmail_oauth_failed&step=3',
+    session: false,
+  }),
+  async (req, res) => {
+    try {
+      // Update session with new user data
+      req.session.userId = req.user.id;
+
+      console.log(`✅ User ${req.user.email} granted Gmail permissions`);
+
+      // Check where to redirect based on context
+      const redirectTo = req.session.gmailOAuthRedirect || '/onboarding?gmail_success=1&step=4';
+      delete req.session.gmailOAuthRedirect; // Clean up
+
+      res.redirect(redirectTo);
+    } catch (error) {
+      console.error('Gmail OAuth callback error:', error);
+      res.redirect('/onboarding?error=gmail_callback_error&step=3');
+    }
+  }
+);
+
+// Set Gmail OAuth redirect target (called before starting Gmail OAuth)
+router.post('/set-gmail-redirect', requireAuth, (req, res) => {
+  const { redirectTo } = req.body;
+  req.session.gmailOAuthRedirect = redirectTo || '/onboarding?gmail_success=1&step=4';
+  res.json({ success: true });
+});
+
+// ===================================================================
+// LOGOUT & ACCOUNT MANAGEMENT
+// ===================================================================
 
 // GET Logout (for simple redirects)
 router.get('/logout', requireAuth, (req, res) => {
@@ -170,7 +225,7 @@ router.get('/logout', requireAuth, (req, res) => {
     }
 
     res.clearCookie('connect.sid');
-    res.clearCookie('tuifly.sid'); // Clear the custom session cookie name
+    res.clearCookie('tuifly.sid');
     res.redirect('/auth/login?message=logged_out');
   });
 });
@@ -187,41 +242,31 @@ router.post('/logout', requireAuth, (req, res) => {
     }
 
     res.clearCookie('connect.sid');
-
-    if (req.xhr || req.headers.accept?.includes('application/json')) {
-      return res.json({
-        success: true,
-        message: 'Logged out successfully',
-        redirect: '/auth/login',
-      });
-    }
-
-    res.redirect('/auth/login?message=logged_out');
+    res.clearCookie('tuifly.sid');
+    res.json({
+      success: true,
+      message: 'Logged out successfully',
+    });
   });
 });
 
-// Delete account
+// Delete user account
 router.delete('/account', requireAuth, async (req, res) => {
   try {
-    await deleteUserAccount(req.session.userId);
+    await deleteUserAccount(req.user.id);
 
     req.session.destroy((err) => {
       if (err) {
-        console.error('Session destruction error after account deletion:', err);
+        console.error('Session destroy error during account deletion:', err);
       }
+      res.clearCookie('connect.sid');
+      res.clearCookie('tuifly.sid');
     });
 
-    res.clearCookie('connect.sid');
-
-    if (req.xhr || req.headers.accept?.includes('application/json')) {
-      return res.json({
-        success: true,
-        message: 'Account deleted successfully',
-        redirect: '/auth/login',
-      });
-    }
-
-    res.redirect('/auth/login?message=account_deleted');
+    res.json({
+      success: true,
+      message: 'Account deleted successfully',
+    });
   } catch (error) {
     console.error('Account deletion error:', error);
     res.status(500).json({

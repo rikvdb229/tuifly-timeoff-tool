@@ -37,9 +37,15 @@
       const data = await response.json();
 
       if (data.success) {
-        // ➕ ADD email preference loading:
-        loadEmailPreferences(data.data.emailPreference);
+      // ➕ ADD: Load email preferences
+      if (typeof loadEmailPreferences === 'function') {
+        loadEmailPreferences(data.data.emailPreference, data.data.gmailConnected);
+      }
 
+      // ➕ ADD: Load Gmail status
+      if (typeof loadGmailStatus === 'function') {
+        await loadGmailStatus();
+      }
         // Populate profile form (existing code)
         const userName = document.getElementById('userName');
         const userCode = document.getElementById('userCode');
@@ -123,6 +129,13 @@
       }
     }
   }
+  function loadEmailPreferences(emailPreference, gmailConnected) {
+  if (typeof updateEmailPreferenceUI === 'function') {
+    currentEmailPreference = emailPreference || 'manual';
+    gmailConnected = gmailConnected || false;
+    updateEmailPreferenceUI();
+  }
+}
 
   // Modern account deletion function
   async function confirmDeleteAccount() {
@@ -208,6 +221,26 @@
         }
       });
     }
+    document.addEventListener('DOMContentLoaded', function() {
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  if (urlParams.get('gmail_success') === '1') {
+    showToast('Gmail connected successfully!', 'success');
+    
+    // Open settings modal if requested
+    if (urlParams.get('open_settings') === '1') {
+      setTimeout(() => {
+        openSettingsModal();
+      }, 500);
+    }
+    
+    // Clean up URL
+    const url = new URL(window.location);
+    url.searchParams.delete('gmail_success');
+    url.searchParams.delete('open_settings');
+    window.history.replaceState({}, '', url);
+  }
+});
 
     // Settings form submission
     const settingsForm = document.getElementById('settingsForm');
@@ -245,6 +278,252 @@
       });
     }
   });
+  // ADD these functions to your existing src/views/partials/js/base.ejs file
+
+// ===================================================================
+// EMAIL PREFERENCE MANAGEMENT
+// ===================================================================
+
+// Global variables for email preferences
+let currentEmailPreference = 'manual';
+let gmailConnected = false;
+
+// Handle email method change
+async function handleEmailMethodChange(preference) {
+  if (preference === 'automatic' && !gmailConnected) {
+    // Show Gmail authorization section
+    const gmailAuthSection = document.getElementById('gmailAuthSection');
+    if (gmailAuthSection) {
+      gmailAuthSection.style.display = 'block';
+    }
+    // Don't change preference yet - wait for Gmail auth
+    return;
+  }
+
+  // Update preference
+  try {
+    const response = await fetch('/settings/email-preference', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ emailPreference: preference }),
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      currentEmailPreference = preference;
+      updateEmailPreferenceUI();
+      showToast(result.message, 'success');
+    } else {
+      // Reset radio button to previous state
+      const previousRadio = document.getElementById(`emailMethod${currentEmailPreference.charAt(0).toUpperCase() + currentEmailPreference.slice(1)}`);
+      if (previousRadio) {
+        previousRadio.checked = true;
+      }
+      
+      if (result.requiresGmailAuth) {
+        const gmailAuthSection = document.getElementById('gmailAuthSection');
+        if (gmailAuthSection) {
+          gmailAuthSection.style.display = 'block';
+        }
+      } else {
+        showToast(result.error, 'error');
+      }
+    }
+  } catch (error) {
+    console.error('Email preference change error:', error);
+    showToast('Failed to change email preference', 'error');
+    
+    // Reset radio button
+    const previousRadio = document.getElementById(`emailMethod${currentEmailPreference.charAt(0).toUpperCase() + currentEmailPreference.slice(1)}`);
+    if (previousRadio) {
+      previousRadio.checked = true;
+    }
+  }
+}
+
+// Connect Gmail
+async function connectGmail() {
+  try {
+    const authorizeBtn = document.getElementById('authorizeGmailBtn');
+    if (authorizeBtn) {
+      authorizeBtn.disabled = true;
+      authorizeBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Connecting...';
+    }
+
+    const response = await fetch('/settings/connect-gmail', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      // Set redirect target to come back to settings modal
+      await fetch('/auth/set-gmail-redirect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          redirectTo: '/?gmail_success=1&open_settings=1'
+        }),
+      });
+
+      // Redirect to Gmail OAuth
+      window.location.href = result.redirectUrl;
+    } else {
+      showToast(result.error || 'Failed to start Gmail authorization', 'error');
+      if (authorizeBtn) {
+        authorizeBtn.disabled = false;
+        authorizeBtn.innerHTML = '<i class="bi bi-google me-2"></i>Authorize Gmail Access';
+      }
+    }
+  } catch (error) {
+    console.error('Gmail connection error:', error);
+    showToast('Failed to connect Gmail. Please try again.', 'error');
+    
+    const authorizeBtn = document.getElementById('authorizeGmailBtn');
+    if (authorizeBtn) {
+      authorizeBtn.disabled = false;
+      authorizeBtn.innerHTML = '<i class="bi bi-google me-2"></i>Authorize Gmail Access';
+    }
+  }
+}
+
+// Disconnect Gmail
+async function disconnectGmail() {
+  if (!confirm('Are you sure you want to disconnect Gmail? Your email preference will be changed to manual.')) {
+    return;
+  }
+
+  try {
+    const response = await fetch('/settings/disconnect-gmail', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      showToast(result.message, 'success');
+      // Reload Gmail status
+      await loadGmailStatus();
+    } else {
+      showToast(result.error || 'Failed to disconnect Gmail', 'error');
+    }
+  } catch (error) {
+    console.error('Gmail disconnection error:', error);
+    showToast('Failed to disconnect Gmail. Please try again.', 'error');
+  }
+}
+
+// Load Gmail status (called when settings modal opens)
+async function loadGmailStatus() {
+  try {
+    const response = await fetch('/settings/gmail-status');
+    const result = await response.json();
+
+    if (result.success) {
+      gmailConnected = result.gmailConnected;
+      currentEmailPreference = result.emailPreference || 'manual';
+      updateEmailPreferenceUI();
+    }
+  } catch (error) {
+    console.error('Error loading Gmail status:', error);
+  }
+}
+
+// Update email preference UI
+function updateEmailPreferenceUI() {
+  // Update radio buttons
+  const manualRadio = document.getElementById('emailMethodManual');
+  const automaticRadio = document.getElementById('emailMethodAutomatic');
+  
+  if (manualRadio) manualRadio.checked = currentEmailPreference === 'manual';
+  if (automaticRadio) automaticRadio.checked = currentEmailPreference === 'automatic';
+
+  // Update status displays
+  const emailModeStatus = document.getElementById('emailModeStatus');
+  const gmailConnectionStatus = document.getElementById('gmailConnectionStatus');
+  const gmailAuthSection = document.getElementById('gmailAuthSection');
+  const gmailDisconnectSection = document.getElementById('gmailDisconnectSection');
+
+  // Email mode status
+  if (emailModeStatus) {
+    if (currentEmailPreference === 'automatic') {
+      emailModeStatus.innerHTML = `
+        <i class="bi bi-robot text-primary me-1"></i>
+        <span class="text-primary">Automatic</span>
+      `;
+    } else {
+      emailModeStatus.innerHTML = `
+        <i class="bi bi-envelope text-success me-1"></i>
+        <span class="text-success">Manual</span>
+      `;
+    }
+  }
+
+  // Gmail connection status
+  if (gmailConnectionStatus) {
+    if (gmailConnected) {
+      gmailConnectionStatus.innerHTML = `
+        <i class="bi bi-check-circle text-success me-1"></i>
+        <span class="text-success">Connected</span>
+      `;
+    } else {
+      gmailConnectionStatus.innerHTML = `
+        <i class="bi bi-x-circle text-danger me-1"></i>
+        <span class="text-danger">Not Connected</span>
+      `;
+    }
+  }
+
+  // Gmail disconnect section
+  if (gmailDisconnectSection) {
+    gmailDisconnectSection.style.display = gmailConnected ? 'block' : 'none';
+  }
+
+  // Gmail auth section (hide by default)
+  if (gmailAuthSection) {
+    gmailAuthSection.style.display = 'none';
+  }
+}
+
+// Load email preferences (called from loadSettings)
+function loadEmailPreferences(emailPreference, isGmailConnected) {
+  currentEmailPreference = emailPreference || 'manual';
+  gmailConnected = isGmailConnected || false;
+  updateEmailPreferenceUI();
+}
+
+// Handle Gmail success from URL (when redirected back)
+document.addEventListener('DOMContentLoaded', function() {
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  if (urlParams.get('gmail_success') === '1') {
+    showToast('Gmail connected successfully!', 'success');
+    
+    // Open settings modal if requested
+    if (urlParams.get('open_settings') === '1') {
+      setTimeout(() => {
+        openSettingsModal();
+      }, 500);
+    }
+    
+    // Clean up URL
+    const url = new URL(window.location);
+    url.searchParams.delete('gmail_success');
+    url.searchParams.delete('open_settings');
+    window.history.replaceState({}, '', url);
+  }
+});
 
   // Toast notification system
   function showToast(message, type = 'info') {

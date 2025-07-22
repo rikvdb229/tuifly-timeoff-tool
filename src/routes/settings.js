@@ -79,16 +79,37 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get settings (API endpoint)
+// Get settings (API endpoint) - FIXED VERSION
 router.get('/api', async (req, res) => {
   try {
-    const userSettings = await UserSetting.getUserSettings(req.user.id);
+    // Get user settings (with fallback if UserSetting doesn't exist)
+    let userSettings = {
+      theme: 'light',
+      language: 'en', 
+      notifications: true,
+      autoSave: true
+    };
+
+    try {
+      // Try to get UserSetting if the model exists
+      if (typeof UserSetting !== 'undefined') {
+        const dbUserSettings = await UserSetting.getUserSettings(req.user.id);
+        if (dbUserSettings) {
+          userSettings = dbUserSettings;
+        }
+      }
+    } catch (settingsError) {
+      console.log('UserSetting model not available, using defaults');
+    }
 
     res.json({
       success: true,
       data: {
         user: req.user.toSafeObject(),
         settings: userSettings,
+        // ADD: Email preference data
+        emailPreference: req.user.emailPreference || 'manual',
+        gmailConnected: req.user.gmailScopeGranted && !!req.user.gmailAccessToken,
         globalSettings: {
           MIN_ADVANCE_DAYS: process.env.MIN_ADVANCE_DAYS || 60,
           MAX_ADVANCE_DAYS: process.env.MAX_ADVANCE_DAYS || 120,
@@ -102,6 +123,7 @@ router.get('/api', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch settings',
+      message: error.message,
     });
   }
 });
@@ -261,6 +283,129 @@ router.put('/preferences', async (req, res) => {
       success: false,
       error: 'Failed to update preferences',
       message: error.message,
+    });
+  }
+});
+
+router.post('/connect-gmail', async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+
+    // Check if already connected
+    if (user.gmailScopeGranted && user.gmailAccessToken) {
+      return res.json({
+        success: false,
+        error: 'Gmail is already connected',
+        message: 'Your Gmail account is already authorized',
+      });
+    }
+
+    // Set redirect target after Gmail OAuth
+    req.session.gmailOAuthRedirect = '/settings?gmail_success=1';
+
+    res.json({
+      success: true,
+      message: 'Redirecting to Gmail authorization...',
+      redirectUrl: '/auth/google/gmail',
+    });
+  } catch (error) {
+    console.error('Connect Gmail error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start Gmail authorization',
+    });
+  }
+});
+
+// ADD: Disconnect Gmail
+router.post('/disconnect-gmail', async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+
+    // Remove Gmail tokens and set preference to manual
+    await user.update({
+      gmailAccessToken: null,
+      gmailRefreshToken: null,
+      gmailTokenExpiry: null,
+      gmailScopeGranted: false,
+      emailPreference: 'manual', // Force to manual when disconnecting
+    });
+
+    console.log(`✅ Gmail disconnected for user: ${user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Gmail disconnected successfully. Email preference set to manual.',
+      user: user.toSafeObject(),
+    });
+  } catch (error) {
+    console.error('Disconnect Gmail error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to disconnect Gmail',
+    });
+  }
+});
+// ADD: Gmail status endpoint
+router.get('/gmail-status', async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+
+    res.json({
+      success: true,
+      gmailConnected: user.gmailScopeGranted && !!user.gmailAccessToken,
+      emailPreference: user.emailPreference || 'manual',
+      gmailTokenExpiry: user.gmailTokenExpiry,
+    });
+  } catch (error) {
+    console.error('Gmail status error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check Gmail status',
+    });
+  }
+});
+
+router.post('/email-preference', async (req, res) => {
+  try {
+    const { emailPreference } = req.body;
+
+    if (!['automatic', 'manual'].includes(emailPreference)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email preference',
+      });
+    }
+
+    const user = await User.findByPk(req.user.id);
+
+    // If switching to automatic, check Gmail authorization
+    if (emailPreference === 'automatic') {
+      if (!user.gmailScopeGranted || !user.gmailAccessToken) {
+        return res.status(400).json({
+          success: false,
+          error: 'Gmail authorization required',
+          message: 'Connect Gmail first to use automatic email sending',
+          requiresGmailAuth: true,
+        });
+      }
+    }
+
+    // Update email preference
+    await user.update({ emailPreference });
+
+    console.log(`✅ Email preference changed: ${user.email} → ${emailPreference}`);
+
+    res.json({
+      success: true,
+      message: `Email preference changed to ${emailPreference}`,
+      emailPreference,
+    });
+  } catch (error) {
+    console.error('Email preference change error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to change email preference',
     });
   }
 });
