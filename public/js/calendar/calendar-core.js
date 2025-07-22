@@ -602,8 +602,14 @@ class CalendarManager {
 // Initialize calendar
 const calendar = new CalendarManager();
 
+// Single request email generation function  
+function generateSingleEmailContent(request) {
+  return calendar.generateEmailContent(request);
+}
+
 // Make global for other modules
 window.calendar = calendar;
 window.CONFIG = CONFIG;
 window.validateConsecutiveDates = validateConsecutiveDates;
 window.addDays = addDays;
+window.generateSingleEmailContent = generateSingleEmailContent;

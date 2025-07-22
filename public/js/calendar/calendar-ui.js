@@ -143,11 +143,8 @@ function showRequestDetailModal(request, dateStr) {
   const modalTitle = document.getElementById('modalTitle');
   const modalBody = modal.querySelector('.modal-body');
 
-  // Set modal title
-  modalTitle.innerHTML = `
-    <i class="bi bi-calendar-event me-2"></i>
-    ${isGroupRequest ? 'Group Request Details' : 'Request Details'}
-  `;
+  // Set modal title (no icon needed, it's already in the HTML)
+  modalTitle.textContent = isGroupRequest ? 'Group Request Details' : 'Request Details';
 
   // Generate modal content
   let modalContent = '';
@@ -346,19 +343,37 @@ function showRequestDetailModal(request, dateStr) {
       <div>
   `;
 
-  // Email action buttons
-  if (isGroupRequest || request.emailMode === 'automatic') {
+  // Email action buttons based on request creation mode
+  const requestEmailMode = request.emailMode || 'automatic';
+
+  // Resend Email button - only for automatic mode requests that failed
+  if (requestEmailMode === 'automatic' && request.emailFailed) {
     modalContent += `
-        <button type="button" class="btn btn-outline-primary btn-sm me-2" onclick="resendEmail(${request.id})">
+        <button type="button" class="btn btn-outline-warning btn-sm me-2" onclick="resendEmail(${request.id})">
           <i class="bi bi-arrow-repeat me-1"></i>Resend Email
         </button>
     `;
   }
 
-  modalContent += `
+  // Send to Email Program button - only for manual mode requests not yet sent
+  if (requestEmailMode === 'manual' && !request.manualEmailConfirmed) {
+    modalContent += `
+        <button type="button" class="btn btn-outline-primary btn-sm me-2" onclick="openInMailClient(${request.id})">
+          <i class="bi bi-envelope-open me-1"></i>Open in Mail Client
+        </button>
+    `;
+  }
+
+  // Mark as Sent button - only for manual mode requests not yet confirmed
+  if (requestEmailMode === 'manual' && !request.manualEmailConfirmed) {
+    modalContent += `
         <button type="button" class="btn btn-outline-success btn-sm" onclick="markEmailAsSent(${request.id})">
           <i class="bi bi-check2 me-1"></i>Mark as Sent
         </button>
+    `;
+  }
+
+  modalContent += `
       </div>
       
       <div>
@@ -537,10 +552,51 @@ function highlightElement(element, color = '#28a745', duration = 2000) {
   }, duration);
 }
 
+// Email client utility function
+function openInMailClient(requestId) {
+  // Find the request
+  const request = window.existingRequests?.find(r => r.id === requestId);
+  if (!request) {
+    window.showToast('Request not found', 'error');
+    return;
+  }
+
+  // Generate email content
+  const emailContent = request.groupId 
+    ? window.calendar?.generateGroupEmailContent(request)
+    : window.calendar?.generateEmailContent(request);
+
+  if (!emailContent) {
+    window.showToast('Could not generate email content', 'error');
+    return;
+  }
+
+  // Get approver email
+  const approverEmail = window.TUIFLY_CONFIG?.APPROVER_EMAIL || 'scheduling@tuifly.be';
+
+  // Create mailto link
+  const to = encodeURIComponent(approverEmail);
+  const subject = encodeURIComponent(emailContent.subject);
+  const body = encodeURIComponent(emailContent.body);
+  const mailtoLink = `mailto:${to}?subject=${subject}&body=${body}`;
+
+  console.log('Opening mailto link for request:', requestId);
+
+  // Try to open the mailto link
+  try {
+    window.location.href = mailtoLink;
+    window.showToast('Opening in your default mail client...', 'success');
+  } catch (error) {
+    console.error('Error opening mail client:', error);
+    window.showToast('Could not open mail client. Please copy the content manually.', 'error');
+  }
+}
+
 // Make functions available globally
 window.showToast = showToast;
 window.showConfirmDialog = showConfirmDialog;
 window.showRequestDetailModal = showRequestDetailModal;
+window.openInMailClient = openInMailClient;
 window.formatDisplayDate = formatDisplayDate;
 window.getEmailStatusTooltip = getEmailStatusTooltip;
 window.getEmailStatusIcon = getEmailStatusIcon;
