@@ -185,8 +185,6 @@ const STORAGE_KEYS = {
   ONBOARDING_DATA: 'tuifly_onboarding_data',
   CALENDAR_FILTER: 'tuifly_calendar_filter',
   DRAFT_REQUEST: 'tuifly_draft_request',
-  THEME: 'tuifly_theme',
-  LANGUAGE: 'tuifly_language',
   EMAIL_PREFERENCE: 'tuifly_email_preference',
   LAST_LOGIN: 'tuifly_last_login',
 };
@@ -204,18 +202,9 @@ const APP = {
   MAINTENANCE_CHECK_INTERVAL_MS: 60 * 1000, // Check every minute
 };
 
-const THEMES = {
-  LIGHT: 'light',
-  DARK: 'dark',
-  AUTO: 'auto',
-};
+// Theme constants removed - theme switching not implemented
 
-const LANGUAGES = {
-  ENGLISH: 'en',
-  DUTCH: 'nl',
-  FRENCH: 'fr',
-  GERMAN: 'de',
-};
+// Language constants removed - internationalization not implemented
 
 // ===================================================================
 // ERROR CODES
@@ -289,8 +278,7 @@ if (typeof window !== 'undefined') {
     VALIDATION_MESSAGES,
     STORAGE_KEYS,
     APP,
-    THEMES,
-    LANGUAGES,
+    // THEMES and LANGUAGES removed - features not implemented
     ERROR_CODES,
     FEATURES,
   };

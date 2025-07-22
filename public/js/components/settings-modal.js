@@ -37,58 +37,31 @@ function selectEmailPreference(preference) {
   }
 }
 
-/**
- * Initiates Gmail authorization process for automatic email sending
- * @returns {void}
- */
-function authorizeGmail() {
-  if (window.handleGmailAuth) {
-    window.handleGmailAuth();
-  } else {
-    // Fallback redirect
-    window.location.href = '/auth/gmail';
-  }
-}
+// Removed - use global authorizeGmail function from utils.js
 
 /**
  * Checks the current Gmail authorization status
  * @returns {void}
  */
-function checkGmailAuth() {
-  if (window.checkGmailAuthStatus) {
-    window.checkGmailAuthStatus();
-  }
-}
+// Removed - use global function directly
 
 /**
  * Shows Gmail authorization information modal
  * @returns {void}
  */
-function showGmailAuth() {
-  if (window.showGmailAuthModal) {
-    window.showGmailAuthModal();
-  }
-}
+// Removed - use global function directly
 
 /**
  * Resets all settings to their default values
  * @returns {void}
  */
-function resetSettings() {
-  if (window.handleResetSettings) {
-    window.handleResetSettings();
-  }
-}
+// Removed - use global function directly
 
 /**
  * Initiates account deletion confirmation process
  * @returns {void}
  */
-function confirmDeleteAccount() {
-  if (window.handleDeleteAccount) {
-    window.handleDeleteAccount();
-  }
-}
+// Removed - use global function directly
 
 // Event listeners for settings modal
 document.addEventListener('DOMContentLoaded', function() {
@@ -121,21 +94,30 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  const settingsForm = document.getElementById('settingsForm');
-  if (settingsForm) {
-    settingsForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      if (window.handleSettingsUpdate) {
-        window.handleSettingsUpdate(new FormData(this));
-      }
-    });
-  }
+  // Event delegation for data-action buttons
+  document.addEventListener('click', function(e) {
+    const button = e.target.closest('[data-action]');
+    if (!button) return;
+    
+    const action = button.getAttribute('data-action');
+    
+    switch(action) {
+      case 'checkGmailAuth':
+        if (window.checkGmailAuth) window.checkGmailAuth();
+        break;
+      case 'showGmailAuth':
+        if (window.showGmailAuth) window.showGmailAuth();
+        break;
+      case 'confirmDeleteAccount':
+        if (window.confirmDeleteAccount) window.confirmDeleteAccount();
+        break;
+      case 'authorizeGmail':
+        if (window.authorizeGmail) window.authorizeGmail();
+        break;
+    }
+  });
 });
 
 // Make functions globally available
 window.selectEmailPreference = selectEmailPreference;
-window.authorizeGmail = authorizeGmail;
-window.checkGmailAuth = checkGmailAuth;
-window.showGmailAuth = showGmailAuth;
-window.resetSettings = resetSettings;
-window.confirmDeleteAccount = confirmDeleteAccount;
+// Other functions (authorizeGmail, checkGmailAuth, showGmailAuth, confirmDeleteAccount) are available from utils.js

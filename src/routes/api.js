@@ -2,7 +2,7 @@
 const express = require('express');
 const { requireAuth, requireOnboarding } = require('../middleware/auth');
 const { TimeOffRequest, User } = require('../models');
-const gmailService = require('../services/gmailService');
+const GmailService = require('../services/gmailService');
 const { Op } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
 const Joi = require('joi');
@@ -305,7 +305,7 @@ router.post('/requests/group', async (req, res) => {
         console.log('🔍 Attempting automatic email send...');
 
 
-        if (gmailService.needsReauthorization(req.user)) {
+        if (GmailService.needsReauthorization(req.user)) {
           console.log('❌ Gmail authorization needed');
           return res.status(400).json({
             success: false,
@@ -317,8 +317,7 @@ router.post('/requests/group', async (req, res) => {
           });
         }
 
-        console.log('✅ Gmail authorization OK, creating service...');
-        const gmailService = new gmailService();
+        console.log('✅ Gmail authorization OK, using gmail service...');
 
         // ✅ POTENTIAL FIX 1: Ensure requests have all required fields loaded
         const requestsWithFullData = await Promise.all(
@@ -346,7 +345,7 @@ router.post('/requests/group', async (req, res) => {
 
         // ✅ POTENTIAL FIX 2: Test email content generation first
         try {
-          const emailContent = gmailService.generateEmailContent(
+          const emailContent = new GmailService().generateEmailContent(
             req.user,
             requestsWithFullData
           );
@@ -364,7 +363,7 @@ router.post('/requests/group', async (req, res) => {
         }
 
         console.log('🔍 Sending email...');
-        const emailResult = await gmailService.sendEmail(
+        const emailResult = await new GmailService().sendEmail(
           req.user,
           requestsWithFullData
         );
@@ -521,7 +520,7 @@ router.post('/requests', async (req, res) => {
       // AUTOMATIC MODE: Use existing Gmail service
       try {
         // Use existing Gmail service - pass requests as array
-        const emailResult = await gmailService.sendEmail(req.user, [request]);
+        const emailResult = await new GmailService().sendEmail(req.user, [request]);
 
         await request.markEmailSent(
           emailResult.messageId,
@@ -541,7 +540,7 @@ router.post('/requests', async (req, res) => {
       }
     } else {
       // MANUAL MODE: Generate email content using existing service
-      const emailContent = gmailService.generateEmailContent(req.user, [
+      const emailContent = new GmailService().generateEmailContent(req.user, [
         request,
       ]);
 
@@ -848,7 +847,7 @@ router.post('/requests/:id/resend-email', async (req, res) => {
     }
 
     // Check Gmail authorization
-    if (gmailService.needsReauthorization(req.user)) {
+    if (GmailService.needsReauthorization(req.user)) {
       return res.status(400).json({
         success: false,
         error: 'Gmail authorization required',
@@ -871,8 +870,7 @@ router.post('/requests/:id/resend-email', async (req, res) => {
     // Attempt to send email
     try {
       console.log(`Resending email for request ${id}...`);
-      const gmailService = new gmailService();
-      const emailResult = await gmailService.sendEmail(
+      const emailResult = await new GmailService().sendEmail(
         req.user,
         requestsToResend
       );
@@ -983,7 +981,7 @@ router.post('/requests/group', async (req, res) => {
       try {
 
         // Check Gmail authorization using static method
-        if (gmailService.needsReauthorization(req.user)) {
+        if (GmailService.needsReauthorization(req.user)) {
           return res.status(400).json({
             success: false,
             error: 'Gmail authorization required',
@@ -994,9 +992,8 @@ router.post('/requests/group', async (req, res) => {
           });
         }
 
-        // Create Gmail service instance
-        const gmailService = new gmailService();
-        const emailResult = await gmailService.sendEmail(
+        // Use Gmail service
+        const emailResult = await new GmailService().sendEmail(
           req.user,
           createdRequests
         );

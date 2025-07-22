@@ -88,35 +88,14 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get settings (API endpoint) - FIXED VERSION
+// Get settings (API endpoint) - SIMPLIFIED VERSION
 router.get('/api', async (req, res) => {
   try {
-    // Get user settings (with fallback if UserSetting doesn't exist)
-    let userSettings = {
-      theme: 'light',
-      language: 'en', 
-      notifications: true,
-      autoSave: true
-    };
-
-    try {
-      // Try to get UserSetting if the model exists
-      if (typeof UserSetting !== 'undefined') {
-        const dbUserSettings = await UserSetting.getUserSettings(req.user.id);
-        if (dbUserSettings) {
-          userSettings = dbUserSettings;
-        }
-      }
-    } catch (settingsError) {
-      console.log('UserSetting model not available, using defaults');
-    }
-
     res.json({
       success: true,
       data: {
         user: req.user.toSafeObject(),
-        settings: userSettings,
-        // ADD: Email preference data
+        // Email preference data
         emailPreference: req.user.emailPreference || 'manual',
         gmailConnected: req.user.gmailScopeGranted && !!req.user.gmailAccessToken,
         globalSettings: {
@@ -249,52 +228,8 @@ router.put('/profile', async (req, res) => {
   }
 });
 
-// Update preferences endpoint (MISSING ROUTE)
-router.put('/preferences', async (req, res) => {
-  try {
-    // For now, just handle app settings (theme, language, etc.)
-    // Email preferences are handled via /settings/email-preference
-    const { theme, language, notifications, autoSave } = req.body;
-
-    // Get or create user settings
-    let userSettings = await UserSetting.findOne({
-      where: { userId: req.user.id },
-    });
-
-    if (!userSettings) {
-      userSettings = await UserSetting.create({
-        userId: req.user.id,
-        theme: theme || 'light',
-        language: language || 'en',
-        notifications: notifications !== false,
-        autoSave: autoSave !== false,
-      });
-    } else {
-      await userSettings.update({
-        theme: theme || userSettings.theme,
-        language: language || userSettings.language,
-        notifications:
-          notifications !== undefined
-            ? notifications
-            : userSettings.notifications,
-        autoSave: autoSave !== undefined ? autoSave : userSettings.autoSave,
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Preferences updated successfully',
-      data: userSettings,
-    });
-  } catch (error) {
-    console.error('Preferences update error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update preferences',
-      message: error.message,
-    });
-  }
-});
+// Note: Application preferences endpoint removed
+// Only email preferences are handled via /settings/email-preference
 
 router.post('/connect-gmail', async (req, res) => {
   try {

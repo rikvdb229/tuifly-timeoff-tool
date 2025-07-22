@@ -301,11 +301,11 @@ router.delete('/account', requireAuth, async (req, res) => {
       }
       res.clearCookie('connect.sid');
       res.clearCookie('tuifly.sid');
-    });
-
-    res.json({
-      success: true,
-      message: 'Account deleted successfully',
+      
+      res.json({
+        success: true,
+        message: 'Account deleted successfully',
+      });
     });
   } catch (error) {
     console.error('Account deletion error:', error);

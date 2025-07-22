@@ -72,17 +72,7 @@ async function loadSettings() {
       if (userCode) userCode.value = data.data.user.code || '';
       if (userSignature) userSignature.value = data.data.user.signature || '';
 
-      // Populate settings form
-      const theme = document.getElementById('theme');
-      const language = document.getElementById('language');
-      const notifications = document.getElementById('notifications');
-      const autoSave = document.getElementById('autoSave');
-
-      if (theme) theme.value = data.data.settings.theme || 'light';
-      if (language) language.value = data.data.settings.language || 'en';
-      if (notifications)
-        notifications.checked = data.data.settings.notifications !== false;
-      if (autoSave) autoSave.checked = data.data.settings.autoSave !== false;
+      // Note: Application settings (theme, language, notifications, autoSave) removed
 
       // Populate global settings (read-only)
       const minAdvanceDays = document.getElementById('minAdvanceDays');
@@ -474,41 +464,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Settings form submission
-  const settingsForm = document.getElementById('settingsForm');
-  if (settingsForm) {
-    settingsForm.addEventListener('submit', async function (e) {
-      e.preventDefault();
-
-      const formData = {
-        theme: document.getElementById('theme').value,
-        language: document.getElementById('language').value,
-        notifications: document.getElementById('notifications').checked,
-        autoSave: document.getElementById('autoSave').checked,
-      };
-
-      try {
-        const response = await fetch('/settings/preferences', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(formData),
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-          showToast('Settings saved successfully', 'success');
-        } else {
-          throw new Error(data.error || 'Failed to save settings');
-        }
-      } catch (error) {
-        console.error('Settings save error:', error);
-        showToast('Failed to save settings', 'error');
-      }
-    });
-  }
+  // Application settings form removed - only profile and email preferences remain
 });
 
 /**
@@ -665,15 +621,7 @@ function formatDateTime(date) {
 function resetSettings() {
   if (confirm('Are you sure you want to reset all settings to defaults?')) {
     // Reset form values to defaults
-    const theme = document.getElementById('theme');
-    const language = document.getElementById('language');
-    const notifications = document.getElementById('notifications');
-    const autoSave = document.getElementById('autoSave');
-
-    if (theme) theme.value = 'light';
-    if (language) language.value = 'en';
-    if (notifications) notifications.checked = true;
-    if (autoSave) autoSave.checked = true;
+    // Application settings removed - reset function simplified
 
     showToast('Settings reset to defaults. Click "Save Settings" to apply.', 'info');
   }
