@@ -38,7 +38,7 @@
   background: #4285f4;
   color: white;
   border: none;
-  padding: 15px 20px;
+  padding: 0;
   border-radius: 10px;
   font-size: 16px;
   font-weight: 500;
@@ -46,6 +46,11 @@
   text-decoration: none;
   display: block;
   text-align: center;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  min-height: 50px;
+  width: 100%;
 }
 
 .google-btn:hover {
@@ -84,15 +89,24 @@
   font-size: 12px;
 }
 
-.loading {
+.loading-container {
   display: none;
   text-align: center;
   padding: 20px;
 }
 
-.loading .spinner-border {
+.loading-container .spinner-border {
   color: var(--tuifly-blue);
 }
+
+.google-btn {
+  padding: 15px 20px;
+}
+
+.google-btn:disabled {
+  pointer-events: none;
+}
+
 
 /* Onboarding page styles */
 .onboarding-page-body {
@@ -150,6 +164,13 @@
 .login-page-body .btn-primary:hover,
 .onboarding-page-body .btn-primary:hover {
   transform: translateY(-2px);
+}
+
+/* Modern loading state for login button */
+.google-btn.btn-loading {
+  opacity: 0.7;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .progress {
