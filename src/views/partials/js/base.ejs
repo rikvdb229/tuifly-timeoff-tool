@@ -114,10 +114,17 @@ function updateEmailPreferenceUI() {
   const emailModeStatus = document.getElementById('emailModeStatus');
   if (emailModeStatus) {
     if (currentEmailPreference === 'automatic') {
-      emailModeStatus.innerHTML = `
-        <i class="bi bi-robot text-primary me-1"></i>
-        <span class="text-primary">Automatic</span>
-      `;
+      if (gmailConnected) {
+        emailModeStatus.innerHTML = `
+          <i class="bi bi-robot text-primary me-1"></i>
+          <span class="text-primary">Automatic (Connected)</span>
+        `;
+      } else {
+        emailModeStatus.innerHTML = `
+          <i class="bi bi-robot text-warning me-1"></i>
+          <span class="text-warning">Automatic (Authorization Required)</span>
+        `;
+      }
     } else {
       emailModeStatus.innerHTML = `
         <i class="bi bi-envelope text-success me-1"></i>
@@ -128,10 +135,14 @@ function updateEmailPreferenceUI() {
 
 updateEmailMethodCardHighlights(currentEmailPreference);
 
-  // Hide Gmail auth section by default
+  // Show Gmail auth section if automatic mode is selected but Gmail is not connected
   const gmailAuthSection = document.getElementById('gmailAuthSection');
   if (gmailAuthSection) {
-    gmailAuthSection.style.display = 'none';
+    if (currentEmailPreference === 'automatic' && !gmailConnected) {
+      gmailAuthSection.style.display = 'block';
+    } else {
+      gmailAuthSection.style.display = 'none';
+    }
   }
 
   // Update header badge
@@ -252,6 +263,37 @@ updateEmailMethodCardHighlights(currentEmailPreference);
     gmailConnected = data.gmailConnected || false;
     updateEmailPreferenceUI();
   }
+
+  // Check authorization status manually
+  window.checkGmailAuth = async function() {
+    console.log('Checking Gmail authorization status...');
+    await loadGmailStatus();
+    
+    const status = gmailConnected ? 'Connected' : 'Not Connected';
+    const message = `Gmail Status: ${status}\nEmail Mode: ${currentEmailPreference}`;
+    
+    if (!gmailConnected && currentEmailPreference === 'automatic') {
+      const shouldAuthorize = confirm(message + '\n\nWould you like to authorize Gmail now?');
+      if (shouldAuthorize) {
+        await connectGmail();
+      }
+    } else {
+      alert(message);
+    }
+  };
+
+  // Force show Gmail authorization section
+  window.showGmailAuth = function() {
+    const gmailAuthSection = document.getElementById('gmailAuthSection');
+    if (gmailAuthSection) {
+      gmailAuthSection.style.display = 'block';
+    }
+  };
+
+  // Gmail authorization function (alias for connectGmail)
+  window.authorizeGmail = async function() {
+    await connectGmail();
+  };
 
   // ✅ NEW: Connect Gmail function
   async function connectGmail() {
