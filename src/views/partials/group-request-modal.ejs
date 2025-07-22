@@ -181,13 +181,13 @@
                   </div>
                 </div>
 
-                <div class="text-center mt-3">
-                  <button type="button" class="btn btn-outline-primary btn-sm me-2" id="openMailClientBtn">
-                    <i class="bi bi-envelope-open me-1"></i>Open in Mail Client
-                  </button>
-                  <small class="text-muted d-block mt-2">
+                <div class="d-flex align-items-center justify-content-between mt-3">
+                  <small class="text-muted">
                     Copy the content above and paste it into your email client, then mark as sent below.
                   </small>
+                  <button type="button" class="btn btn-outline-primary btn-sm" id="openMailClientBtn">
+                    <i class="bi bi-envelope-open me-1"></i>Open in Mail Client
+                  </button>
                 </div>
               </div>
             </div>
@@ -249,7 +249,7 @@
         <!-- Manual Mode Button -->
         <button
           type="button"
-          class="btn btn-success"
+          class="btn btn-primary"
           data-action="markAsSentAndCreate"
           id="markAsSentAndCreate"
           style="display: none;"
