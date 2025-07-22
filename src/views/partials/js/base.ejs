@@ -109,65 +109,40 @@
   }
 
   // Update email preference UI
-  function updateEmailPreferenceUI() {
-    // Update status displays
-    const emailModeStatus = document.getElementById('emailModeStatus');
-    const gmailConnectionStatus = document.getElementById('gmailConnectionStatus');
-    const gmailAuthSection = document.getElementById('gmailAuthSection');
-    const gmailDisconnectSection = document.getElementById('gmailDisconnectSection');
-
-    // Email mode status
-    if (emailModeStatus) {
-      if (currentEmailPreference === 'automatic') {
-        emailModeStatus.innerHTML = `
-          <i class="bi bi-robot text-primary me-1"></i>
-          <span class="text-primary">Automatic</span>
-        `;
-      } else {
-        emailModeStatus.innerHTML = `
-          <i class="bi bi-envelope text-success me-1"></i>
-          <span class="text-success">Manual</span>
-        `;
-      }
-    }
-
-    // Gmail connection status
-    if (gmailConnectionStatus) {
-      if (gmailConnected) {
-        gmailConnectionStatus.innerHTML = `
-          <i class="bi bi-check-circle text-success me-1"></i>
-          <span class="text-success">Connected</span>
-        `;
-      } else {
-        gmailConnectionStatus.innerHTML = `
-          <i class="bi bi-x-circle text-warning me-1"></i>
-          <span class="text-warning">Not Connected</span>
-        `;
-      }
-    }
-
-    // Update card highlights if cards exist
-    updateEmailMethodCardHighlights(currentEmailPreference);
-
-    // Gmail disconnect section
-    if (gmailDisconnectSection) {
-      gmailDisconnectSection.style.display = gmailConnected ? 'block' : 'none';
-    }
-
-    // Gmail auth section (hide by default)
-    if (gmailAuthSection) {
-      gmailAuthSection.style.display = 'none';
-    }
-
-    // Update header badge
-    const headerEmailModeBadge = document.getElementById('headerEmailModeBadge');
-    if (headerEmailModeBadge) {
-      headerEmailModeBadge.textContent = 
-        currentEmailPreference === 'automatic' ? '🤖 Automatic' : '📧 Manual';
-      headerEmailModeBadge.className = 
-        `badge ms-1 ${currentEmailPreference === 'automatic' ? 'bg-primary' : 'bg-success'}`;
+function updateEmailPreferenceUI() {
+  // Update email mode status (only thing we show now)
+  const emailModeStatus = document.getElementById('emailModeStatus');
+  if (emailModeStatus) {
+    if (currentEmailPreference === 'automatic') {
+      emailModeStatus.innerHTML = `
+        <i class="bi bi-robot text-primary me-1"></i>
+        <span class="text-primary">Automatic</span>
+      `;
+    } else {
+      emailModeStatus.innerHTML = `
+        <i class="bi bi-envelope text-success me-1"></i>
+        <span class="text-success">Manual</span>
+      `;
     }
   }
+
+updateEmailMethodCardHighlights(currentEmailPreference);
+
+  // Hide Gmail auth section by default
+  const gmailAuthSection = document.getElementById('gmailAuthSection');
+  if (gmailAuthSection) {
+    gmailAuthSection.style.display = 'none';
+  }
+
+  // Update header badge
+  const headerEmailModeBadge = document.getElementById('headerEmailModeBadge');
+  if (headerEmailModeBadge) {
+    headerEmailModeBadge.textContent = 
+      currentEmailPreference === 'automatic' ? '🤖 Automatic' : '📧 Manual';
+    headerEmailModeBadge.className = 
+      `badge ms-1 ${currentEmailPreference === 'automatic' ? 'bg-primary' : 'bg-success'}`;
+  }
+}
 
   // ✅ NEW: Email preference functions for card-based UI
   function selectEmailPreference(preference) {
@@ -307,11 +282,6 @@
         authorizeBtn.innerHTML = '<i class="bi bi-google me-2"></i>Authorize Gmail Access';
       }
     }
-  }
-
-  // ✅ NEW: Alias for authorizeGmail (for compatibility with existing HTML)
-  async function authorizeGmail() {
-    await connectGmail();
   }
 
   // ✅ NEW: Disconnect Gmail function

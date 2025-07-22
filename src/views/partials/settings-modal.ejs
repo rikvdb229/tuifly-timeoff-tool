@@ -87,7 +87,7 @@
             </div>
           </div>
     
-    <!-- Updated Email Preferences Section for Settings Modal -->
+<!-- Simplified Email Preferences Section for Settings Modal -->
 <div class="card mb-3">
   <div class="card-header">
     <h6 class="mb-0">
@@ -97,25 +97,16 @@
   </div>
   <div class="card-body">
     
-    <!-- Current Status Display -->
-    <div class="row mb-4">
-      <div class="col-md-6">
-        <h6>Email Mode:</h6>
-        <div id="emailModeStatus">
-          <i class="bi bi-circle-fill text-success"></i>
-          <span>Manual</span>
-        </div>
-      </div>
-      <div class="col-md-6">
-        <h6>Gmail Access:</h6>
-        <div id="gmailAccessStatus">
-          <i class="bi bi-circle-fill text-warning"></i>
-          <span>Not Granted</span>
-        </div>
+    <!-- Current Email Mode Display Only -->
+    <div class="mb-4">
+      <h6>Current Email Mode:</h6>
+      <div id="emailModeStatus">
+        <i class="bi bi-circle-fill text-secondary"></i>
+        <span>Loading...</span>
       </div>
     </div>
 
-    <!-- Email Method Selection Cards (Like Onboarding) -->
+    <!-- Email Method Selection Cards -->
     <div class="mb-4">
       <label class="form-label">Choose Email Method:</label>
       <div class="row">
@@ -131,7 +122,7 @@
               </div>
               <h5 class="card-title">Manual Email</h5>
               <p class="card-text text-muted">
-                Copy and paste email content to send manually
+                Copy and paste email content to send manually from your email client
               </p>
               <div class="mt-3">
                 <span class="badge bg-success">Easy Setup</span>
@@ -153,7 +144,7 @@
               </div>
               <h5 class="card-title">Automatic Email</h5>
               <p class="card-text text-muted">
-                Emails sent automatically via Gmail API
+                Emails sent automatically via Gmail when you create requests
               </p>
               <div class="mt-3">
                 <span class="badge bg-primary">Gmail Required</span>
@@ -165,7 +156,7 @@
       </div>
     </div>
 
-    <!-- Gmail Authorization Section -->
+    <!-- Gmail Authorization Section (Only shown when needed) -->
     <div id="gmailAuthSection" class="alert alert-info" style="display: none;">
       <h6 class="alert-heading">
         <i class="bi bi-google me-2"></i>
@@ -175,25 +166,24 @@
         To use automatic email sending, you need to authorize Gmail access.
         This allows the application to send emails on your behalf.
       </p>
-      <button type="button" class="btn btn-primary" onclick="authorizeGmail()">
+      <button type="button" class="btn btn-primary" onclick="authorizeGmail()" id="authorizeGmailBtn">
         <i class="bi bi-google me-2"></i>
         Authorize Gmail Access
       </button>
     </div>
 
-    <!-- Gmail Disconnect Section -->
-    <div id="gmailDisconnectSection" class="alert alert-warning" style="display: none;">
+    <!-- Info Section -->
+    <div class="alert alert-light">
       <h6 class="alert-heading">
-        <i class="bi bi-exclamation-triangle me-2"></i>
-        Gmail Connected
+        <i class="bi bi-info-circle me-2"></i>
+        How Email Methods Work
       </h6>
-      <p class="mb-3">
-        Your Gmail account is connected. You can disconnect it if you want to switch back to manual email mode.
+      <p class="mb-2">
+        <strong>Manual:</strong> When you create a request, the app generates email content that you can copy and paste into your email client.
       </p>
-      <button type="button" class="btn btn-warning" onclick="disconnectGmail()">
-        <i class="bi bi-x-circle me-2"></i>
-        Disconnect Gmail
-      </button>
+      <p class="mb-0">
+        <strong>Automatic:</strong> When you create a request, the app automatically sends the email to the scheduling team via Gmail.
+      </p>
     </div>
 
   </div>
