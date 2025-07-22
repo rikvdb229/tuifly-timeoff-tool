@@ -1,4 +1,11 @@
 /* TUIfly Time-Off Tool - Base Styles */
+
+/* CSS Reset to eliminate white banner - more targeted */
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
 :root {
   --tuifly-blue: #007bff;
   --tuifly-yellow: #ffc107;
@@ -156,7 +163,8 @@ body {
 /* Main content spacing */
 main {
   padding-top: 20px;
-  min-height: calc(100vh - 76px);
+  min-height: calc(100vh - 80px);
+  box-sizing: border-box;
 }
 
 /* Email method cards */
@@ -181,9 +189,5 @@ main {
 @media (max-width: 768px) {
   .navbar-brand span {
     display: none;
-  }
-
-  main {
-    padding-top: 15px;
   }
 }

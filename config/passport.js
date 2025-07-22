@@ -102,8 +102,6 @@ passport.use('google-gmail', new GoogleStrategy(
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: process.env.GOOGLE_GMAIL_REDIRECT_URI || '/auth/google/gmail/callback',
     scope: getGmailScopes(),
-    accessType: 'offline',
-    prompt: 'consent', // Force consent to get Gmail permissions
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
@@ -131,11 +129,20 @@ passport.use('google-gmail', new GoogleStrategy(
       // Update user with Gmail permissions
       const updates = {
         gmailAccessToken: accessToken,
-        gmailRefreshToken: refreshToken,
-        gmailTokenExpiry: new Date(Date.now() + 3600 * 1000), // 1 hour
         gmailScopeGranted: true,
         lastLoginAt: new Date(),
       };
+      
+      // Only update refresh token if provided (Google only sends it on first authorization)
+      if (refreshToken) {
+        updates.gmailRefreshToken = refreshToken;
+        console.log('✅ Received new refresh token');
+      } else {
+        console.log('⚠️ No refresh token received (normal for subsequent logins)');
+      }
+      
+      // Set token expiry (Google tokens typically expire in 1 hour)
+      updates.gmailTokenExpiry = new Date(Date.now() + 3600 * 1000);
 
       console.log('Updating user with Gmail permissions...');
       const updatedUser = await user.update(updates);

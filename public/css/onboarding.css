@@ -1,0 +1,139 @@
+/* TUIfly Time-Off Tool - Onboarding Page Styles */
+
+/* Import the auth styles which contain the onboarding styles */
+@import url('./auth.css');
+
+/* Additional onboarding-specific styles if needed */
+.onboarding-page-body {
+  background: linear-gradient(135deg, var(--tuifly-blue) 0%, #0056b3 100%);
+  min-height: 100vh;
+  padding: 20px 0;
+}
+
+.onboarding-container {
+  max-width: 600px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.onboarding-header {
+  background: linear-gradient(135deg, var(--tuifly-blue) 0%, #0056b3 100%);
+  color: white;
+  padding: 30px;
+  text-align: center;
+}
+
+.onboarding-header i {
+  font-size: 3rem;
+  margin-bottom: 10px;
+}
+
+.onboarding-body {
+  padding: 40px;
+}
+
+/* Progress bar */
+.progress {
+  height: 8px;
+  border-radius: 10px;
+  margin-bottom: 30px;
+}
+
+.progress-bar {
+  background: var(--tuifly-blue);
+  border-radius: 10px;
+}
+
+/* Step management */
+.step {
+  display: none;
+}
+
+.step.active {
+  display: block;
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Welcome info */
+.welcome-info {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 30px;
+  border-left: 4px solid var(--tuifly-blue);
+}
+
+/* Form controls */
+.onboarding-page-body .form-control {
+  border-radius: 10px;
+  padding: 12px 15px;
+  border: 2px solid #e9ecef;
+}
+
+.form-label {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+/* Code input */
+.code-input {
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 1.1rem;
+  text-align: center;
+  border-radius: 10px !important;
+  border: 2px solid #e9ecef;
+}
+
+.code-input:focus {
+  border-color: var(--tuifly-blue);
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Button styling */
+.onboarding-page-body .btn-primary {
+  padding: 12px 30px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.onboarding-page-body .btn-primary:hover {
+  transform: translateY(-2px);
+}
+
+/* Email method cards */
+.onboarding-page-body .email-method-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.onboarding-page-body .email-method-card.selected {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 20px rgba(0,123,255,0.3);
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .onboarding-container {
+    margin: 20px;
+  }
+
+  .onboarding-body {
+    padding: 30px 20px;
+  }
+}

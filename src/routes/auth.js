@@ -104,9 +104,9 @@ router.get('/waiting-approval', async (req, res) => {
       title: 'Waiting for Approval - TUIfly Time-Off',
       body: '../pages/waiting-approval',
       user: user.toSafeObject(),
-      includeNavbar: true,
+      includeNavbar: false,
       additionalCSS: ['waiting-approval'],
-      additionalJS: ['pages/waiting-approval'],
+      additionalJS: ['waiting-approval'],
     });
   } catch (error) {
     console.error('Error in waiting-approval route:', error);
@@ -192,7 +192,8 @@ router.get(
           'openid',
           'https://www.googleapis.com/auth/gmail.send',
         ],
-    prompt: 'consent', // Force consent screen for Gmail permissions
+    accessType: 'offline',
+    prompt: 'consent', // Force consent screen to get refresh token
   })
 );
 

@@ -98,7 +98,12 @@ router.get('/api', async (req, res) => {
         // Email preference data
         emailPreference: req.user.emailPreference || 'manual',
         gmailConnected:
-          req.user.gmailScopeGranted && !!req.user.gmailAccessToken,
+          req.user.gmailScopeGranted && 
+          !!req.user.gmailAccessToken && 
+          (
+            (req.user.gmailTokenExpiry && new Date() < new Date(req.user.gmailTokenExpiry)) ||
+            !!req.user.gmailRefreshToken
+          ),
         globalSettings: {
           MIN_ADVANCE_DAYS: process.env.MIN_ADVANCE_DAYS || 60,
           MAX_ADVANCE_DAYS: process.env.MAX_ADVANCE_DAYS || 120,
@@ -296,12 +301,25 @@ router.post('/disconnect-gmail', async (req, res) => {
 router.get('/gmail-status', async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id);
+    
+    // Check if Gmail is properly connected and token is valid
+    let gmailConnected = false;
+    if (user.gmailScopeGranted && user.gmailAccessToken) {
+      // Check if token is not expired
+      if (user.gmailTokenExpiry && new Date() < new Date(user.gmailTokenExpiry)) {
+        gmailConnected = true;
+      } else if (user.gmailRefreshToken) {
+        // Token expired but we have refresh token
+        gmailConnected = true; // Will be refreshed when needed
+      }
+    }
 
     res.json({
       success: true,
-      gmailConnected: user.gmailScopeGranted && !!user.gmailAccessToken,
+      gmailConnected,
       emailPreference: user.emailPreference || 'manual',
       gmailTokenExpiry: user.gmailTokenExpiry,
+      hasRefreshToken: !!user.gmailRefreshToken,
     });
   } catch (error) {
     console.error('Gmail status error:', error);

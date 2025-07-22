@@ -11,7 +11,8 @@
     "format": "prettier --write src/",
     "db:create": "node scripts/createDatabase.js",
     "db:migrate": "node scripts/migrate.js",
-    "db:seed": "node scripts/seed.js"
+    "db:seed": "node scripts/seed.js",
+    "db:flush": "node scripts/flush-database.js"
   },
   "keywords": [
     "tuifly",

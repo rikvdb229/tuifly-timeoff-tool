@@ -787,38 +787,39 @@ router.delete('/requests/:id/delete-group', async (req, res) => {
 // GET Gmail connection status
 router.get('/gmail/status', async (req, res) => {
   try {
-    // Debug: Check what canSendEmails() returns
-    const canSendEmailsResult = req.user.canSendEmails();
-    console.log(
-      '🔍 canSendEmails() result:',
-      canSendEmailsResult,
-      typeof canSendEmailsResult
-    );
-
+    const user = req.user;
+    
+    // Check if token is valid
+    let tokenValid = false;
+    let canRefresh = false;
+    
+    if (user.gmailAccessToken && user.gmailTokenExpiry) {
+      tokenValid = new Date() < new Date(user.gmailTokenExpiry);
+      canRefresh = !!user.gmailRefreshToken;
+    }
+    
     const status = {
-      connected: req.user.gmailScopeGranted || false,
-      canSendEmails: Boolean(req.user.canSendEmails()), // Force boolean conversion
-      hasValidToken: req.user.hasValidGmailToken(),
-      tokenExpiry: req.user.gmailTokenExpiry,
-      needsReauth: false,
-      authUrl: '/auth/google', // Unified login URL
+      connected: user.gmailScopeGranted && user.gmailAccessToken && (tokenValid || canRefresh),
+      scopeGranted: user.gmailScopeGranted,
+      hasAccessToken: !!user.gmailAccessToken,
+      hasRefreshToken: !!user.gmailRefreshToken,
+      tokenValid,
+      canRefresh,
+      hasValidToken: user.hasValidGmailToken(),
+      tokenExpiry: user.gmailTokenExpiry,
+      canSendEmails: Boolean(user.canSendEmails()),
+      needsReauth: user.gmailScopeGranted && !user.gmailAccessToken && !user.gmailRefreshToken,
+      authUrl: '/auth/google/gmail',
     };
 
-    // Check if re-authorization is needed
-    if (
-      status.connected &&
-      !status.hasValidToken &&
-      !req.user.gmailRefreshToken
-    ) {
-      status.needsReauth = true;
-    }
+    console.log('📧 Gmail status for', user.email, ':', status);
 
     res.json({
       success: true,
       data: status,
-      message: status.canSendEmails
-        ? 'Gmail is ready for sending emails'
-        : 'Gmail needs to be connected - please re-login',
+      message: status.connected
+        ? 'Gmail is connected and ready'
+        : 'Gmail needs to be connected',
     });
   } catch (error) {
     console.error('Error getting Gmail status:', error);

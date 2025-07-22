@@ -74,7 +74,7 @@ app.use(
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
-      maxAge: parseInt(process.env.SESSION_TIMEOUT) || 3600000, // 1 hour
+      maxAge: parseInt(process.env.SESSION_TIMEOUT) || 2592000000, // 30 days default
       sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
     },
     name: 'tuifly.sid', // Custom session name

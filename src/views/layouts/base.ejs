@@ -25,7 +25,7 @@
         <%- metaTags %>
     <% } %>
 </head>
-<body>
+<body<% if (typeof bodyClass !== 'undefined') { %> class="<%= bodyClass %>"<% } %>>
     <!-- Include header/navbar -->
     <% if (typeof includeNavbar === 'undefined' || includeNavbar) { %>
         <%- include('../partials/navbar') %>
