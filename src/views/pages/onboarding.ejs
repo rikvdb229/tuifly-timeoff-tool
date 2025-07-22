@@ -12,155 +12,10 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css"
       rel="stylesheet"
     />
-    <style>
-      :root {
-        --tuifly-blue: #007bff;
-        --tuifly-yellow: #ffc107;
-      }
-
-      body {
-        background: linear-gradient(135deg, var(--tuifly-blue) 0%, #0056b3 100%);
-        min-height: 100vh;
-        padding: 20px 0;
-      }
-
-      .onboarding-container {
-        max-width: 600px;
-        margin: 0 auto;
-        background: white;
-        border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-        overflow: hidden;
-      }
-
-      .onboarding-header {
-        background: linear-gradient(135deg, var(--tuifly-blue) 0%, #0056b3 100%);
-        color: white;
-        padding: 30px;
-        text-align: center;
-      }
-
-      .onboarding-header i {
-        font-size: 3rem;
-        margin-bottom: 10px;
-      }
-
-      .onboarding-body {
-        padding: 40px;
-      }
-
-      .form-control {
-        border-radius: 10px;
-        padding: 12px 15px;
-        border: 2px solid #e9ecef;
-        transition: all 0.3s ease;
-      }
-
-      .form-control:focus {
-        border-color: var(--tuifly-blue);
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-      }
-
-      .form-label {
-        font-weight: 600;
-        color: #333;
-        margin-bottom: 8px;
-      }
-
-      .btn-primary {
-        background: var(--tuifly-blue);
-        border-color: var(--tuifly-blue);
-        padding: 12px 30px;
-        border-radius: 10px;
-        font-weight: 600;
-        transition: all 0.3s ease;
-      }
-
-      .btn-primary:hover {
-        background: #0056b3;
-        border-color: #0056b3;
-        transform: translateY(-2px);
-      }
-
-      .progress {
-        height: 8px;
-        border-radius: 10px;
-        margin-bottom: 30px;
-      }
-
-      .progress-bar {
-        background: var(--tuifly-blue);
-        border-radius: 10px;
-      }
-
-      .step {
-        display: none;
-      }
-
-      .step.active {
-        display: block;
-        animation: fadeIn 0.5s ease-in;
-      }
-
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-          transform: translateY(20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      .welcome-info {
-        background: #f8f9fa;
-        border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 30px;
-        border-left: 4px solid var(--tuifly-blue);
-      }
-
-      .code-input {
-        text-transform: uppercase;
-        font-weight: bold;
-        font-size: 1.1rem;
-        text-align: center;
-        border-radius: 10px !important;
-        border: 2px solid #e9ecef;
-      }
-
-      .code-input:focus {
-        border-color: var(--tuifly-blue);
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-      }
-
-      .email-method-card {
-        cursor: pointer;
-        transition: all 0.3s ease;
-      }
-
-      .email-method-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-      }
-
-      .email-method-card.selected {
-        transform: translateY(-5px);
-        box-shadow: 0 5px 20px rgba(0,123,255,0.3);
-      }
-
-      @media (max-width: 768px) {
-        .onboarding-container {
-          margin: 0 15px;
-        }
-        .onboarding-body {
-          padding: 30px 20px;
-        }
-      }
-    </style>
+    <link href="/css/base.css" rel="stylesheet">
+    <link href="/css/auth.css" rel="stylesheet">
   </head>
-  <body>
+  <body class="onboarding-page-body">
     <div class="onboarding-container">
       <div class="onboarding-header">
         <i class="bi bi-person-plus"></i>
@@ -302,7 +157,7 @@
           </div>
 
           <!-- Gmail Authorization Section -->
-          <div class="text-center mb-4" id="gmailAuthSection" style="display: none;">
+          <div class="text-center mb-4 d-none" id="gmailAuthSection">
             <div class="card border-primary">
               <div class="card-body">
                 <h6 class="card-title">

@@ -1,0 +1,241 @@
+/* TUIfly Time-Off Tool - Authentication Pages Styles */
+
+/* Login page styles */
+.login-page-body {
+  background: linear-gradient(135deg, var(--tuifly-blue) 0%, #0056b3 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-container {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  max-width: 400px;
+  width: 100%;
+}
+
+.login-header {
+  background: linear-gradient(135deg, var(--tuifly-blue) 0%, #0056b3 100%);
+  color: white;
+  padding: 30px;
+  text-align: center;
+}
+
+.login-header i {
+  font-size: 3rem;
+  margin-bottom: 10px;
+}
+
+.login-body {
+  padding: 40px 30px;
+}
+
+.google-btn {
+  background: #4285f4;
+  color: white;
+  border: none;
+  padding: 15px 20px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: block;
+  text-align: center;
+}
+
+.google-btn:hover {
+  background: #357ae8;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(66, 133, 244, 0.3);
+  color: white;
+}
+
+.alert {
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.features-list {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+}
+
+.features-list li {
+  padding: 8px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.features-list i {
+  color: var(--tuifly-blue);
+  margin-right: 10px;
+}
+
+.footer-text {
+  text-align: center;
+  margin-top: 20px;
+  color: #888;
+  font-size: 12px;
+}
+
+.loading {
+  display: none;
+  text-align: center;
+  padding: 20px;
+}
+
+.loading .spinner-border {
+  color: var(--tuifly-blue);
+}
+
+/* Onboarding page styles */
+.onboarding-page-body {
+  background: linear-gradient(135deg, var(--tuifly-blue) 0%, #0056b3 100%);
+  min-height: 100vh;
+  padding: 20px 0;
+}
+
+.onboarding-container {
+  max-width: 600px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.onboarding-header {
+  background: linear-gradient(135deg, var(--tuifly-blue) 0%, #0056b3 100%);
+  color: white;
+  padding: 30px;
+  text-align: center;
+}
+
+.onboarding-header i {
+  font-size: 3rem;
+  margin-bottom: 10px;
+}
+
+.onboarding-body {
+  padding: 40px;
+}
+
+/* Onboarding-specific form control overrides */
+.onboarding-page-body .form-control {
+  border-radius: 10px;
+  padding: 12px 15px;
+  border: 2px solid #e9ecef;
+}
+
+.form-label {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+/* Auth page specific button styling */
+.login-page-body .btn-primary,
+.onboarding-page-body .btn-primary {
+  padding: 12px 30px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.login-page-body .btn-primary:hover,
+.onboarding-page-body .btn-primary:hover {
+  transform: translateY(-2px);
+}
+
+.progress {
+  height: 8px;
+  border-radius: 10px;
+  margin-bottom: 30px;
+}
+
+.progress-bar {
+  background: var(--tuifly-blue);
+  border-radius: 10px;
+}
+
+.step {
+  display: none;
+}
+
+.step.active {
+  display: block;
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.welcome-info {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 30px;
+  border-left: 4px solid var(--tuifly-blue);
+}
+
+.code-input {
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 1.1rem;
+  text-align: center;
+  border-radius: 10px !important;
+  border: 2px solid #e9ecef;
+}
+
+.code-input:focus {
+  border-color: var(--tuifly-blue);
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Auth page specific email card styling */
+.onboarding-page-body .email-method-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.onboarding-page-body .email-method-card.selected {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 20px rgba(0,123,255,0.3);
+}
+
+/* Responsive styles for auth pages */
+@media (max-width: 768px) {
+  .login-container {
+    margin: 20px;
+    max-width: calc(100% - 40px);
+  }
+  
+  .login-header {
+    padding: 20px;
+  }
+  
+  .login-body {
+    padding: 30px 20px;
+  }
+
+  .onboarding-container {
+    margin: 20px;
+  }
+
+  .onboarding-body {
+    padding: 30px 20px;
+  }
+}

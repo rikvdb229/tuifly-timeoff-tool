@@ -1,0 +1,105 @@
+/* TUIfly Time-Off Tool - Modal Styles */
+
+/* Modern modal styling */
+.modal-content {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+/* Default modal header - only applies when no specific background class is used */
+.modal-header:not(.bg-primary):not(.bg-secondary):not(.bg-success):not(.bg-danger):not(.bg-warning):not(.bg-info):not(.bg-light):not(.bg-dark) {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.modal-header {
+  border-radius: 12px 12px 0 0;
+}
+
+/* Ensure good contrast for primary modal headers */
+.modal-header.bg-primary {
+  background: linear-gradient(135deg, var(--tuifly-blue) 0%, #0056b3 100%) !important;
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.modal-header.bg-primary .modal-title {
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.modal-footer {
+  background: #f8f9fa;
+  border-radius: 0 0 12px 12px;
+}
+
+/* Modal-specific button hover effect */
+.modal .btn:hover {
+  transform: translateY(-1px);
+}
+
+/* Danger modal styling */
+.modal-content.danger .modal-header {
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c2c7 100%);
+}
+
+.modal-content.danger .modal-footer {
+  background: #f8d7da;
+}
+
+.modal-content.danger .btn-danger {
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+.modal-content.danger .btn-danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
+/* Warning modal styling for logout */
+.modal-content.warning .modal-header {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+}
+
+.modal-content.warning .modal-footer {
+  background: #fff3cd;
+}
+
+.modal-content.warning .btn-warning {
+  background-color: #ffc107;
+  border-color: #ffc107;
+  color: #000;
+}
+
+.modal-content.warning .btn-warning:hover {
+  background-color: #e0a800;
+  border-color: #d39e00;
+}
+
+/* Modal z-index management */
+#confirmationModal {
+  z-index: 1070 !important;
+}
+
+#confirmationModal .modal-backdrop {
+  z-index: 1069 !important;
+}
+
+/* Prevent modal backdrop conflicts */
+.modal-backdrop.show {
+  opacity: 0.5;
+}
+
+.modal-backdrop + .modal-backdrop {
+  opacity: 0.3;
+}
+
+/* Utility classes for modal content visibility */
+.d-none {
+  display: none !important;
+}
+
+.d-block {
+  display: block !important;
+}

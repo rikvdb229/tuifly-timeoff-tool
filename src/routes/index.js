@@ -22,7 +22,7 @@ router.get('/', (req, res) => {
   const templateData = {
     title: 'TUIfly Time-Off Calendar',
     body: '../pages/calendar-dashboard',
-    additionalCSS: 'calendar',
+    additionalCSS: ['calendar'],
     additionalJS: 'calendar',
     metaTags: metaTags,
     user: req.user.toSafeObject(),
