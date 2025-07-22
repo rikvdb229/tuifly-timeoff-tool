@@ -105,8 +105,8 @@ router.get('/waiting-approval', async (req, res) => {
       body: '../pages/waiting-approval',
       user: user.toSafeObject(),
       includeNavbar: true,
-      additionalCSS: [],
-      additionalJS: []
+      additionalCSS: ['waiting-approval'],
+      additionalJS: ['pages/waiting-approval']
     });
   } catch (error) {
     console.error('Error in waiting-approval route:', error);
