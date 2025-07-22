@@ -301,41 +301,48 @@ function showRequestDetailModal(request, dateStr) {
     `;
   }
 
-  // Email section
-  modalContent += `
-    <div class="row mb-3">
-      <div class="col-12">
-        <strong>Email Actions:</strong>
-        <div class="mt-2">
-  `;
+  // Email section (only show if email not sent yet)
+  const shouldShowEmailSection = !request.emailSent && !request.manualEmailConfirmed;
+  
+  if (shouldShowEmailSection) {
+    // Generate email content for copying (unified function handles both single and group)
+    const emailContent = window.generateEmailContent(request);
 
-  // Generate email content for copying
-  const emailContent = isGroupRequest 
-    ? window.generateGroupEmailContent(groupRequests[0])
-    : window.generateSingleEmailContent(request);
-
-  modalContent += `
-          <div class="email-copy-section">
-            <label>Email Subject:</label>
-            <div class="input-group mb-2">
-              <input type="text" class="form-control" id="emailSubjectCopy" value="${emailContent.subject}" readonly>
-              <button class="btn btn-outline-secondary" type="button" data-copy-target="emailSubjectCopy">
-                <i class="bi bi-clipboard"></i>
-              </button>
-            </div>
-            
-            <label>Email Body:</label>
-            <div class="input-group">
-              <textarea class="form-control" id="emailBodyCopy" rows="8" readonly>${emailContent.body}</textarea>
-              <button class="btn btn-outline-secondary" type="button" data-copy-target="emailBodyCopy">
-                <i class="bi bi-clipboard"></i>
-              </button>
+    modalContent += `
+      <div class="row mb-3">
+        <div class="col-12">
+          <strong>Email Actions:</strong>
+          <div class="mt-2">
+            <div class="email-copy-section">
+              <label>To:</label>
+              <div class="input-group mb-2">
+                <input type="text" class="form-control" id="emailToCopy" value="${emailContent.to || 'scheduling@tuifly.be'}" readonly>
+                <button class="btn btn-outline-secondary" type="button" data-copy-target="emailToCopy">
+                  <i class="bi bi-clipboard"></i>
+                </button>
+              </div>
+              
+              <label>Email Subject:</label>
+              <div class="input-group mb-2">
+                <input type="text" class="form-control" id="emailSubjectCopy" value="${emailContent.subject}" readonly>
+                <button class="btn btn-outline-secondary" type="button" data-copy-target="emailSubjectCopy">
+                  <i class="bi bi-clipboard"></i>
+                </button>
+              </div>
+              
+              <label>Email Body:</label>
+              <div class="input-group">
+                <textarea class="form-control" id="emailBodyCopy" rows="8" readonly>${emailContent.body}</textarea>
+                <button class="btn btn-outline-secondary" type="button" data-copy-target="emailBodyCopy">
+                  <i class="bi bi-clipboard"></i>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  `;
+    `;
+  }
 
   // Action buttons section
   modalContent += `
@@ -355,8 +362,8 @@ function showRequestDetailModal(request, dateStr) {
     `;
   }
 
-  // Send to Email Program button - only for manual mode requests not yet sent
-  if (requestEmailMode === 'manual' && !request.manualEmailConfirmed) {
+  // Send to Email Program button - only for requests without automatic email, not yet sent
+  if (!request.emailSent && !request.manualEmailConfirmed) {
     modalContent += `
         <button type="button" class="btn btn-outline-primary btn-sm me-2" onclick="openInMailClient(${request.id})">
           <i class="bi bi-envelope-open me-1"></i>Open in Mail Client
@@ -364,8 +371,8 @@ function showRequestDetailModal(request, dateStr) {
     `;
   }
 
-  // Mark as Sent button - only for manual mode requests not yet confirmed
-  if (requestEmailMode === 'manual' && !request.manualEmailConfirmed) {
+  // Mark as Sent button - only for requests without automatic email, not yet confirmed
+  if (!request.emailSent && !request.manualEmailConfirmed) {
     modalContent += `
         <button type="button" class="btn btn-outline-success btn-sm" onclick="markEmailAsSent(${request.id})">
           <i class="bi bi-check2 me-1"></i>Mark as Sent
@@ -376,10 +383,18 @@ function showRequestDetailModal(request, dateStr) {
   modalContent += `
       </div>
       
-      <div>
+      <div>`;
+
+  // Delete button - only show if no email has been sent
+  const canDelete = !request.emailSent && !request.manualEmailConfirmed;
+  if (canDelete) {
+    modalContent += `
         <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteRequest(${request.id}, ${isGroupRequest})">
           <i class="bi bi-trash me-1"></i>Delete ${isGroupRequest ? 'Group' : 'Request'}
-        </button>
+        </button>`;
+  }
+
+  modalContent += `
       </div>
     </div>
   `;
@@ -561,10 +576,8 @@ function openInMailClient(requestId) {
     return;
   }
 
-  // Generate email content
-  const emailContent = request.groupId 
-    ? window.calendar?.generateGroupEmailContent(request)
-    : window.calendar?.generateEmailContent(request);
+  // Generate email content (unified function handles both single and group)
+  const emailContent = window.generateEmailContent(request);
 
   if (!emailContent) {
     window.showToast('Could not generate email content', 'error');

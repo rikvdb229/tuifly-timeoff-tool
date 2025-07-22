@@ -92,13 +92,20 @@ async function populateRequestModal(request, dateStr) {
   // Populate dates with inline status buttons
   await populateRequestDates(request);
 
-  // Email content section (only for manual mode requests)
+  // Email content section (for requests that need manual email handling)
   const emailContentSection = document.getElementById('emailContentSection');
-  if (requestEmailMode === 'manual' && !request.manualEmailConfirmed) {
+  const shouldShowEmailSection = !request.emailSent && !request.manualEmailConfirmed;
+  
+  if (shouldShowEmailSection) {
     if (emailContentSection) emailContentSection.style.display = 'block';
 
     setTimeout(() => {
-      populateEmailContent(request);
+      if (request.manualEmailContent) {
+        populateEmailContent(request);
+      } else {
+        // Generate email content if missing (for existing requests)
+        generateEmailContentForModal(request);
+      }
     }, 50);
   } else {
     if (emailContentSection) emailContentSection.style.display = 'none';
@@ -153,10 +160,7 @@ async function populateRequestDates(request) {
   }
 
   // Check if email is sent and can update status
-  const requestEmailMode = request.emailMode || 'automatic';
-  const emailSent =
-    (requestEmailMode === 'automatic' && request.emailSent) ||
-    (requestEmailMode === 'manual' && request.manualEmailConfirmed);
+  const emailSent = request.emailSent || request.manualEmailConfirmed;
 
   // Show bulk actions if multiple dates and email sent
   if (bulkActions) {
@@ -250,22 +254,31 @@ function populateEmailContent(request) {
   const approverEmail =
     window.TUIFLY_CONFIG?.APPROVER_EMAIL || 'scheduling@tuifly.be';
 
+  console.log('📧 Populating email content for request:', request.id);
+  console.log('📧 Manual email content:', request.manualEmailContent);
+
   if (request.manualEmailContent) {
     const emailContent = request.manualEmailContent;
 
     // Get the DOM elements with correct IDs
     const toField = document.getElementById('emailTo');
-    const subjectField = document.getElementById('emailSubjectDetail'); // Changed ID
+    const subjectField = document.getElementById('emailSubjectDetail');
     const bodyField = document.getElementById('emailBody');
+
+    console.log('📧 DOM elements found:', { toField: !!toField, subjectField: !!subjectField, bodyField: !!bodyField });
 
     // Set TO field
     if (toField) {
       toField.value = emailContent.to || approverEmail;
+      console.log('📧 Set TO field:', toField.value);
+    } else {
+      console.error('❌ emailTo field not found!');
     }
 
     // Set SUBJECT field
     if (subjectField) {
       subjectField.value = emailContent.subject || '';
+      console.log('📧 Set SUBJECT field:', subjectField.value);
     } else {
       console.error('❌ emailSubjectDetail field not found!');
     }
@@ -273,12 +286,52 @@ function populateEmailContent(request) {
     // Set BODY field
     if (bodyField) {
       bodyField.value = emailContent.body || emailContent.text || '';
+      console.log('📧 Set BODY field length:', bodyField.value.length);
+    } else {
+      console.error('❌ emailBody field not found!');
     }
 
     return;
   }
 
   console.warn('⚠️ No stored email content found');
+}
+
+/**
+ * Generates email content for modal when not stored in request
+ * @param {Object} request - The request object
+ * @returns {void}
+ * @private
+ */
+async function generateEmailContentForModal(request) {
+  try {
+    console.log('📧 Generating email content for request:', request.id);
+    
+    const response = await fetch(`/api/requests/${request.id}/email-content`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.data.emailContent) {
+        // Update the request object with the email content
+        request.manualEmailContent = data.data.emailContent;
+        // Populate the form fields
+        populateEmailContent(request);
+      }
+    } else {
+      console.error('Failed to fetch email content:', response.status);
+      
+      // Fallback: populate with default values
+      const approverEmail = window.TUIFLY_CONFIG?.APPROVER_EMAIL || 'scheduling@tuifly.be';
+      const toField = document.getElementById('emailTo');
+      if (toField) {
+        toField.value = approverEmail;
+      }
+      
+      console.warn('⚠️ Using fallback email address');
+    }
+  } catch (error) {
+    console.error('Error generating email content:', error);
+  }
 }
 
 /**
@@ -301,8 +354,8 @@ function populateModalActions(request) {
   
   let actions = '';
 
-  // Open in Mail Client (manual mode only, when email content is ready)
-  if (requestEmailMode === 'manual' && !request.manualEmailConfirmed) {
+  // Open in Mail Client (only for requests without automatic email)
+  if (!request.emailSent && !request.manualEmailConfirmed) {
     actions += `
   <button type="button" class="btn btn-primary me-2" data-action="openInMailClient" data-request-id="${request.id}">
     <i class="bi bi-envelope-open me-1"></i>Open in Mail Client
@@ -310,8 +363,8 @@ function populateModalActions(request) {
 `;
   }
 
-  // Mark as sent (manual mode only, not yet sent)
-  if (requestEmailMode === 'manual' && !request.manualEmailConfirmed) {
+  // Mark as sent (only for requests without automatic email, not yet manually confirmed)  
+  if (!request.emailSent && !request.manualEmailConfirmed) {
     actions += `
   <button type="button" class="btn btn-success me-2" data-action="markEmailAsSent" data-request-id="${request.id}">
     <i class="bi bi-check-lg me-1"></i>Mark as Sent
@@ -328,11 +381,8 @@ function populateModalActions(request) {
 `;
   }
 
-  // Delete (if pending and not sent)
-  const canDelete =
-    request.status === 'PENDING' &&
-    ((requestEmailMode === 'automatic' && !request.emailSent) ||
-      (requestEmailMode === 'manual' && !request.manualEmailConfirmed));
+  // Delete (only if no email sent yet)
+  const canDelete = !request.emailSent && !request.manualEmailConfirmed;
 
   if (canDelete) {
     const isGroup = request.groupId ? true : false;

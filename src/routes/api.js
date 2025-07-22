@@ -689,7 +689,7 @@ router.delete('/requests/:id', async (req, res) => {
     if (!request.canBeDeleted()) {
       return res.status(403).json({
         success: false,
-        error: 'Only pending or denied requests can be deleted',
+        error: 'Cannot delete request: email has already been sent',
       });
     }
 
@@ -742,16 +742,17 @@ router.delete('/requests/:id/delete-group', async (req, res) => {
       });
     }
 
-    // Check if any request in the group cannot be deleted
+    // Check if any request in the group cannot be deleted  
+    // Only check email status - if email sent, cannot delete
     const cannotDelete = groupRequests.filter(
-      (req) => req.status !== 'PENDING' || req.manualEmailConfirmed
+      (req) => req.emailSent || req.manualEmailConfirmed
     );
 
     if (cannotDelete.length > 0) {
       return res.status(400).json({
         success: false,
         error:
-          'Cannot delete group: some requests are already processed or confirmed',
+          'Cannot delete group: some requests have emails already sent',
         details: `${cannotDelete.length} out of ${groupRequests.length} requests cannot be deleted`,
       });
     }
@@ -1101,11 +1102,12 @@ router.post('/requests/:id/mark-email-sent', async (req, res) => {
       });
     }
 
-    // Check user's email preference
-    if (req.user.emailPreference !== 'manual') {
+    // Check if this request can be marked as manually sent
+    // Only allow for requests where no automatic email was sent
+    if (request.emailSent) {
       return res.status(400).json({
         success: false,
-        error: 'This action is only available for users in manual email mode',
+        error: 'This request already has an automatic email sent. Cannot mark as manually sent.',
       });
     }
 
@@ -1183,13 +1185,8 @@ router.get('/requests/:id/group-email-content', async (req, res) => {
 
     let emailContent;
 
-    if (request.groupId) {
-      // Generate group email content
-      emailContent = await request.generateGroupEmailContent(req.user);
-    } else {
-      // Generate single request email content
-      emailContent = request.generateSingleEmailContent(req.user);
-    }
+    // Generate email content (unified function handles both single and group requests)
+    emailContent = await request.generateEmailContent(req.user);
 
     res.json({
       success: true,

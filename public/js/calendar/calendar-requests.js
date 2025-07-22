@@ -270,59 +270,26 @@ window.bulkUpdateStatus = async function (newStatus) {
 };
 
 // Email generation functions
-window.generateSingleEmailContent = function (request) {
-  const startDate = new Date(request.startDate);
-  const month = startDate.toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric',
-  });
-
-  let bodyLines = ['Dear,', ''];
-
-  let line = `${request.startDate} - `;
-  switch (request.type) {
-    case 'REQ_DO':
-      line += 'REQ DO';
-      break;
-    case 'PM_OFF':
-      line += 'PM OFF';
-      break;
-    case 'AM_OFF':
-      line += 'AM OFF';
-      break;
-    case 'FLIGHT':
-      line += 'FLIGHT';
-      break;
-    default:
-      line += request.type;
+/**
+ * Unified email content generation for both single and group requests
+ * @param {Object} request - The request object (can be single or part of a group)
+ * @returns {Object} Email content with to, subject, and body
+ */
+window.generateEmailContent = function (request) {
+  // Determine if this is a group request and get all requests to process
+  let requestsToProcess;
+  if (request.groupId && window.existingRequests) {
+    // Group request - get all requests in the group
+    requestsToProcess = window.existingRequests
+      .filter(r => r.groupId === request.groupId)
+      .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+  } else {
+    // Single request
+    requestsToProcess = [request];
   }
 
-  if (request.flightNumber) {
-    line += ` ${request.flightNumber}`;
-  }
-  bodyLines.push(line);
-
-  if (request.customMessage) {
-    bodyLines.push('');
-    bodyLines.push(request.customMessage);
-  }
-
-  bodyLines.push('');
-  bodyLines.push(window.currentUserData?.signature || 'Brgds,\nYour Name');
-
-  return {
-    subject: `${window.currentUserData?.code || 'RVB'} - CREW REQUEST - ${month}`,
-    body: bodyLines.join('\n'),
-  };
-};
-
-window.generateGroupEmailContent = function (request) {
-  const groupRequests = window.existingRequests.filter(
-    (r) => r.groupId === request.groupId
-  );
-  groupRequests.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-
-  const firstDate = new Date(groupRequests[0].startDate);
+  // Get month from the first request for the subject
+  const firstDate = new Date(requestsToProcess[0].startDate);
   const month = firstDate.toLocaleDateString('en-US', {
     month: 'long',
     year: 'numeric',
@@ -330,8 +297,11 @@ window.generateGroupEmailContent = function (request) {
 
   let bodyLines = ['Dear,', ''];
 
-  groupRequests.forEach((req) => {
+  // Process each request (1 for single, multiple for group)
+  requestsToProcess.forEach((req) => {
     let line = `${req.startDate} - `;
+    
+    // Format request type
     switch (req.type) {
       case 'REQ_DO':
         line += 'REQ DO';
@@ -349,25 +319,34 @@ window.generateGroupEmailContent = function (request) {
         line += req.type;
     }
 
+    // Add flight number if exists
     if (req.flightNumber) {
       line += ` ${req.flightNumber}`;
     }
+    
     bodyLines.push(line);
   });
 
+  // Add custom message if exists (from the main request)
   if (request.customMessage) {
     bodyLines.push('');
     bodyLines.push(request.customMessage);
   }
 
+  // Add signature
   bodyLines.push('');
   bodyLines.push(window.currentUserData?.signature || 'Brgds,\nYour Name');
 
   return {
+    to: window.TUIFLY_CONFIG?.APPROVER_EMAIL || 'scheduling@tuifly.be',
     subject: `${window.currentUserData?.code || 'RVB'} - CREW REQUEST - ${month}`,
     body: bodyLines.join('\n'),
   };
 };
+
+// Backward compatibility - keep old function names as aliases
+window.generateSingleEmailContent = window.generateEmailContent;
+window.generateGroupEmailContent = window.generateEmailContent;
 
 // Email management functions
 window.markEmailAsSent = async function (requestId) {

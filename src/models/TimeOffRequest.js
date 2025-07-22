@@ -208,7 +208,8 @@ function defineTimeOffRequest(sequelize) {
   };
 
   TimeOffRequest.prototype.canBeDeleted = function () {
-    return this.status === 'PENDING' || this.status === 'DENIED';
+    // Can only delete if no email has been sent (automatic or manual)
+    return !this.emailSent && !this.manualEmailConfirmed;
   };
 
   TimeOffRequest.prototype.getDisplayType = function () {
@@ -415,18 +416,28 @@ function defineTimeOffRequest(sequelize) {
 
     return requests;
   };
-  TimeOffRequest.prototype.generateGroupEmailContent = async function (user) {
-    // Get all requests in the same group
-    const groupRequests = await TimeOffRequest.getByGroupIdAndUser(
-      this.groupId,
-      this.userId
-    );
-
-    // Sort by date
-    groupRequests.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+  /**
+   * Unified email content generation for both single and group requests
+   * @param {Object} user - User object with code, signature, name, email
+   * @returns {Object} Email content with subject, body, and to fields
+   */
+  TimeOffRequest.prototype.generateEmailContent = async function (user) {
+    let requestsToProcess;
+    
+    if (this.groupId) {
+      // Group request - get all requests in the group
+      requestsToProcess = await TimeOffRequest.getByGroupIdAndUser(
+        this.groupId,
+        this.userId
+      );
+      requestsToProcess.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    } else {
+      // Single request
+      requestsToProcess = [this];
+    }
 
     // Generate subject based on first month
-    const firstDate = new Date(groupRequests[0].startDate);
+    const firstDate = new Date(requestsToProcess[0].startDate);
     const month = firstDate.toLocaleDateString('en-US', {
       month: 'long',
       year: 'numeric',
@@ -436,7 +447,7 @@ function defineTimeOffRequest(sequelize) {
     // Generate body with all dates
     let bodyLines = ['Dear,', ''];
 
-    groupRequests.forEach((request) => {
+    requestsToProcess.forEach((request) => {
       let line = `${request.startDate} - `;
 
       // Convert type to display format
@@ -479,6 +490,15 @@ function defineTimeOffRequest(sequelize) {
       body: bodyLines.join('\n'),
       to: process.env.TUIFLY_APPROVER_EMAIL || 'scheduling@tuifly.be',
     };
+  };
+
+  // Backward compatibility aliases
+  TimeOffRequest.prototype.generateGroupEmailContent = function (user) {
+    return this.generateEmailContent(user);
+  };
+
+  TimeOffRequest.prototype.generateSingleEmailContent = function (user) {
+    return this.generateEmailContent(user);
   };
 
   TimeOffRequest.getByGroupIdAndUser = async function (groupId, userId) {

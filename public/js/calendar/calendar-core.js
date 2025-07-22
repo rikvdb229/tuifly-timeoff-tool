@@ -474,118 +474,6 @@ class CalendarManager {
     }
   }
 
-  generateEmailContent(request) {
-    const startDate = new Date(request.startDate);
-    const month = startDate.toLocaleDateString('en-US', {
-      month: 'long',
-      year: 'numeric',
-    });
-
-    // Build the email body properly
-    let bodyLines = ['Dear,', ''];
-
-    // Add the actual request line with proper type display
-    let line = `${request.startDate} - `;
-
-    // Convert type to display format
-    switch (request.type) {
-      case 'REQ_DO':
-        line += 'REQ DO';
-        break;
-      case 'PM_OFF':
-        line += 'PM OFF';
-        break;
-      case 'AM_OFF':
-        line += 'AM OFF';
-        break;
-      case 'FLIGHT':
-        line += 'FLIGHT';
-        break;
-      default:
-        line += request.type;
-    }
-
-    // Add flight number if exists
-    if (request.flightNumber) {
-      line += ` ${request.flightNumber}`;
-    }
-
-    bodyLines.push(line);
-
-    // Add custom message if exists
-    if (request.customMessage) {
-      bodyLines.push('');
-      bodyLines.push(request.customMessage);
-      bodyLines.push('');
-    }
-
-    bodyLines.push('');
-    bodyLines.push(window.currentUserData?.signature || 'Brgds,\nYour Name');
-
-    return {
-      subject: `${window.currentUserData?.code || 'RVB'} - CREW REQUEST - ${month}`,
-      body: bodyLines.join('\n'),
-    };
-  }
-
-  generateGroupEmailContent(request) {
-    // Get all requests in the same group
-    const groupRequests = window.existingRequests.filter(
-      (r) => r.groupId === request.groupId
-    );
-    groupRequests.sort(
-      (a, b) => new Date(a.startDate) - new Date(b.startDate)
-    );
-
-    const firstDate = new Date(groupRequests[0].startDate);
-    const month = firstDate.toLocaleDateString('en-US', {
-      month: 'long',
-      year: 'numeric',
-    });
-
-    // Build the email body
-    let bodyLines = ['Dear,', ''];
-
-    groupRequests.forEach((req) => {
-      let line = `${req.startDate} - `;
-
-      // Convert type to display format
-      switch (req.type) {
-        case 'REQ_DO':
-          line += 'REQ DO';
-          break;
-        case 'PM_OFF':
-          line += 'PM OFF';
-          break;
-        case 'AM_OFF':
-          line += 'AM OFF';
-          break;
-        case 'FLIGHT':
-          line += 'FLIGHT';
-          break;
-        default:
-          line += req.type;
-      }
-
-      if (req.flightNumber) {
-        line += ` ${req.flightNumber}`;
-      }
-      bodyLines.push(line);
-    });
-
-    if (request.customMessage) {
-      bodyLines.push('');
-      bodyLines.push(request.customMessage);
-    }
-
-    bodyLines.push('');
-    bodyLines.push(window.currentUserData?.signature || 'Brgds,\nYour Name');
-
-    return {
-      subject: `${window.currentUserData?.code || 'RVB'} - CREW REQUEST - ${month}`,
-      body: bodyLines.join('\n'),
-    };
-  }
 
   getStatusColor(status) {
     switch (status) {
@@ -602,14 +490,8 @@ class CalendarManager {
 // Initialize calendar
 const calendar = new CalendarManager();
 
-// Single request email generation function  
-function generateSingleEmailContent(request) {
-  return calendar.generateEmailContent(request);
-}
-
 // Make global for other modules
 window.calendar = calendar;
 window.CONFIG = CONFIG;
 window.validateConsecutiveDates = validateConsecutiveDates;
 window.addDays = addDays;
-window.generateSingleEmailContent = generateSingleEmailContent;
