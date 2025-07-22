@@ -155,7 +155,7 @@ app.use((req, res) => {
     statusCode: 404,
     includeNavbar: false,
     additionalCSS: ['error'],
-    additionalJS: []
+    additionalJS: [],
   });
 });
 
@@ -191,7 +191,7 @@ app.use((err, req, res, next) => {
     statusCode,
     includeNavbar: false,
     additionalCSS: ['error'],
-    additionalJS: []
+    additionalJS: [],
   });
 });
 

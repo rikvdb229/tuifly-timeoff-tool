@@ -15,10 +15,10 @@ class ApiResponse {
       success: true,
       message,
       data,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
-  
+
   /**
    * Create an error API response
    * @param {string} message - Error message
@@ -32,7 +32,7 @@ class ApiResponse {
       error: message,
       details,
       statusCode,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 }

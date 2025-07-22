@@ -63,9 +63,9 @@ router.get('/', requireAuth, async (req, res) => {
       title: 'Welcome - Complete Your Profile',
       body: '../pages/onboarding',
       user: user.toSafeObject(),
-      gmailSuccess,  // ✅ ADD: Pass Gmail success status
-      gmailError,    // ✅ ADD: Pass Gmail error status  
-      step: step,    // ✅ ADD: Pass step to template
+      gmailSuccess, // ✅ ADD: Pass Gmail success status
+      gmailError, // ✅ ADD: Pass Gmail error status
+      step: step, // ✅ ADD: Pass step to template
       includeNavbar: false,
       additionalCSS: ['onboarding'],
       additionalJS: ['onboarding'],
@@ -84,7 +84,7 @@ router.get('/', requireAuth, async (req, res) => {
       error: 'Failed to load onboarding page',
       includeNavbar: false,
       additionalCSS: ['error'],
-      additionalJS: []
+      additionalJS: [],
     });
   }
 });
@@ -94,7 +94,7 @@ router.post('/start-gmail-oauth', requireAuth, async (req, res) => {
   try {
     // Set redirect target after Gmail OAuth completes
     req.session.gmailOAuthRedirect = '/onboarding?gmail_success=1&step=4';
-    
+
     res.json({
       success: true,
       redirectUrl: '/auth/google/gmail',
@@ -148,10 +148,13 @@ router.post('/complete', requireAuth, async (req, res) => {
         return res.status(400).json({
           success: false,
           error: 'Gmail permissions required for automatic email',
-          details: [{
-            field: 'emailPreference',
-            message: 'Gmail authorization is required for automatic email sending',
-          }],
+          details: [
+            {
+              field: 'emailPreference',
+              message:
+                'Gmail authorization is required for automatic email sending',
+            },
+          ],
           requiresGmailAuth: true,
         });
       }
@@ -245,7 +248,7 @@ router.post('/check-code', requireAuth, async (req, res) => {
 router.get('/gmail-status', requireAuth, async (req, res) => {
   try {
     const user = await User.findByPk(req.session.userId);
-    
+
     res.json({
       success: true,
       gmailAuthorized: user.gmailScopeGranted && !!user.gmailAccessToken,

@@ -5,11 +5,11 @@ const nodemailer = require('nodemailer');
 
 class GmailService {
   constructor() {
-this.oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_GMAIL_REDIRECT_URI || '/auth/google/gmail/callback' // ✅ Fixed
-);
+    this.oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_GMAIL_REDIRECT_URI || '/auth/google/gmail/callback' // ✅ Fixed
+    );
   }
   // 🚀 NEW: Check if user needs to re-authorize (redirect to login)
   static needsReauthorization(user) {

@@ -165,7 +165,7 @@ async function populateRequestDates(request) {
   // Show bulk actions if multiple dates and email sent
   if (bulkActions) {
     if (requestsToShow.length > 1 && emailSent) {
-      bulkActions.style.display = 'flex';
+      bulkActions.style.display = 'block';
     } else {
       bulkActions.style.display = 'none';
     }
@@ -224,7 +224,10 @@ async function populateRequestDates(request) {
     )
     .join('');
 
-  datesContainer.innerHTML =
+  // Find the dates list container (not the parent container)
+  const datesList = datesContainer.querySelector('#datesList') || datesContainer;
+  
+  datesList.innerHTML =
     datesHTML || '<div class="text-muted">No dates found</div>';
 
   // Add event listeners for status update buttons

@@ -83,7 +83,7 @@ router.get('/', async (req, res) => {
       error: 'Failed to load settings page',
       includeNavbar: false,
       additionalCSS: ['error'],
-      additionalJS: []
+      additionalJS: [],
     });
   }
 });
@@ -97,7 +97,8 @@ router.get('/api', async (req, res) => {
         user: req.user.toSafeObject(),
         // Email preference data
         emailPreference: req.user.emailPreference || 'manual',
-        gmailConnected: req.user.gmailScopeGranted && !!req.user.gmailAccessToken,
+        gmailConnected:
+          req.user.gmailScopeGranted && !!req.user.gmailAccessToken,
         globalSettings: {
           MIN_ADVANCE_DAYS: process.env.MIN_ADVANCE_DAYS || 60,
           MAX_ADVANCE_DAYS: process.env.MAX_ADVANCE_DAYS || 120,
@@ -279,7 +280,8 @@ router.post('/disconnect-gmail', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Gmail disconnected successfully. Email preference set to manual.',
+      message:
+        'Gmail disconnected successfully. Email preference set to manual.',
       user: user.toSafeObject(),
     });
   } catch (error) {
@@ -338,7 +340,9 @@ router.post('/email-preference', async (req, res) => {
     // Update email preference
     await user.update({ emailPreference });
 
-    console.log(`✅ Email preference changed: ${user.email} → ${emailPreference}`);
+    console.log(
+      `✅ Email preference changed: ${user.email} → ${emailPreference}`
+    );
 
     res.json({
       success: true,

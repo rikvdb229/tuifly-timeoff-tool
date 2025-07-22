@@ -39,7 +39,7 @@ router.get('/login', requireGuest, (req, res) => {
     message: req.query.message,
     includeNavbar: false,
     additionalCSS: ['auth'],
-    additionalJS: ['login']
+    additionalJS: ['login'],
   });
 });
 
@@ -106,7 +106,7 @@ router.get('/waiting-approval', async (req, res) => {
       user: user.toSafeObject(),
       includeNavbar: true,
       additionalCSS: ['waiting-approval'],
-      additionalJS: ['pages/waiting-approval']
+      additionalJS: ['pages/waiting-approval'],
     });
   } catch (error) {
     console.error('Error in waiting-approval route:', error);
@@ -116,7 +116,7 @@ router.get('/waiting-approval', async (req, res) => {
       error: 'Failed to load waiting approval page',
       includeNavbar: false,
       additionalCSS: ['error'],
-      additionalJS: []
+      additionalJS: [],
     });
   }
 });
@@ -186,7 +186,12 @@ router.get(
   passport.authenticate('google-gmail', {
     scope: process.env.GOOGLE_SCOPES_GMAIL
       ? process.env.GOOGLE_SCOPES_GMAIL.split(' ')
-      : ['profile', 'email', 'openid', 'https://www.googleapis.com/auth/gmail.send'],
+      : [
+          'profile',
+          'email',
+          'openid',
+          'https://www.googleapis.com/auth/gmail.send',
+        ],
     prompt: 'consent', // Force consent screen for Gmail permissions
   })
 );
@@ -209,7 +214,7 @@ router.get(
       console.log('🔍 Gmail callback successful:');
       console.log('req.user:', req.user ? req.user.toSafeObject() : 'NULL');
       console.log('req.session:', req.session);
-      
+
       if (!req.user) {
         console.error('❌ No user object after Gmail OAuth');
         return res.redirect('/onboarding?error=no_user_object&step=3');
@@ -222,7 +227,9 @@ router.get(
       if (req.user.gmailScopeGranted) {
         try {
           await req.user.update({ emailPreference: 'automatic' });
-          console.log(`✅ Automatically switched ${req.user.email} to automatic email mode`);
+          console.log(
+            `✅ Automatically switched ${req.user.email} to automatic email mode`
+          );
         } catch (error) {
           console.error('❌ Failed to update email preference:', error);
           // Don't fail the whole callback for this
@@ -232,7 +239,8 @@ router.get(
       console.log(`✅ User ${req.user.email} granted Gmail permissions`);
 
       // Check where to redirect based on context
-      const redirectTo = req.session.gmailOAuthRedirect || '/onboarding?gmail_success=1&step=4';
+      const redirectTo =
+        req.session.gmailOAuthRedirect || '/onboarding?gmail_success=1&step=4';
       delete req.session.gmailOAuthRedirect; // Clean up
 
       console.log('Redirecting to:', redirectTo);
@@ -248,7 +256,8 @@ router.get(
 // Set Gmail OAuth redirect target (called before starting Gmail OAuth)
 router.post('/set-gmail-redirect', requireAuth, (req, res) => {
   const { redirectTo } = req.body;
-  req.session.gmailOAuthRedirect = redirectTo || '/onboarding?gmail_success=1&step=4';
+  req.session.gmailOAuthRedirect =
+    redirectTo || '/onboarding?gmail_success=1&step=4';
   res.json({ success: true });
 });
 
@@ -301,7 +310,7 @@ router.delete('/account', requireAuth, async (req, res) => {
       }
       res.clearCookie('connect.sid');
       res.clearCookie('tuifly.sid');
-      
+
       res.json({
         success: true,
         message: 'Account deleted successfully',

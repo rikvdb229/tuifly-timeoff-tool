@@ -158,8 +158,80 @@ function showRequestDetailModal(request, dateStr) {
       </div>
     `;
 
+    // Email information section
+    const emailMode = request.emailMode || 'automatic';
+    const emailSent = request.emailSent || request.manualEmailConfirmed;
+    const emailFailed = emailMode === 'automatic' && !emailSent && request.emailFailed;
+    
+    modalContent += `
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <strong>Date sent:</strong> 
+          ${emailSent ? formatDisplayDate(request.emailSentAt || request.createdAt) : 
+            (emailFailed ? '<span class="text-danger">Failed to send</span>' : 
+             '<span class="text-muted">Not sent yet</span>')}
+        </div>
+        <div class="col-md-6">
+          <strong>Sending method:</strong> 
+          <span class="badge ${emailMode === 'automatic' ? 'bg-primary' : 'bg-success'}">${emailMode === 'automatic' ? '🤖 Automatic' : '📧 Manual'}</span>
+        </div>
+      </div>
+    `;
+
+    // Custom message section (if exists)
+    if (request.customMessage) {
+      modalContent += `
+        <div class="row mb-3">
+          <div class="col-12">
+            <strong>Additional Message:</strong>
+            <div class="mt-2 p-2 bg-light rounded">
+              ${request.customMessage}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     // Group details container
     modalContent += '<div class="mb-4">';
+    
+    // Bulk action row - matching the exact padding of card-body
+    modalContent += `
+      <div class="mb-2">
+        <div class="py-2" style="padding-left: 1rem; padding-right: 1rem;">
+          <div class="row align-items-center">
+            <div class="col-md-3">
+              <!-- Empty - aligns with date column -->
+            </div>
+            <div class="col-md-3">
+              <!-- Empty - aligns with type column -->
+            </div>
+            <div class="col-md-3">
+              <small class="text-muted">Bulk actions:</small>
+            </div>
+            <div class="col-md-3">
+              <div class="btn-group btn-group-sm" role="group">
+                <button type="button" 
+                  class="btn btn-outline-danger"
+                  onclick="bulkUpdateStatus('DENIED')">
+                  <i class="bi bi-x"></i>
+                </button>
+                <button type="button"
+                  class="btn btn-outline-warning" 
+                  onclick="bulkUpdateStatus('PENDING')">
+                  <i class="bi bi-clock"></i>
+                </button>
+                <button type="button"
+                  class="btn btn-outline-success"
+                  onclick="bulkUpdateStatus('APPROVED')">
+                  <i class="bi bi-check"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
     
     groupRequests.forEach((req, index) => {
       const statusColor = getStatusColor(req.status);
@@ -205,101 +277,95 @@ function showRequestDetailModal(request, dateStr) {
     });
     
     modalContent += '</div>';
-
-    // Group action buttons
-    modalContent += `
-      <div class="d-flex gap-2 mb-3">
-        <button type="button" class="btn btn-success btn-sm" onclick="bulkUpdateStatus('APPROVED')">
-          <i class="bi bi-check-all me-1"></i>Approve All
-        </button>
-        <button type="button" class="btn btn-warning btn-sm" onclick="bulkUpdateStatus('PENDING')">
-          <i class="bi bi-clock me-1"></i>Reset All
-        </button>
-        <button type="button" class="btn btn-danger btn-sm" onclick="bulkUpdateStatus('DENIED')">
-          <i class="bi bi-x-circle me-1"></i>Deny All
-        </button>
-      </div>
-    `;
   } else {
-    // Single request details
+    // Single request details - use same layout as group request for consistency
     const statusColor = getStatusColor(request.status);
     const emailStatus = getSimpleEmailStatus(request);
+    
+    // Single request header
+    modalContent += `
+      <div class="alert alert-info mb-3">
+        <i class="bi bi-calendar-day me-2"></i>
+        <strong>Single Request</strong>
+      </div>
+    `;
+
+    // Email information section (same as group)
+    const emailMode = request.emailMode || 'automatic';
+    const emailSent = request.emailSent || request.manualEmailConfirmed;
+    const emailFailed = emailMode === 'automatic' && !emailSent && request.emailFailed;
     
     modalContent += `
       <div class="row mb-3">
         <div class="col-md-6">
-          <strong>Date:</strong> ${formatDisplayDate(request.startDate)}
+          <strong>Date sent:</strong> 
+          ${emailSent ? formatDisplayDate(request.emailSentAt || request.createdAt) : 
+            (emailFailed ? '<span class="text-danger">Failed to send</span>' : 
+             '<span class="text-muted">Not sent yet</span>')}
         </div>
         <div class="col-md-6">
-          <strong>Type:</strong> 
-          <span class="badge bg-secondary ms-2">${window.CONFIG.REQUEST_TYPES[request.type] || request.type}</span>
+          <strong>Sending method:</strong> 
+          <span class="badge ${emailMode === 'automatic' ? 'bg-primary' : 'bg-success'}">${emailMode === 'automatic' ? '🤖 Automatic' : '📧 Manual'}</span>
         </div>
       </div>
     `;
 
-    if (request.flightNumber) {
+    // Custom message section (if exists)
+    if (request.customMessage) {
       modalContent += `
         <div class="row mb-3">
-          <div class="col-md-12">
-            <strong>Flight Number:</strong> ${request.flightNumber}
+          <div class="col-12">
+            <strong>Additional Message:</strong>
+            <div class="mt-2 p-2 bg-light rounded">
+              ${request.customMessage}
+            </div>
           </div>
         </div>
       `;
     }
 
+    // Single request details container (same format as group)
+    modalContent += '<div class="mb-4">';
     modalContent += `
-      <div class="row mb-3">
-        <div class="col-md-6">
-          <strong>Status:</strong> 
-          <span id="status-badge-${request.id}" class="badge bg-${statusColor} ms-2">${request.status}</span>
-        </div>
-        <div class="col-md-6">
-          <strong>Email Status:</strong> 
-          <span class="ms-2" title="${emailStatus.title}">${emailStatus.icon} ${emailStatus.title}</span>
-        </div>
-      </div>
-    `;
-
-    // Status update buttons for single request
-    modalContent += `
-      <div class="row mb-3">
-        <div class="col-12">
-          <strong>Update Status:</strong>
-          <div class="btn-group ms-2" role="group">
-            <button type="button" id="deny-btn-${request.id}" 
-              class="btn btn-outline-danger ${request.status === 'DENIED' ? 'active' : ''}"
-              onclick="updateIndividualStatus(${request.id}, 'DENIED')">
-              <i class="bi bi-x me-1"></i>Deny
-            </button>
-            <button type="button" id="pending-btn-${request.id}"
-              class="btn btn-outline-warning ${request.status === 'PENDING' ? 'active' : ''}" 
-              onclick="updateIndividualStatus(${request.id}, 'PENDING')">
-              <i class="bi bi-clock me-1"></i>Pending
-            </button>
-            <button type="button" id="approve-btn-${request.id}"
-              class="btn btn-outline-success ${request.status === 'APPROVED' ? 'active' : ''}"
-              onclick="updateIndividualStatus(${request.id}, 'APPROVED')">
-              <i class="bi bi-check me-1"></i>Approve
-            </button>
+      <div class="card mb-2">
+        <div class="card-body py-2">
+          <div class="row align-items-center">
+            <div class="col-md-3">
+              <strong>${formatDisplayDate(request.startDate)}</strong>
+            </div>
+            <div class="col-md-3">
+              <span class="badge bg-secondary">${window.CONFIG.REQUEST_TYPES[request.type] || request.type}</span>
+              ${request.flightNumber ? `<br><small class="text-muted">${request.flightNumber}</small>` : ''}
+            </div>
+            <div class="col-md-3">
+              <span id="status-badge-${request.id}" class="badge bg-${statusColor}">${request.status}</span>
+            </div>
+            <div class="col-md-3">
+              <div class="btn-group btn-group-sm" role="group">
+                <button type="button" id="deny-btn-${request.id}" 
+                  class="btn btn-outline-danger ${request.status === 'DENIED' ? 'active' : ''}"
+                  onclick="updateIndividualStatus(${request.id}, 'DENIED')">
+                  <i class="bi bi-x"></i>
+                </button>
+                <button type="button" id="pending-btn-${request.id}"
+                  class="btn btn-outline-warning ${request.status === 'PENDING' ? 'active' : ''}" 
+                  onclick="updateIndividualStatus(${request.id}, 'PENDING')">
+                  <i class="bi bi-clock"></i>
+                </button>
+                <button type="button" id="approve-btn-${request.id}"
+                  class="btn btn-outline-success ${request.status === 'APPROVED' ? 'active' : ''}"
+                  onclick="updateIndividualStatus(${request.id}, 'APPROVED')">
+                  <i class="bi bi-check"></i>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     `;
+    modalContent += '</div>';
   }
 
-  // Custom message section (common for both single and group)
-  if (groupRequests[0].customMessage) {
-    modalContent += `
-      <div class="row mb-3">
-        <div class="col-12">
-          <strong>Custom Message:</strong>
-          <div class="mt-2 p-2 bg-light rounded">
-            ${groupRequests[0].customMessage}
-          </div>
-        </div>
-      </div>
-    `;
-  }
 
   // Email section (only show if email not sent yet)
   const shouldShowEmailSection = !request.emailSent && !request.manualEmailConfirmed;
@@ -383,18 +449,8 @@ function showRequestDetailModal(request, dateStr) {
   modalContent += `
       </div>
       
-      <div>`;
-
-  // Delete button - only show if no email has been sent
-  const canDelete = !request.emailSent && !request.manualEmailConfirmed;
-  if (canDelete) {
-    modalContent += `
-        <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteRequest(${request.id}, ${isGroupRequest})">
-          <i class="bi bi-trash me-1"></i>Delete ${isGroupRequest ? 'Group' : 'Request'}
-        </button>`;
-  }
-
-  modalContent += `
+      <div>
+        <!-- Right side actions if needed -->
       </div>
     </div>
   `;

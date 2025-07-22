@@ -306,7 +306,6 @@ router.post('/requests/group', async (req, res) => {
       try {
         console.log('🔍 Attempting automatic email send...');
 
-
         if (GmailService.needsReauthorization(req.user)) {
           console.log('❌ Gmail authorization needed');
           return res.status(400).json({
@@ -522,7 +521,9 @@ router.post('/requests', async (req, res) => {
       // AUTOMATIC MODE: Use existing Gmail service
       try {
         // Use existing Gmail service - pass requests as array
-        const emailResult = await new GmailService().sendEmail(req.user, [request]);
+        const emailResult = await new GmailService().sendEmail(req.user, [
+          request,
+        ]);
 
         await request.markEmailSent(
           emailResult.messageId,
@@ -744,7 +745,7 @@ router.delete('/requests/:id/delete-group', async (req, res) => {
       });
     }
 
-    // Check if any request in the group cannot be deleted  
+    // Check if any request in the group cannot be deleted
     // Only check email status - if email sent, cannot delete
     const cannotDelete = groupRequests.filter(
       (req) => req.emailSent || req.manualEmailConfirmed
@@ -753,8 +754,7 @@ router.delete('/requests/:id/delete-group', async (req, res) => {
     if (cannotDelete.length > 0) {
       return res.status(400).json({
         success: false,
-        error:
-          'Cannot delete group: some requests have emails already sent',
+        error: 'Cannot delete group: some requests have emails already sent',
         details: `${cannotDelete.length} out of ${groupRequests.length} requests cannot be deleted`,
       });
     }
@@ -982,7 +982,6 @@ router.post('/requests/group', async (req, res) => {
     } else if (req.user.emailPreference === 'automatic') {
       // AUTOMATIC MODE: Send email automatically
       try {
-
         // Check Gmail authorization using static method
         if (GmailService.needsReauthorization(req.user)) {
           return res.status(400).json({
@@ -1070,7 +1069,8 @@ router.post('/requests/group-manual', async (req, res) => {
     if (req.user.emailPreference !== 'manual') {
       return res.status(400).json({
         success: false,
-        error: 'Manual request creation only available for users in manual email mode',
+        error:
+          'Manual request creation only available for users in manual email mode',
       });
     }
 
@@ -1188,7 +1188,8 @@ router.post('/requests/:id/mark-email-sent', async (req, res) => {
     if (request.emailSent) {
       return res.status(400).json({
         success: false,
-        error: 'This request already has an automatic email sent. Cannot mark as manually sent.',
+        error:
+          'This request already has an automatic email sent. Cannot mark as manually sent.',
       });
     }
 

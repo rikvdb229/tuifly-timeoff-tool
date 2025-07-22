@@ -423,14 +423,16 @@ function defineTimeOffRequest(sequelize) {
    */
   TimeOffRequest.prototype.generateEmailContent = async function (user) {
     let requestsToProcess;
-    
+
     if (this.groupId) {
       // Group request - get all requests in the group
       requestsToProcess = await TimeOffRequest.getByGroupIdAndUser(
         this.groupId,
         this.userId
       );
-      requestsToProcess.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+      requestsToProcess.sort(
+        (a, b) => new Date(a.startDate) - new Date(b.startDate)
+      );
     } else {
       // Single request
       requestsToProcess = [this];
@@ -514,7 +516,6 @@ function defineTimeOffRequest(sequelize) {
     endDate,
     excludeGroupId
   ) {
-
     const whereClause = {
       userId,
       [Op.or]: [
@@ -548,7 +549,6 @@ function defineTimeOffRequest(sequelize) {
   };
 
   TimeOffRequest.getStatusCountsForUser = async function (userId) {
-
     const counts = await this.findAll({
       where: { userId },
       attributes: [
