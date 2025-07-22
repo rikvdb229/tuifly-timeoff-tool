@@ -101,15 +101,21 @@ passport.use('google-gmail', new GoogleStrategy(
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
-      console.log('🔍 Gmail OAuth tokens received:', {
+      console.log('🔍 Gmail OAuth strategy called:');
+      console.log('Profile received:', {
+        id: profile.id,
+        email: profile.emails[0]?.value,
+        name: profile.displayName
+      });
+      console.log('Tokens received:', {
         hasAccessToken: !!accessToken,
         hasRefreshToken: !!refreshToken,
-        userId: profile.id,
-        email: profile.emails[0]?.value,
+        accessTokenLength: accessToken ? accessToken.length : 0
       });
 
       // Find existing user (should already exist from basic login)
       const user = await User.findByGoogleId(profile.id);
+      console.log('User found in database:', user ? user.email : 'NOT FOUND');
 
       if (!user) {
         console.error('❌ User not found during Gmail OAuth - this should not happen');
@@ -125,11 +131,14 @@ passport.use('google-gmail', new GoogleStrategy(
         lastLoginAt: new Date(),
       };
 
-      await user.update(updates);
+      console.log('Updating user with Gmail permissions...');
+      const updatedUser = await user.update(updates);
       console.log(`✅ Updated user ${user.email} with Gmail permissions`);
-      return done(null, user);
+      
+      return done(null, updatedUser);
     } catch (error) {
       console.error('Google OAuth (Gmail) error:', error);
+      console.error('Error stack:', error.stack);
       return done(error, null);
     }
   }

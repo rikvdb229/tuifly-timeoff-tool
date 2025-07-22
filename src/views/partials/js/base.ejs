@@ -37,15 +37,16 @@
       const data = await response.json();
 
       if (data.success) {
-      // ➕ ADD: Load email preferences
-      if (typeof loadEmailPreferences === 'function') {
-        loadEmailPreferences(data.data.emailPreference, data.data.gmailConnected);
-      }
+        // Load email preferences
+        if (typeof loadEmailPreferences === 'function') {
+          loadEmailPreferences(data.data);
+        }
 
-      // ➕ ADD: Load Gmail status
-      if (typeof loadGmailStatus === 'function') {
-        await loadGmailStatus();
-      }
+        // Load Gmail status
+        if (typeof loadGmailStatus === 'function') {
+          await loadGmailStatus();
+        }
+
         // Populate profile form (existing code)
         const userName = document.getElementById('userName');
         const userCode = document.getElementById('userCode');
@@ -73,118 +74,299 @@
         const maxDaysPerRequest = document.getElementById('maxDaysPerRequest');
         const approverEmail = document.getElementById('approverEmail');
 
-        if (minAdvanceDays)
-          minAdvanceDays.textContent =
-            data.data.globalSettings.MIN_ADVANCE_DAYS;
-        if (maxAdvanceDays)
-          maxAdvanceDays.textContent =
-            data.data.globalSettings.MAX_ADVANCE_DAYS;
-        if (maxDaysPerRequest)
-          maxDaysPerRequest.textContent =
-            data.data.globalSettings.MAX_DAYS_PER_REQUEST;
-        if (approverEmail)
-          approverEmail.textContent =
-            data.data.globalSettings.TUIFLY_APPROVER_EMAIL;
-
-        if (settingsLoading) settingsLoading.style.display = 'none';
-        if (settingsContent) settingsContent.style.display = 'block';
-      } else {
-        throw new Error(data.error || 'Failed to load settings');
+        if (minAdvanceDays) minAdvanceDays.textContent = data.data.globalSettings?.MIN_ADVANCE_DAYS || 60;
+        if (maxAdvanceDays) maxAdvanceDays.textContent = data.data.globalSettings?.MAX_ADVANCE_DAYS || 120;
+        if (maxDaysPerRequest) maxDaysPerRequest.textContent = data.data.globalSettings?.MAX_DAYS_PER_REQUEST || 4;
+        if (approverEmail) approverEmail.textContent = data.data.globalSettings?.TUIFLY_APPROVER_EMAIL || 'scheduling@tuifly.be';
       }
     } catch (error) {
-      console.error('Settings load error:', error);
+      console.error('Error loading settings:', error);
       showToast('Failed to load settings', 'error');
+    } finally {
       if (settingsLoading) settingsLoading.style.display = 'none';
+      if (settingsContent) settingsContent.style.display = 'block';
     }
   }
 
-  // Modern settings reset function
-  async function resetSettings() {
-    const confirmed = await modernConfirm(
-      'This will reset all your preferences to default values. Your profile information will not be affected.',
-      'Reset Settings',
-      'warning'
-    );
+  // Email preference management functions
+  let currentEmailPreference = 'manual';
+  let gmailConnected = false;
 
-    if (confirmed) {
-      try {
-        const response = await fetch('/settings/reset', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+  // Load Gmail status (called when settings modal opens)
+  async function loadGmailStatus() {
+    try {
+      const response = await fetch('/settings/gmail-status');
+      const result = await response.json();
 
-        const data = await response.json();
+      if (result.success) {
+        gmailConnected = result.gmailConnected;
+        currentEmailPreference = result.emailPreference || 'manual';
+        updateEmailPreferenceUI();
+      }
+    } catch (error) {
+      console.error('Error loading Gmail status:', error);
+    }
+  }
 
-        if (data.success) {
-          showToast('Settings reset to defaults', 'success');
-          await loadSettings(); // Reload the form
-        } else {
-          throw new Error(data.error || 'Failed to reset settings');
+  // Update email preference UI
+  function updateEmailPreferenceUI() {
+    // Update status displays
+    const emailModeStatus = document.getElementById('emailModeStatus');
+    const gmailConnectionStatus = document.getElementById('gmailConnectionStatus');
+    const gmailAuthSection = document.getElementById('gmailAuthSection');
+    const gmailDisconnectSection = document.getElementById('gmailDisconnectSection');
+
+    // Email mode status
+    if (emailModeStatus) {
+      if (currentEmailPreference === 'automatic') {
+        emailModeStatus.innerHTML = `
+          <i class="bi bi-robot text-primary me-1"></i>
+          <span class="text-primary">Automatic</span>
+        `;
+      } else {
+        emailModeStatus.innerHTML = `
+          <i class="bi bi-envelope text-success me-1"></i>
+          <span class="text-success">Manual</span>
+        `;
+      }
+    }
+
+    // Gmail connection status
+    if (gmailConnectionStatus) {
+      if (gmailConnected) {
+        gmailConnectionStatus.innerHTML = `
+          <i class="bi bi-check-circle text-success me-1"></i>
+          <span class="text-success">Connected</span>
+        `;
+      } else {
+        gmailConnectionStatus.innerHTML = `
+          <i class="bi bi-x-circle text-warning me-1"></i>
+          <span class="text-warning">Not Connected</span>
+        `;
+      }
+    }
+
+    // Update card highlights if cards exist
+    updateEmailMethodCardHighlights(currentEmailPreference);
+
+    // Gmail disconnect section
+    if (gmailDisconnectSection) {
+      gmailDisconnectSection.style.display = gmailConnected ? 'block' : 'none';
+    }
+
+    // Gmail auth section (hide by default)
+    if (gmailAuthSection) {
+      gmailAuthSection.style.display = 'none';
+    }
+
+    // Update header badge
+    const headerEmailModeBadge = document.getElementById('headerEmailModeBadge');
+    if (headerEmailModeBadge) {
+      headerEmailModeBadge.textContent = 
+        currentEmailPreference === 'automatic' ? '🤖 Automatic' : '📧 Manual';
+      headerEmailModeBadge.className = 
+        `badge ms-1 ${currentEmailPreference === 'automatic' ? 'bg-primary' : 'bg-success'}`;
+    }
+  }
+
+  // ✅ NEW: Email preference functions for card-based UI
+  function selectEmailPreference(preference) {
+    console.log(`Selecting email preference: ${preference}`);
+    
+    // If selecting automatic but Gmail not connected, show auth section
+    if (preference === 'automatic' && !gmailConnected) {
+      const gmailAuthSection = document.getElementById('gmailAuthSection');
+      if (gmailAuthSection) {
+        gmailAuthSection.style.display = 'block';
+      }
+      
+      // Highlight the automatic card but don't update preference yet
+      updateEmailMethodCardHighlights('automatic');
+      showToast('Gmail authorization required for automatic email mode', 'warning');
+      return;
+    }
+
+    // Update preference via API
+    updateEmailPreference(preference);
+  }
+
+  // ✅ NEW: Update email preference via API
+  async function updateEmailPreference(preference) {
+    const oldMode = currentEmailPreference;
+
+    try {
+      const response = await fetch('/settings/email-preference', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ emailPreference: preference }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        currentEmailPreference = preference;
+        updateEmailPreferenceUI();
+        showToast(result.message, 'success');
+        
+        // Hide Gmail auth section if switching to manual
+        if (preference === 'manual') {
+          const gmailAuthSection = document.getElementById('gmailAuthSection');
+          if (gmailAuthSection) {
+            gmailAuthSection.style.display = 'none';
+          }
         }
-      } catch (error) {
-        console.error('Settings reset error:', error);
-        showToast('Failed to reset settings', 'error');
+
+        // Refresh calendar if function exists
+        if (typeof loadExistingRequests === 'function') {
+          console.log('Refreshing calendar after email preference change...');
+          await loadExistingRequests();
+        }
+        
+      } else {
+        // Reset card selection to previous state
+        updateEmailMethodCardHighlights(currentEmailPreference);
+        
+        if (result.requiresGmailAuth) {
+          const gmailAuthSection = document.getElementById('gmailAuthSection');
+          if (gmailAuthSection) {
+            gmailAuthSection.style.display = 'block';
+          }
+          showToast('Gmail authorization required for automatic mode', 'warning');
+        } else {
+          showToast(result.error, 'error');
+        }
+      }
+    } catch (error) {
+      console.error('Email preference update error:', error);
+      showToast('Failed to update email preference', 'error');
+      
+      // Reset card selection to previous state
+      updateEmailMethodCardHighlights(currentEmailPreference);
+    }
+  }
+
+  // ✅ NEW: Update card highlights based on current preference
+  function updateEmailMethodCardHighlights(preference) {
+    // Clear all selections
+    document.querySelectorAll('.email-method-card').forEach((card) => {
+      card.classList.remove(
+        'border-primary',
+        'border-success',
+        'bg-light',
+        'selected'
+      );
+    });
+
+    // Highlight selected card
+    const selectedCard = document.getElementById(`${preference}Card`);
+    if (selectedCard) {
+      selectedCard.classList.add('bg-light', 'selected');
+      if (preference === 'automatic') {
+        selectedCard.classList.add('border-primary');
+      } else {
+        selectedCard.classList.add('border-success');
       }
     }
   }
-  function loadEmailPreferences(emailPreference, gmailConnected) {
-  if (typeof updateEmailPreferenceUI === 'function') {
-    currentEmailPreference = emailPreference || 'manual';
-    gmailConnected = gmailConnected || false;
+
+  // Load email preferences (called from loadSettings)
+  function loadEmailPreferences(data) {
+    currentEmailPreference = data.emailPreference || 'manual';
+    gmailConnected = data.gmailConnected || false;
     updateEmailPreferenceUI();
   }
-}
 
-  // Modern account deletion function
-  async function confirmDeleteAccount() {
-    const confirmed = await modernConfirm(
-      'This will permanently delete your account and ALL your data. This action cannot be undone.\n\nAll your time-off requests will be lost forever.',
-      'Delete Account',
-      'danger'
-    );
+  // ✅ NEW: Connect Gmail function
+  async function connectGmail() {
+    try {
+      const authorizeBtn = document.getElementById('authorizeGmailBtn');
+      if (authorizeBtn) {
+        authorizeBtn.disabled = true;
+        authorizeBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Connecting...';
+      }
 
-    if (confirmed) {
-      // Second confirmation for such a critical action
-      const finalConfirmation = prompt(
-        'Type "DELETE" to confirm account deletion:'
-      );
+      // Set redirect target to come back to settings modal
+      await fetch('/auth/set-gmail-redirect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ redirectTo: '/?gmail_success=1&open_settings=1' }),
+      });
 
-      if (finalConfirmation === 'DELETE') {
-        try {
-          const response = await fetch('/auth/account', {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          });
-
-          const data = await response.json();
-
-          if (data.success) {
-            showToast('Account deleted successfully', 'success');
-            setTimeout(() => {
-              window.location.href = '/auth/login?message=account_deleted';
-            }, 2000);
-          } else {
-            throw new Error(data.error || 'Failed to delete account');
-          }
-        } catch (error) {
-          console.error('Account deletion error:', error);
-          showToast('Failed to delete account', 'error');
-        }
-      } else {
-        showToast(
-          'Account deletion cancelled. You must type "DELETE" exactly.',
-          'info'
-        );
+      // Redirect to Gmail OAuth
+      window.location.href = '/auth/google/gmail';
+      
+    } catch (error) {
+      console.error('Gmail connection error:', error);
+      showToast('Failed to connect Gmail. Please try again.', 'error');
+      
+      const authorizeBtn = document.getElementById('authorizeGmailBtn');
+      if (authorizeBtn) {
+        authorizeBtn.disabled = false;
+        authorizeBtn.innerHTML = '<i class="bi bi-google me-2"></i>Authorize Gmail Access';
       }
     }
   }
 
-  // Profile form submission
-  document.addEventListener('DOMContentLoaded', function () {
+  // ✅ NEW: Alias for authorizeGmail (for compatibility with existing HTML)
+  async function authorizeGmail() {
+    await connectGmail();
+  }
+
+  // ✅ NEW: Disconnect Gmail function
+  async function disconnectGmail() {
+    if (!confirm('Are you sure you want to disconnect Gmail? This will switch your email preference to manual mode.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/settings/disconnect-gmail', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        showToast(result.message, 'success');
+        // Update local state
+        gmailConnected = false;
+        currentEmailPreference = 'manual';
+        updateEmailPreferenceUI();
+      } else {
+        showToast(result.error || 'Failed to disconnect Gmail', 'error');
+      }
+    } catch (error) {
+      console.error('Gmail disconnection error:', error);
+      showToast('Failed to disconnect Gmail. Please try again.', 'error');
+    }
+  }
+
+  // Handle Gmail success from URL (when redirected back)
+  document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    if (urlParams.get('gmail_success') === '1') {
+      showToast('Gmail connected successfully! Email preference set to automatic.', 'success');
+      
+      // Open settings modal if requested
+      if (urlParams.get('open_settings') === '1') {
+        setTimeout(() => {
+          openSettingsModal();
+        }, 1000);
+      }
+      
+      // Clean up URL
+      const url = new URL(window.location);
+      url.searchParams.delete('gmail_success');
+      url.searchParams.delete('open_settings');
+      window.history.replaceState({}, '', url);
+    }
+
+    // Profile form submission
     const profileForm = document.getElementById('profileForm');
     if (profileForm) {
       profileForm.addEventListener('submit', async function (e) {
@@ -210,7 +392,7 @@
           if (data.success) {
             showToast('Profile updated successfully', 'success');
             setTimeout(() => {
-              location.reload(); // Simple reload for now
+              location.reload();
             }, 1500);
           } else {
             throw new Error(data.error || 'Failed to update profile');
@@ -221,26 +403,6 @@
         }
       });
     }
-    document.addEventListener('DOMContentLoaded', function() {
-  const urlParams = new URLSearchParams(window.location.search);
-  
-  if (urlParams.get('gmail_success') === '1') {
-    showToast('Gmail connected successfully!', 'success');
-    
-    // Open settings modal if requested
-    if (urlParams.get('open_settings') === '1') {
-      setTimeout(() => {
-        openSettingsModal();
-      }, 500);
-    }
-    
-    // Clean up URL
-    const url = new URL(window.location);
-    url.searchParams.delete('gmail_success');
-    url.searchParams.delete('open_settings');
-    window.history.replaceState({}, '', url);
-  }
-});
 
     // Settings form submission
     const settingsForm = document.getElementById('settingsForm');
@@ -278,252 +440,6 @@
       });
     }
   });
-  // ADD these functions to your existing src/views/partials/js/base.ejs file
-
-// ===================================================================
-// EMAIL PREFERENCE MANAGEMENT
-// ===================================================================
-
-// Global variables for email preferences
-let currentEmailPreference = 'manual';
-let gmailConnected = false;
-
-// Handle email method change
-async function handleEmailMethodChange(preference) {
-  if (preference === 'automatic' && !gmailConnected) {
-    // Show Gmail authorization section
-    const gmailAuthSection = document.getElementById('gmailAuthSection');
-    if (gmailAuthSection) {
-      gmailAuthSection.style.display = 'block';
-    }
-    // Don't change preference yet - wait for Gmail auth
-    return;
-  }
-
-  // Update preference
-  try {
-    const response = await fetch('/settings/email-preference', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ emailPreference: preference }),
-    });
-
-    const result = await response.json();
-
-    if (result.success) {
-      currentEmailPreference = preference;
-      updateEmailPreferenceUI();
-      showToast(result.message, 'success');
-    } else {
-      // Reset radio button to previous state
-      const previousRadio = document.getElementById(`emailMethod${currentEmailPreference.charAt(0).toUpperCase() + currentEmailPreference.slice(1)}`);
-      if (previousRadio) {
-        previousRadio.checked = true;
-      }
-      
-      if (result.requiresGmailAuth) {
-        const gmailAuthSection = document.getElementById('gmailAuthSection');
-        if (gmailAuthSection) {
-          gmailAuthSection.style.display = 'block';
-        }
-      } else {
-        showToast(result.error, 'error');
-      }
-    }
-  } catch (error) {
-    console.error('Email preference change error:', error);
-    showToast('Failed to change email preference', 'error');
-    
-    // Reset radio button
-    const previousRadio = document.getElementById(`emailMethod${currentEmailPreference.charAt(0).toUpperCase() + currentEmailPreference.slice(1)}`);
-    if (previousRadio) {
-      previousRadio.checked = true;
-    }
-  }
-}
-
-// Connect Gmail
-async function connectGmail() {
-  try {
-    const authorizeBtn = document.getElementById('authorizeGmailBtn');
-    if (authorizeBtn) {
-      authorizeBtn.disabled = true;
-      authorizeBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Connecting...';
-    }
-
-    const response = await fetch('/settings/connect-gmail', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const result = await response.json();
-
-    if (result.success) {
-      // Set redirect target to come back to settings modal
-      await fetch('/auth/set-gmail-redirect', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          redirectTo: '/?gmail_success=1&open_settings=1'
-        }),
-      });
-
-      // Redirect to Gmail OAuth
-      window.location.href = result.redirectUrl;
-    } else {
-      showToast(result.error || 'Failed to start Gmail authorization', 'error');
-      if (authorizeBtn) {
-        authorizeBtn.disabled = false;
-        authorizeBtn.innerHTML = '<i class="bi bi-google me-2"></i>Authorize Gmail Access';
-      }
-    }
-  } catch (error) {
-    console.error('Gmail connection error:', error);
-    showToast('Failed to connect Gmail. Please try again.', 'error');
-    
-    const authorizeBtn = document.getElementById('authorizeGmailBtn');
-    if (authorizeBtn) {
-      authorizeBtn.disabled = false;
-      authorizeBtn.innerHTML = '<i class="bi bi-google me-2"></i>Authorize Gmail Access';
-    }
-  }
-}
-
-// Disconnect Gmail
-async function disconnectGmail() {
-  if (!confirm('Are you sure you want to disconnect Gmail? Your email preference will be changed to manual.')) {
-    return;
-  }
-
-  try {
-    const response = await fetch('/settings/disconnect-gmail', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const result = await response.json();
-
-    if (result.success) {
-      showToast(result.message, 'success');
-      // Reload Gmail status
-      await loadGmailStatus();
-    } else {
-      showToast(result.error || 'Failed to disconnect Gmail', 'error');
-    }
-  } catch (error) {
-    console.error('Gmail disconnection error:', error);
-    showToast('Failed to disconnect Gmail. Please try again.', 'error');
-  }
-}
-
-// Load Gmail status (called when settings modal opens)
-async function loadGmailStatus() {
-  try {
-    const response = await fetch('/settings/gmail-status');
-    const result = await response.json();
-
-    if (result.success) {
-      gmailConnected = result.gmailConnected;
-      currentEmailPreference = result.emailPreference || 'manual';
-      updateEmailPreferenceUI();
-    }
-  } catch (error) {
-    console.error('Error loading Gmail status:', error);
-  }
-}
-
-// Update email preference UI
-function updateEmailPreferenceUI() {
-  // Update radio buttons
-  const manualRadio = document.getElementById('emailMethodManual');
-  const automaticRadio = document.getElementById('emailMethodAutomatic');
-  
-  if (manualRadio) manualRadio.checked = currentEmailPreference === 'manual';
-  if (automaticRadio) automaticRadio.checked = currentEmailPreference === 'automatic';
-
-  // Update status displays
-  const emailModeStatus = document.getElementById('emailModeStatus');
-  const gmailConnectionStatus = document.getElementById('gmailConnectionStatus');
-  const gmailAuthSection = document.getElementById('gmailAuthSection');
-  const gmailDisconnectSection = document.getElementById('gmailDisconnectSection');
-
-  // Email mode status
-  if (emailModeStatus) {
-    if (currentEmailPreference === 'automatic') {
-      emailModeStatus.innerHTML = `
-        <i class="bi bi-robot text-primary me-1"></i>
-        <span class="text-primary">Automatic</span>
-      `;
-    } else {
-      emailModeStatus.innerHTML = `
-        <i class="bi bi-envelope text-success me-1"></i>
-        <span class="text-success">Manual</span>
-      `;
-    }
-  }
-
-  // Gmail connection status
-  if (gmailConnectionStatus) {
-    if (gmailConnected) {
-      gmailConnectionStatus.innerHTML = `
-        <i class="bi bi-check-circle text-success me-1"></i>
-        <span class="text-success">Connected</span>
-      `;
-    } else {
-      gmailConnectionStatus.innerHTML = `
-        <i class="bi bi-x-circle text-danger me-1"></i>
-        <span class="text-danger">Not Connected</span>
-      `;
-    }
-  }
-
-  // Gmail disconnect section
-  if (gmailDisconnectSection) {
-    gmailDisconnectSection.style.display = gmailConnected ? 'block' : 'none';
-  }
-
-  // Gmail auth section (hide by default)
-  if (gmailAuthSection) {
-    gmailAuthSection.style.display = 'none';
-  }
-}
-
-// Load email preferences (called from loadSettings)
-function loadEmailPreferences(emailPreference, isGmailConnected) {
-  currentEmailPreference = emailPreference || 'manual';
-  gmailConnected = isGmailConnected || false;
-  updateEmailPreferenceUI();
-}
-
-// Handle Gmail success from URL (when redirected back)
-document.addEventListener('DOMContentLoaded', function() {
-  const urlParams = new URLSearchParams(window.location.search);
-  
-  if (urlParams.get('gmail_success') === '1') {
-    showToast('Gmail connected successfully!', 'success');
-    
-    // Open settings modal if requested
-    if (urlParams.get('open_settings') === '1') {
-      setTimeout(() => {
-        openSettingsModal();
-      }, 500);
-    }
-    
-    // Clean up URL
-    const url = new URL(window.location);
-    url.searchParams.delete('gmail_success');
-    url.searchParams.delete('open_settings');
-    window.history.replaceState({}, '', url);
-  }
-});
 
   // Toast notification system
   function showToast(message, type = 'info') {
@@ -569,7 +485,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const toastElement = document.getElementById(toastId);
     const toast = new bootstrap.Toast(toastElement, {
       autohide: true,
-      delay: type === 'error' ? 5000 : 3000,
+      delay: type === 'error' ? 8000 : 5000,
     });
 
     toast.show();
@@ -579,175 +495,48 @@ document.addEventListener('DOMContentLoaded', function() {
       toastElement.remove();
     });
   }
-  // Email preference functions (replace the duplicate functions with this single set)
-  // ✅ UPDATED: Email preference functions (no radio buttons)
-  function selectEmailPreference(preference) {
-    // No radio button to update - we'll track selection via card styles and direct API call
 
-    // Update card styles to show selection
-    document.querySelectorAll('.email-method-card').forEach((card) => {
-      card.classList.remove(
-        'border-primary',
-        'border-success',
-        'bg-light',
-        'selected'
-      );
-    });
-
-    const selectedCard = document.getElementById(`${preference}Card`);
-    if (selectedCard) {
-      selectedCard.classList.add('bg-light', 'selected');
-      if (preference === 'automatic') {
-        selectedCard.classList.add('border-primary');
-      } else {
-        selectedCard.classList.add('border-success');
-      }
-    }
-
-    // Store current selection
-    window.currentEmailPreference = preference;
-
-    // Immediately update the preference via API
-    updateEmailPreference(preference);
-  }
-
-  // ✅ UPDATED: Load email preferences without radio buttons
-  function loadEmailPreferences(emailPrefData) {
-    console.log('Loading email preferences:', emailPrefData);
-
-    if (!emailPrefData) {
-      loadEmailPreferencesFromAPI();
-      return;
-    }
-
-    const currentPref = emailPrefData.current || emailPrefData.emailPreference;
-
-    // Store current preference
-    window.currentEmailPreference = currentPref;
-
-    const headerEmailModeBadge = document.getElementById(
-      'headerEmailModeBadge'
+  // Delete user account
+  async function deleteAccount() {
+    const confirmed = confirm(
+      'Are you absolutely sure you want to delete your account?\n\n' +
+      'This action cannot be undone.\n\nAll your time-off requests will be lost forever.'
     );
-    if (headerEmailModeBadge) {
-      headerEmailModeBadge.textContent =
-        currentPref === 'automatic' ? '🤖 Automatic' : '📧 Manual';
-      headerEmailModeBadge.className = `badge ms-1 ${currentPref === 'automatic' ? 'bg-primary' : 'bg-success'}`;
-    }
 
-    // Update status badge
-    const emailPrefBadge = document.getElementById('emailPrefBadge');
-    if (emailPrefBadge) {
-      emailPrefBadge.textContent =
-        currentPref === 'automatic' ? 'Automatic' : 'Manual';
-      emailPrefBadge.className = `badge ms-2 ${currentPref === 'automatic' ? 'bg-primary' : 'bg-success'}`;
-    }
-
-    // Update status displays
-    const emailModeStatus = document.getElementById('emailModeStatus');
-    if (emailModeStatus) {
-      emailModeStatus.innerHTML = `
-      <i class="bi bi-circle-fill ${currentPref === 'automatic' ? 'text-primary' : 'text-success'}"></i>
-      <span>${currentPref === 'automatic' ? 'Automatic' : 'Manual'}</span>
-    `;
-    }
-
-    const gmailAccessStatus = document.getElementById('gmailAccessStatus');
-    if (gmailAccessStatus) {
-      gmailAccessStatus.innerHTML = `
-      <i class="bi bi-circle-fill ${emailPrefData.gmailScopeGranted ? 'text-success' : 'text-warning'}"></i>
-      <span>${emailPrefData.gmailScopeGranted ? 'Granted' : 'Not Granted'}</span>
-    `;
-    }
-
-    // Update card highlights (no radio buttons to check)
-    updateEmailMethodCardHighlights(currentPref);
-  }
-
-  function updateEmailMethodCardHighlights(preference) {
-    // Clear all selections
-    document.querySelectorAll('.email-method-card').forEach((card) => {
-      card.classList.remove(
-        'border-primary',
-        'border-success',
-        'bg-light',
-        'selected'
+    if (confirmed) {
+      const finalConfirmation = prompt(
+        'Type "DELETE" to confirm account deletion:'
       );
-    });
 
-    // Highlight selected card
-    const selectedCard = document.getElementById(`${preference}Card`);
-    if (selectedCard) {
-      selectedCard.classList.add('bg-light', 'selected');
-      if (preference === 'automatic') {
-        selectedCard.classList.add('border-primary');
-      } else {
-        selectedCard.classList.add('border-success');
-      }
-    }
-  }
-  // ✅ ADD: User education for mixed email modes
-  function showEmailModeTransitionMessage(oldMode, newMode) {
-    if (oldMode !== newMode) {
-      const message =
-        newMode === 'automatic'
-          ? 'Switched to automatic email mode. New requests will be sent automatically. Existing manual requests keep their current status.'
-          : 'Switched to manual email mode. New requests will require manual email sending. Existing automatic requests keep their current status.';
+      if (finalConfirmation === 'DELETE') {
+        try {
+          const response = await fetch('/auth/account', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
 
-      showToast(message, 'info', 8000); // Show for 8 seconds
-    }
-  }
+          const data = await response.json();
 
-  async function loadEmailPreferencesFromAPI() {
-    try {
-      const response = await fetch('/settings/email-preference');
-      const data = await response.json();
-
-      if (data.success) {
-        loadEmailPreferences(data.data);
-      } else {
-        console.error('Failed to load email preferences:', data.error);
-      }
-    } catch (error) {
-      console.error('Error loading email preferences from API:', error);
-    }
-  }
-  async function updateEmailPreference(preference) {
-    const oldMode = window.currentEmailPreference; // ✅ ADD: Store old mode
-
-    try {
-      const response = await fetch('/settings/email-preference', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ preference }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        showToast(`Email preference updated to ${preference}`, 'success');
-
-        // ✅ ADD: Show transition message
-        showEmailModeTransitionMessage(oldMode, preference);
-
-        // ✅ REFRESH CALENDAR if calendar exists
-        if (typeof loadExistingRequests === 'function') {
-          console.log('Refreshing calendar after email preference change...');
-          await loadExistingRequests();
+          if (data.success) {
+            showToast('Account deleted successfully', 'success');
+            setTimeout(() => {
+              window.location.href = '/auth/login?message=account_deleted';
+            }, 2000);
+          } else {
+            throw new Error(data.error || 'Failed to delete account');
+          }
+        } catch (error) {
+          console.error('Account deletion error:', error);
+          showToast('Failed to delete account', 'error');
         }
-
-        // Reload email preferences to update UI
-        loadEmailPreferencesFromAPI();
       } else {
-        throw new Error(data.message || 'Failed to update preference');
+        showToast(
+          'Account deletion cancelled. You must type "DELETE" exactly.',
+          'info'
+        );
       }
-    } catch (error) {
-      console.error('Error updating email preference:', error);
-      showToast('Failed to update email preference', 'error');
-
-      // Reload settings to revert UI
-      loadSettings();
     }
   }
 
@@ -769,9 +558,10 @@ document.addEventListener('DOMContentLoaded', function() {
       minute: '2-digit',
     });
   }
+
 </script>
 
-<!-- Add CSS styles and event listeners -->
+<!-- CSS styles for email preference cards -->
 <style>
   .email-method-card {
     cursor: pointer;
@@ -784,37 +574,32 @@ document.addEventListener('DOMContentLoaded', function() {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 
-  .email-method-card.border-primary {
+  .email-method-card.selected {
+    border-width: 2px !important;
+  }
+
+  .email-method-card.selected.border-primary {
     border-color: var(--bs-primary) !important;
     box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
   }
 
-  .email-method-card.border-success {
+  .email-method-card.selected.border-success {
     border-color: var(--bs-success) !important;
     box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
   }
+
+  /* Loading animation */
+  .loading {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
 </style>
-
-<script>
-  // Add email preference event listeners when DOM is ready
-  document.addEventListener('DOMContentLoaded', function () {
-    // Email preference change handlers
-    document
-      .querySelectorAll('input[name="emailPreference"]')
-      .forEach((radio) => {
-        radio.addEventListener('change', function () {
-          if (this.checked) {
-            updateEmailPreference(this.value);
-          }
-        });
-      });
-
-    // Gmail authorization handler
-    const authorizeGmailBtn = document.getElementById('authorizeGmailBtn');
-    if (authorizeGmailBtn) {
-      authorizeGmailBtn.addEventListener('click', function () {
-        window.location.href = '/auth/google?scope=gmail';
-      });
-    }
-  });
-</script>

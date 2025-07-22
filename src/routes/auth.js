@@ -182,14 +182,40 @@ router.get(
 // Gmail Google OAuth callback
 router.get(
   '/google/gmail/callback',
+  (req, res, next) => {
+    console.log('🔍 Gmail callback received:');
+    console.log('Query params:', req.query);
+    console.log('Session before passport:', req.session);
+    next();
+  },
   passport.authenticate('google-gmail', {
     failureRedirect: '/onboarding?error=gmail_oauth_failed&step=3',
     session: false,
   }),
   async (req, res) => {
     try {
+      console.log('🔍 Gmail callback successful:');
+      console.log('req.user:', req.user ? req.user.toSafeObject() : 'NULL');
+      console.log('req.session:', req.session);
+      
+      if (!req.user) {
+        console.error('❌ No user object after Gmail OAuth');
+        return res.redirect('/onboarding?error=no_user_object&step=3');
+      }
+
       // Update session with new user data
       req.session.userId = req.user.id;
+
+      // 🔥 FIX: Automatically switch to automatic email mode after Gmail OAuth
+      if (req.user.gmailScopeGranted) {
+        try {
+          await req.user.update({ emailPreference: 'automatic' });
+          console.log(`✅ Automatically switched ${req.user.email} to automatic email mode`);
+        } catch (error) {
+          console.error('❌ Failed to update email preference:', error);
+          // Don't fail the whole callback for this
+        }
+      }
 
       console.log(`✅ User ${req.user.email} granted Gmail permissions`);
 
@@ -197,9 +223,11 @@ router.get(
       const redirectTo = req.session.gmailOAuthRedirect || '/onboarding?gmail_success=1&step=4';
       delete req.session.gmailOAuthRedirect; // Clean up
 
+      console.log('Redirecting to:', redirectTo);
       res.redirect(redirectTo);
     } catch (error) {
       console.error('Gmail OAuth callback error:', error);
+      console.error('Error stack:', error.stack);
       res.redirect('/onboarding?error=gmail_callback_error&step=3');
     }
   }
