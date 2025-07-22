@@ -218,6 +218,14 @@ class NotificationManager {
       modal.addEventListener('hidden.bs.modal', () => {
         modal.remove();
       });
+      
+      // Fix accessibility: Remove focus from modal elements before hiding
+      modal.addEventListener('hide.bs.modal', () => {
+        const focusedElement = modal.querySelector(':focus');
+        if (focusedElement) {
+          focusedElement.blur();
+        }
+      });
     });
   }
 
@@ -340,6 +348,14 @@ class NotificationManager {
       // Clean up after modal is hidden
       modal.addEventListener('hidden.bs.modal', () => {
         modal.remove();
+      });
+      
+      // Fix accessibility: Remove focus from modal elements before hiding
+      modal.addEventListener('hide.bs.modal', () => {
+        const focusedElement = modal.querySelector(':focus');
+        if (focusedElement) {
+          focusedElement.blur();
+        }
       });
     });
   }

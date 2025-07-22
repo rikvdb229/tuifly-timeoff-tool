@@ -616,6 +616,22 @@ window.formatDateTime = formatDateTime;
 window.resetSettings = resetSettings;
 window.confirmDeleteAccount = confirmDeleteAccount;
 
+// ===================================================================
+// ACCESSIBILITY FIXES
+// ===================================================================
+
+// Fix Bootstrap modal accessibility issue with aria-hidden and focused elements
+document.addEventListener('DOMContentLoaded', function() {
+  // Add global modal accessibility fix
+  document.addEventListener('hide.bs.modal', function(event) {
+    const modal = event.target;
+    const focusedElement = modal.querySelector(':focus');
+    if (focusedElement) {
+      focusedElement.blur();
+    }
+  });
+});
+
 // Export for module usage if needed
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
