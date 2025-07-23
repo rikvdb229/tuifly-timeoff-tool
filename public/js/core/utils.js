@@ -78,31 +78,55 @@ async function loadSettings() {
       
       if (isOnboarded && userName) {
         userName.readOnly = true;
-        userName.classList.add('form-control-plaintext');
-        userName.classList.remove('form-control');
+        userName.style.backgroundColor = '#f8f9fa';
+        userName.style.color = '#6c757d';
+        userName.style.userSelect = 'none';
+        userName.style.cursor = 'not-allowed';
+        userName.style.outline = 'none';
+        userName.style.boxShadow = 'none';
+        userName.title = 'Name cannot be changed after onboarding';
+        userName.setAttribute('data-bs-toggle', 'tooltip');
+        userName.setAttribute('data-bs-placement', 'top');
+        userName.setAttribute('data-bs-trigger', 'hover');
         
-        // Add help text to explain why it's read-only
-        const nameLabel = document.querySelector('label[for="userName"]');
-        if (nameLabel && !nameLabel.querySelector('.text-muted')) {
-          const helpText = document.createElement('small');
-          helpText.className = 'text-muted d-block';
-          helpText.textContent = 'Name cannot be changed after onboarding';
-          nameLabel.appendChild(helpText);
+        // Disable focus and prevent clicks
+        userName.tabIndex = -1;
+        userName.addEventListener('click', (e) => e.preventDefault());
+        userName.addEventListener('focus', (e) => e.target.blur());
+        
+        // Initialize tooltip if Bootstrap is available
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+          new bootstrap.Tooltip(userName);
         }
       }
 
       if (isOnboarded && userCode) {
         userCode.readOnly = true;
-        userCode.classList.add('form-control-plaintext');
-        userCode.classList.remove('form-control');
+        userCode.style.backgroundColor = '#f8f9fa';
+        userCode.style.color = '#6c757d';
+        userCode.style.userSelect = 'none';
+        userCode.style.cursor = 'not-allowed';
+        userCode.style.outline = 'none';
+        userCode.style.boxShadow = 'none';
+        userCode.title = '3-letter code cannot be changed after onboarding';
+        userCode.setAttribute('data-bs-toggle', 'tooltip');
+        userCode.setAttribute('data-bs-placement', 'top');
+        userCode.setAttribute('data-bs-trigger', 'hover');
         
-        // Add help text to explain why it's read-only
-        const codeLabel = document.querySelector('label[for="userCode"]');
-        if (codeLabel && !codeLabel.querySelector('.text-muted')) {
-          const helpText = document.createElement('small');
-          helpText.className = 'text-muted d-block';
-          helpText.textContent = '3-letter code cannot be changed after onboarding';
-          codeLabel.appendChild(helpText);
+        // Disable focus and prevent clicks
+        userCode.tabIndex = -1;
+        userCode.addEventListener('click', (e) => e.preventDefault());
+        userCode.addEventListener('focus', (e) => e.target.blur());
+        
+        // Hide the validation text since field is read-only
+        const codeFormText = userCode.parentNode.querySelector('.form-text');
+        if (codeFormText) {
+          codeFormText.style.display = 'none';
+        }
+        
+        // Initialize tooltip if Bootstrap is available
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+          new bootstrap.Tooltip(userCode);
         }
       }
 
