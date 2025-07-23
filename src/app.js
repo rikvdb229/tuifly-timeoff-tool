@@ -103,22 +103,26 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Session configuration with Redis
-app.use(
-  session({
-    store: new RedisStore({ client: redisClient }),
-    secret: process.env.SESSION_SECRET || 'dev-secret-key',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      maxAge: parseInt(process.env.SESSION_TIMEOUT) || 2592000000, // 30 days default
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-    },
-    name: 'tuifly.sid', // Custom session name
-  })
-);
+// Session configuration - use memory store for tests, Redis for production
+const sessionConfig = {
+  secret: process.env.SESSION_SECRET || 'dev-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: parseInt(process.env.SESSION_TIMEOUT) || 2592000000, // 30 days default
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+  },
+  name: 'tuifly.sid', // Custom session name
+};
+
+// Use Redis store for production/development, memory store for tests
+if (process.env.NODE_ENV !== 'test') {
+  sessionConfig.store = new RedisStore({ client: redisClient });
+}
+
+app.use(session(sessionConfig));
 
 // Initialize Passport
 app.use(passport.initialize());
@@ -147,6 +151,12 @@ app.get('/health', (req, res) => {
     redis: redisClient.isReady ? 'connected' : 'disconnected',
   });
 });
+
+// Test authentication routes for integration tests
+if (process.env.NODE_ENV === 'test') {
+  const { setupTestAuthRoutes } = require('../tests/helpers/auth');
+  setupTestAuthRoutes(app);
+}
 
 // Routes
 try {
