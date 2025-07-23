@@ -302,10 +302,8 @@ router.get('/requests/:id/group-email-content', async (req, res) => {
       });
     }
 
-    let emailContent;
-
     // Generate email content (unified function handles both single and group requests)
-    emailContent = await request.generateEmailContent(req.user);
+    const emailContent = await request.generateEmailContent(req.user);
 
     res.json({
       success: true,

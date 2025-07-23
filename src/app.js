@@ -204,7 +204,7 @@ app.use((req, res) => {
 });
 
 // Global error handler
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   const appLogger = createLogger({ component: 'errorHandler' });
   
   appLogger.logError(err, {

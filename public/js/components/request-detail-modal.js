@@ -579,7 +579,7 @@ function getEmailStatusInfo(request) {
  * @param {string} status - New status to apply ('APPROVED', 'DENIED', 'PENDING')
  * @returns {void}
  */
-window.bulkUpdateStatus = function (status) {
+window.bulkUpdateStatus = function (_status) {
   // Implementation will be in calendar.js where the actual bulk update logic exists
 };
 
