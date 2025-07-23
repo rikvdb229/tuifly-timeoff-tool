@@ -1,5 +1,6 @@
 // src/utils/crypto.js - Token encryption utilities
 const crypto = require('crypto');
+const { logger } = require('./logger');
 
 class TokenCrypto {
   constructor() {
@@ -7,10 +8,10 @@ class TokenCrypto {
     this.encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
 
     if (!this.encryptionKey) {
-      console.warn(
+      logger.warn(
         '⚠️  TOKEN_ENCRYPTION_KEY not set. Using default key for development.'
       );
-      console.warn('🔒 Set TOKEN_ENCRYPTION_KEY in production for security!');
+      logger.warn('🔒 Set TOKEN_ENCRYPTION_KEY in production for security!');
       // Use a default key for development (32 bytes for AES-256)
       this.encryptionKey = 'dev-key-32-chars-for-aes-256-enc';
     }
@@ -47,7 +48,7 @@ class TokenCrypto {
       // Return in format: iv:encrypted
       return `${iv.toString('hex')}:${encrypted}`;
     } catch (error) {
-      console.error('❌ Token encryption failed:', error);
+      logger.error('❌ Token encryption failed:', error);
       throw new Error('Failed to encrypt token');
     }
   }
@@ -79,7 +80,7 @@ class TokenCrypto {
 
       return decrypted;
     } catch (error) {
-      console.error('❌ Token decryption failed:', error);
+      logger.error('❌ Token decryption failed:', error);
       throw new Error('Failed to decrypt token');
     }
   }

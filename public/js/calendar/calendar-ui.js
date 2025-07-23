@@ -134,7 +134,7 @@ function showConfirmDialog(
 }
 
 // Request detail modal function
-function showRequestDetailModal(request, dateStr) {
+function showRequestDetailModal(request, _dateStr) {
   // Check if the request is part of a group
   const isGroupRequest =
     request.groupId &&
@@ -248,7 +248,7 @@ function showRequestDetailModal(request, dateStr) {
       </div>
     `;
 
-    groupRequests.forEach((req, index) => {
+    groupRequests.forEach((req, _index) => {
       const statusColor = getStatusColor(req.status);
       const emailStatus = getSimpleEmailStatus(req);
 

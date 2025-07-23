@@ -159,7 +159,7 @@ const MODAL_TYPES = {
 const VALIDATION = {
   EMAIL_PATTERN: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   PILOT_CODE_PATTERN: /^[A-Z]{3}$/,
-  PHONE_PATTERN: /^[\+]?[1-9][\d]{0,15}$/,
+  PHONE_PATTERN: /^[+]?[1-9][\d]{0,15}$/,
   DATE_PATTERN: /^\d{4}-\d{2}-\d{2}$/,
   TIME_PATTERN: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
 };

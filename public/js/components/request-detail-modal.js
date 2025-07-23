@@ -435,10 +435,11 @@ function populateModalActions(request) {
       case 'resendEmail':
         if (window.resendEmail) {window.resendEmail(requestId);}
         break;
-      case 'deleteRequest':
+      case 'deleteRequest': {
         const isGroup = button.dataset.isGroup === 'true';
         if (window.deleteRequest) {window.deleteRequest(requestId, isGroup);}
         break;
+      }
     }
   });
 }

@@ -53,7 +53,15 @@ module.exports = [
         location: 'readonly',
         alert: 'readonly',
         confirm: 'readonly',
-        logger: 'readonly', // Allow global logger
+        prompt: 'readonly',
+        history: 'readonly',
+        sessionStorage: 'readonly',
+        localStorage: 'readonly',
+        URLSearchParams: 'readonly',
+        URL: 'readonly',
+        AbortController: 'readonly',
+        FormData: 'readonly',
+        logger: 'readonly',
         $: 'readonly',
         jQuery: 'readonly',
         bootstrap: 'readonly',
@@ -61,6 +69,12 @@ module.exports = [
     },
     rules: {
       'no-console': 'error', // Enforce using logger instead of console in client code
+    }
+  },
+  {
+    files: ['public/js/utils/clientLogger.js'],
+    rules: {
+      'no-console': 'off', // Allow console in the client logger itself
     }
   },
   {

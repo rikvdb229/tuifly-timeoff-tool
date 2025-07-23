@@ -1,5 +1,6 @@
 // src/models/index.js
 const { sequelize } = require('../../config/database');
+const { logger } = require('../utils/logger');
 const defineUser = require('./User');
 const defineTimeOffRequest = require('./TimeOffRequest');
 const defineEmailTemplate = require('./EmailTemplate');
@@ -34,12 +35,12 @@ User.hasMany(User, {
 async function initializeDatabase() {
   try {
     await sequelize.sync({ force: false });
-    console.log('✅ Database synchronized');
+    logger.info('✅ Database synchronized');
 
     await seedGlobalData();
-    console.log('✅ Database initialization complete');
+    logger.info('✅ Database initialization complete');
   } catch (error) {
-    console.error('❌ Database initialization failed:', error);
+    logger.error('❌ Database initialization failed:', error);
     throw error;
   }
 }
@@ -65,7 +66,7 @@ async function seedGlobalData() {
         isActive: true,
       },
     ]);
-    console.log('✅ Global email templates created');
+    logger.info('✅ Global email templates created');
   }
 }
 
@@ -89,16 +90,16 @@ async function createUser(userData) {
 
     // 🚨 FIXED: Only log user creation, don't send email yet
     if (user.isAdmin) {
-      console.log(`✅ Admin user created: ${user.email}`);
+      logger.info(`✅ Admin user created: ${user.email}`);
     } else {
-      console.log(
+      logger.info(
         `👤 New user created: ${user.email} - waiting for onboarding completion`
       );
     }
 
     return user;
   } catch (error) {
-    console.error('Error creating user:', error);
+    logger.error('Error creating user:', error);
     throw error;
   }
 }
@@ -136,14 +137,14 @@ async function updateUserOnboarding(userId, onboardingData) {
 
     // Send admin notification AFTER onboarding completion
     if (!user.isAdmin) {
-      console.log(
+      logger.info(
         `📧 User completed onboarding: ${user.email} - Email preference: ${onboardingData.emailPreference || 'manual'}`
       );
     }
 
     return user;
   } catch (error) {
-    console.error('Error updating user onboarding:', error);
+    logger.error('Error updating user onboarding:', error);
     throw error;
   }
 }
@@ -160,7 +161,7 @@ async function deleteUserAccount(userId) {
 
     return true;
   } catch (error) {
-    console.error('Error deleting user account:', error);
+    logger.error('Error deleting user account:', error);
     throw error;
   }
 }
@@ -184,7 +185,7 @@ async function approveUser(adminId, userIdToApprove) {
 
     await userToApprove.approveUser(adminId);
 
-    console.log(
+    logger.info(
       `✅ User approved: ${userToApprove.email} by admin ${admin.email}`
     );
 
@@ -195,7 +196,7 @@ async function approveUser(adminId, userIdToApprove) {
 
     return userToApprove;
   } catch (error) {
-    console.error('Error approving user:', error);
+    logger.error('Error approving user:', error);
     throw error;
   }
 }
@@ -218,13 +219,13 @@ async function makeUserAdmin(adminId, userIdToPromote) {
 
     await userToPromote.makeAdmin(adminId);
 
-    console.log(
+    logger.info(
       `✅ User promoted to admin: ${userToPromote.email} by admin ${admin.email}`
     );
 
     return userToPromote;
   } catch (error) {
-    console.error('Error promoting user to admin:', error);
+    logger.error('Error promoting user to admin:', error);
     throw error;
   }
 }
@@ -233,7 +234,7 @@ async function getPendingApprovals() {
   try {
     return await User.getPendingApprovals();
   } catch (error) {
-    console.error('Error getting pending approvals:', error);
+    logger.error('Error getting pending approvals:', error);
     throw error;
   }
 }
@@ -251,7 +252,7 @@ async function getAllUsers() {
       ],
     });
   } catch (error) {
-    console.error('Error getting all users:', error);
+    logger.error('Error getting all users:', error);
     throw error;
   }
 }
@@ -262,11 +263,11 @@ async function notifyAdminsOfNewUser(newUser) {
     const admins = await User.getAdmins();
 
     if (admins.length === 0) {
-      console.log('ℹ️ No admins found to notify about new user registration');
+      logger.info('ℹ️ No admins found to notify about new user registration');
       return;
     }
 
-    console.log(
+    logger.info(
       `📧 Notifying admins about completed onboarding: ${newUser.email}`
     );
 
@@ -277,7 +278,7 @@ async function notifyAdminsOfNewUser(newUser) {
 
     return true;
   } catch (error) {
-    console.error('Error notifying admins:', error);
+    logger.error('Error notifying admins:', error);
     // Don't throw error - this is non-critical
     return false;
   }

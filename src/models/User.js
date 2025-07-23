@@ -266,7 +266,8 @@ function defineUser(sequelize) {
         ? decryptToken(this.gmailAccessToken)
         : this.gmailAccessToken; // Handle legacy unencrypted tokens
     } catch (error) {
-      console.error('Failed to decrypt Gmail access token:', error);
+      const { logger } = require('../utils/logger');
+      logger.error('Failed to decrypt Gmail access token:', error);
       return null;
     }
   };
@@ -278,7 +279,8 @@ function defineUser(sequelize) {
         ? decryptToken(this.gmailRefreshToken)
         : this.gmailRefreshToken; // Handle legacy unencrypted tokens
     } catch (error) {
-      console.error('Failed to decrypt Gmail refresh token:', error);
+      const { logger } = require('../utils/logger');
+      logger.error('Failed to decrypt Gmail refresh token:', error);
       return null;
     }
   };

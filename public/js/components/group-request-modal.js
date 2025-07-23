@@ -158,7 +158,7 @@ async function markAsSentAndCreate() {
   if (window.submitGroupRequestManual) {
     await window.submitGroupRequestManual();
   } else {
-    console.error('Manual submission function not available');
+    window.logger?.error('Manual submission function not available');
   }
 }
 
@@ -172,7 +172,7 @@ async function submitGroupRequest() {
   try {
     // Implementation will be in calendar.js
   } catch (error) {
-    console.error('Error submitting group request:', error);
+    window.logger?.error('Error submitting group request:', error);
   }
 }
 
@@ -290,7 +290,7 @@ function fallbackCopyToClipboard(text) {
       window.showToast('Copied to clipboard!', 'success');
     }
   } catch (err) {
-    console.error('Failed to copy text: ', err);
+    window.logger?.error('Failed to copy text: ', err);
     if (window.showToast) {
       window.showToast('Failed to copy to clipboard', 'error');
     }
@@ -327,7 +327,7 @@ function openMailClientFromModal() {
       window.showToast('Opening in your default mail client...', 'success');
     }
   } catch (error) {
-    console.error('Error opening mail client:', error);
+    window.logger?.error('Error opening mail client:', error);
     if (window.showToast) {
       window.showToast(
         'Could not open mail client. Please copy the content manually.',

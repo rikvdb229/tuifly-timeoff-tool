@@ -15,7 +15,6 @@ async function loadUserDataAndSettings() {
     if (data.success) {
       // Load user data
       window.currentUserData = data.data.user;
-      window.currentUserData = window.currentUserData; // Make it globally available
 
       // Load email preference
       window.userEmailPreference =
