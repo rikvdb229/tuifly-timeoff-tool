@@ -240,6 +240,9 @@ async function updateEmailPreference(preference) {
 
     if (result.success) {
       currentEmailPreference = preference;
+      // Update global email preference for calendar
+      window.userEmailPreference = preference;
+      
       updateEmailPreferenceUI();
       showToast(result.message, 'success');
 
@@ -251,11 +254,40 @@ async function updateEmailPreference(preference) {
         }
       }
 
-      // Refresh calendar if function exists
-      if (typeof window.loadExistingRequests === 'function') {
-        window.logger?.info('Refreshing calendar after email preference change');
-        await window.loadExistingRequests();
+      // Refresh user data and calendar to reflect new email preference
+      window.logger?.info('Refreshing user data and calendar after email preference change', {
+        oldPreference: currentEmailPreference,
+        newPreference: preference
+      });
+
+      // First refresh user data from server to ensure consistency
+      if (typeof window.loadUserDataAndSettings === 'function') {
+        await window.loadUserDataAndSettings();
+      } else {
+        // Fallback: manually update the global variables
+        window.userEmailPreference = preference;
+        if (window.currentUserData) {
+          window.currentUserData.emailPreference = preference;
+        }
       }
+
+      // Then refresh calendar with updated data
+      if (typeof window.loadExistingRequests === 'function') {
+        await window.loadExistingRequests();
+      } else {
+        window.logger?.warn('loadExistingRequests function not available for calendar refresh');
+      }
+
+      // Close any open modals that might have stale email preference data
+      const openModals = document.querySelectorAll('.modal.show');
+      openModals.forEach(modal => {
+        const modalElement = bootstrap.Modal.getInstance(modal);
+        if (modalElement && modal.id !== 'settingsModal') {
+          // Don't close the settings modal itself, but close others like request detail modals
+          modalElement.hide();
+          window.logger?.info('Closed modal due to email preference change', { modalId: modal.id });
+        }
+      });
     } else {
       // Reset card selection to previous state
       updateEmailMethodCardHighlights(currentEmailPreference);
