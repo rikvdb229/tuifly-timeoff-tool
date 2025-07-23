@@ -47,17 +47,41 @@ function clearOnboardingData() {
 // UTILITY FUNCTIONS
 // ===================================================================
 function showToast(message, type = 'info') {
-  // Simple toast notification
+  // Create toast container if it doesn't exist
+  let toastContainer = document.querySelector('.toast-container');
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+    toastContainer.style.zIndex = '9999';
+    document.body.appendChild(toastContainer);
+  }
+
+  // Check for duplicate messages to prevent double toasts
+  const existingToasts = toastContainer.querySelectorAll('.alert');
+  for (const existingToast of existingToasts) {
+    if (existingToast.textContent.includes(message)) {
+      return; // Don't show duplicate toast
+    }
+  }
+
+  // Create toast element
   const toast = document.createElement('div');
-  toast.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
-  toast.style.cssText =
-    'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+  toast.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show mb-2`;
+  toast.style.cssText = 'min-width: 300px;';
   toast.innerHTML = `
     ${message}
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   `;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 5000);
+  
+  // Add to container (will stack vertically)
+  toastContainer.appendChild(toast);
+  
+  // Auto-remove after delay
+  setTimeout(() => {
+    if (toast.parentNode) {
+      toast.remove();
+    }
+  }, 5000);
 }
 
 function showError(message) {
@@ -448,7 +472,7 @@ document.addEventListener('DOMContentLoaded', function () {
     gmailAuthorized = true;
     onboardingData.emailPreference = 'automatic';
     saveOnboardingData(); // Save the email preference
-    showSuccess('Gmail authorization successful!');
+    showSuccess('Gmail connected successfully! Email preference set to automatic.');
   }
 
   // Start on the correct step

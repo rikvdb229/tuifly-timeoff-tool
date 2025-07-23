@@ -1,5 +1,4 @@
-// TODO: Implement periodic approval checking  
-/*
+// Check approval status function
 async function checkApprovalStatus() {
   try {
     const response = await fetch('/auth/status');
@@ -24,11 +23,7 @@ async function checkApprovalStatus() {
       }, 2000);
     }
   } catch (error) {
-    logger.logError(error, { 
-      operation: 'checkApprovalStatus',
-      userId: window.currentUserData?.id 
-    });
+    console.error('Error checking approval status:', error);
     alert('Error checking status. Please try again.');
   }
 }
-*/

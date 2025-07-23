@@ -73,6 +73,39 @@ async function loadSettings() {
       if (userCode) {userCode.value = data.data.user.code || '';}
       if (userSignature) {userSignature.value = data.data.user.signature || '';}
 
+      // Make name and code fields read-only if user has completed onboarding
+      const isOnboarded = data.data.user.onboardedAt || data.data.user.isOnboarded;
+      
+      if (isOnboarded && userName) {
+        userName.readOnly = true;
+        userName.classList.add('form-control-plaintext');
+        userName.classList.remove('form-control');
+        
+        // Add help text to explain why it's read-only
+        const nameLabel = document.querySelector('label[for="userName"]');
+        if (nameLabel && !nameLabel.querySelector('.text-muted')) {
+          const helpText = document.createElement('small');
+          helpText.className = 'text-muted d-block';
+          helpText.textContent = 'Name cannot be changed after onboarding';
+          nameLabel.appendChild(helpText);
+        }
+      }
+
+      if (isOnboarded && userCode) {
+        userCode.readOnly = true;
+        userCode.classList.add('form-control-plaintext');
+        userCode.classList.remove('form-control');
+        
+        // Add help text to explain why it's read-only
+        const codeLabel = document.querySelector('label[for="userCode"]');
+        if (codeLabel && !codeLabel.querySelector('.text-muted')) {
+          const helpText = document.createElement('small');
+          helpText.className = 'text-muted d-block';
+          helpText.textContent = '3-letter code cannot be changed after onboarding';
+          codeLabel.appendChild(helpText);
+        }
+      }
+
       // Note: Application settings (theme, language, notifications, autoSave) removed
 
       // Populate global settings (read-only)
@@ -504,11 +537,21 @@ document.addEventListener('DOMContentLoaded', function () {
     profileForm.addEventListener('submit', async function (e) {
       e.preventDefault();
 
+      const userName = document.getElementById('userName');
+      const userCode = document.getElementById('userCode');
+      const userSignature = document.getElementById('userSignature');
+
       const formData = {
-        name: document.getElementById('userName').value,
-        code: document.getElementById('userCode').value,
-        signature: document.getElementById('userSignature').value,
+        signature: userSignature.value,
       };
+
+      // Only include name and code if they're not read-only (i.e., user hasn't completed onboarding)
+      if (!userName.readOnly) {
+        formData.name = userName.value;
+      }
+      if (!userCode.readOnly) {
+        formData.code = userCode.value;
+      }
 
       try {
         const response = await fetch('/settings/profile', {
@@ -562,6 +605,15 @@ function showToast(message, type = 'info') {
     document.body.appendChild(toastContainer);
   }
 
+  // Check for duplicate messages to prevent double toasts
+  const existingToasts = toastContainer.querySelectorAll('.toast');
+  for (const existingToast of existingToasts) {
+    const existingBody = existingToast.querySelector('.toast-body');
+    if (existingBody && existingBody.textContent.trim() === message.trim()) {
+      return; // Don't show duplicate toast
+    }
+  }
+
   // Create toast element
   const toastId = 'toast-' + Date.now();
   const iconClass =
@@ -576,7 +628,7 @@ function showToast(message, type = 'info') {
     type === 'error' ? 'Error' : type === 'success' ? 'Success' : 'Info';
 
   const toastHTML = `
-    <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+    <div id="${toastId}" class="toast mb-2" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="toast-header bg-${bgClass} text-white">
         <i class="bi bi-${iconClass} me-2"></i>
         <strong class="me-auto">${titleText}</strong>

@@ -7,16 +7,20 @@
 .onboarding-page-body {
   background: linear-gradient(135deg, var(--tuifly-blue) 0%, #0056b3 100%);
   min-height: 100vh;
-  padding: 20px 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .onboarding-container {
   max-width: 600px;
-  margin: 0 auto;
+  margin: 20px auto;
   background: white;
   border-radius: 20px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   overflow: hidden;
+  width: 100%;
 }
 
 .onboarding-header {

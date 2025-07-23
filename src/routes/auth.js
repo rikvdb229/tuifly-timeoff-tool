@@ -111,6 +111,7 @@ router.get('/waiting-approval', async (req, res) => {
       body: '../pages/waiting-approval',
       user: user.toSafeObject(),
       includeNavbar: false,
+      bodyClass: 'waiting-approval-page',
       additionalCSS: ['waiting-approval'],
       additionalJS: ['waiting-approval'],
     });

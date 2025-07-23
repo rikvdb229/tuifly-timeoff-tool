@@ -1,9 +1,11 @@
-body {
+/* Waiting Approval Page - Separate CSS to avoid conflicts with onboarding */
+.waiting-approval-page {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 20px;
 }
 
 .approval-card {
@@ -14,6 +16,7 @@ body {
   max-width: 500px;
   width: 100%;
   text-align: center;
+  margin: 0 auto;
 }
 
 .approval-icon {
