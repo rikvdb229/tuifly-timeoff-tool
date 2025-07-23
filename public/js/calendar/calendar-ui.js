@@ -250,7 +250,7 @@ function showRequestDetailModal(request, _dateStr) {
 
     groupRequests.forEach((req, _index) => {
       const statusColor = getStatusColor(req.status);
-      const emailStatus = getSimpleEmailStatus(req);
+      // const emailStatus = getSimpleEmailStatus(req); // TODO: Use this status
 
       modalContent += `
         <div class="card mb-2">
@@ -295,7 +295,7 @@ function showRequestDetailModal(request, _dateStr) {
   } else {
     // Single request details - use same layout as group request for consistency
     const statusColor = getStatusColor(request.status);
-    const emailStatus = getSimpleEmailStatus(request);
+    // const emailStatus = getSimpleEmailStatus(request); // TODO: Use this status
 
     // Single request header
     modalContent += `

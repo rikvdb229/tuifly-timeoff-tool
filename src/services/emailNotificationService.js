@@ -141,7 +141,7 @@ This is an automated notification from the TUIfly Time-Off Tool.
         operation: 'notifyAdminOfNewUser',
         service: 'emailNotificationService',
         newUserEmail: newUser.email,
-        adminEmail: adminEmail
+        adminEmail: process.env.ADMIN_NOTIFICATION_EMAIL
       });
       return false;
     }

@@ -10,11 +10,12 @@
  * @returns {Promise<void>}
  */
 async function logout() {
-  const confirmed = await modernConfirm(
-    'Are you sure you want to logout? You will be redirected to the login page.',
-    'Logout Confirmation',
-    'logout'
-  );
+  const confirmed = window.showConfirmDialog ? 
+    await window.showConfirmDialog(
+      'Are you sure you want to logout? You will be redirected to the login page.',
+      'Logout Confirmation',
+      'logout'
+    ) : confirm('Are you sure you want to logout? You will be redirected to the login page.');
 
   if (confirmed) {
     showToast('Logging out...', 'info');
@@ -224,7 +225,7 @@ function selectEmailPreference(preference) {
  * @throws {Error} When API call fails or preference cannot be updated
  */
 async function updateEmailPreference(preference) {
-  const oldMode = currentEmailPreference;
+  // const oldMode = currentEmailPreference; // TODO: Use for rollback if needed
 
   try {
     const response = await fetch('/settings/email-preference', {
@@ -251,9 +252,9 @@ async function updateEmailPreference(preference) {
       }
 
       // Refresh calendar if function exists
-      if (typeof loadExistingRequests === 'function') {
-        logger.info('Refreshing calendar after email preference change');
-        await loadExistingRequests();
+      if (typeof window.loadExistingRequests === 'function') {
+        window.logger?.info('Refreshing calendar after email preference change');
+        await window.loadExistingRequests();
       }
     } else {
       // Reset card selection to previous state

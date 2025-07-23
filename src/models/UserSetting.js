@@ -66,7 +66,7 @@ function defineUserSetting(sequelize) {
       case 'json':
         try {
           return JSON.parse(this.settingValue);
-        } catch (e) {
+        } catch {
           return this.settingValue;
         }
       default:

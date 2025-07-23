@@ -56,7 +56,7 @@ class APIClient {
     let data;
     try {
       data = isJSON ? await response.json() : await response.text();
-    } catch (error) {
+    } catch {
       throw new APIError(
         'Invalid response format',
         response.status,

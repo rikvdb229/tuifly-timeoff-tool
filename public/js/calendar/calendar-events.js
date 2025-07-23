@@ -468,10 +468,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     const response = await fetch('/settings/email-preference');
     const data = await response.json();
-    if (data.success && typeof loadEmailPreferences === 'function') {
-      loadEmailPreferences(data.data);
+    if (data.success && typeof window.loadEmailPreferences === 'function') {
+      window.loadEmailPreferences(data.data);
     }
-  } catch (error) {
+  } catch {
     logger.debug('Could not load email preferences for header badge');
   }
 

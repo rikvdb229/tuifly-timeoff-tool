@@ -318,7 +318,7 @@ async function authorizeGmail() {
 
     // Redirect to Gmail OAuth
     window.location.href = '/auth/google/gmail';
-  } catch (error) {
+  } catch {
     showError('Failed to start Gmail authorization');
     const btn = document.getElementById('authorizeGmailBtn');
     btn.disabled = false;

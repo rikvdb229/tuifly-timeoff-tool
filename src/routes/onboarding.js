@@ -176,7 +176,7 @@ router.post(
       }
 
       // ✅ KEEP: Original user update logic with added email preference
-      const user = await updateUserOnboarding(req.session.userId, {
+      await updateUserOnboarding(req.session.userId, {
         name,
         code: code.toUpperCase(),
         signature,

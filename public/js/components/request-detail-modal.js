@@ -18,19 +18,12 @@
 window.showRequestDetailModal = async function (request, dateStr) {
   // Ensure existingRequests is available globally (for any remaining client-side functions)
   if (typeof window.existingRequests === 'undefined') {
-    if (typeof existingRequests !== 'undefined') {
-      window.existingRequests = existingRequests;
-    } else {
       // Load from server if not available
       try {
         const response = await fetch('/api/requests');
         const data = await response.json();
         if (data.success) {
           window.existingRequests = data.data;
-          // Also update the global existingRequests variable
-          if (typeof existingRequests !== 'undefined') {
-            existingRequests = data.data;
-          }
         }
       } catch (error) {
         logger.logError(error, { 
@@ -39,7 +32,6 @@ window.showRequestDetailModal = async function (request, dateStr) {
         });
         window.existingRequests = [request]; // Fallback to just this request
       }
-    }
   }
 
   // Populate modal with request data
@@ -60,8 +52,6 @@ window.showRequestDetailModal = async function (request, dateStr) {
  * @private
  */
 async function populateRequestModal(request, dateStr) {
-  const requestEmailMode = request.emailMode || 'automatic';
-
   // Set title
   const titleEl = document.getElementById('modalTitle');
   if (titleEl) {

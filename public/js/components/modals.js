@@ -22,7 +22,7 @@ window.updateRequestStatus = async function (
   // Use correct dialog type for deny
   const dialogType = newStatus === 'APPROVED' ? 'success' : 'denied';
 
-  const confirmed = await showConfirmDialog(
+  const confirmed = await window.showConfirmDialog(
     message,
     `${newStatus === 'APPROVED' ? 'Approve' : 'Deny'} Request${updateGroup ? ' Group' : ''}`,
     dialogType

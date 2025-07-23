@@ -1,7 +1,6 @@
 // src/services/gmailService.js - Updated to use environment variable for approver email
 
 const { google } = require('googleapis');
-const nodemailer = require('nodemailer');
 const { serviceLogger } = require('../utils/logger');
 
 class GmailService {
@@ -47,7 +46,6 @@ class GmailService {
       EMAIL_REQ_DO_LABEL = 'REQ DO',
       EMAIL_PM_OFF_LABEL = 'REQ PM OFF',
       EMAIL_AM_OFF_LABEL = 'REQ AM OFF',
-      EMAIL_FLIGHT_LABEL = 'FLIGHT',
       TUIFLY_APPROVER_EMAIL = 'scheduling@tuifly.be', // Use environment variable
     } = process.env;
 
@@ -76,7 +74,7 @@ class GmailService {
     const employeeCode = user.code || process.env.EMPLOYEE_CODE || 'XXX';
 
     // Generate subject
-    const subject = `${user.code} CREW REQUEST - ${monthName} ${year}`;
+    const subject = `${employeeCode} CREW REQUEST - ${monthName} ${year}`;
 
     // Generate request lines
     const requestLines = requests

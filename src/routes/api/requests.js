@@ -3,7 +3,7 @@ const express = require('express');
 const { TimeOffRequest, User } = require('../../models');
 const GmailService = require('../../services/gmailService');
 const { sanitizeRequestBody } = require('../../utils/sanitize');
-const { createRequestSchema } = require('./validators');
+// const { createRequestSchema } = require('./validators'); // TODO: Implement validation
 const { routeLogger } = require('../../utils/logger');
 
 const router = express.Router();

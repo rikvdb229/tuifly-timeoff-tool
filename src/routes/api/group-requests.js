@@ -1,6 +1,6 @@
 // src/routes/api/group-requests.js - Group time-off request management
 const express = require('express');
-const { TimeOffRequest, User } = require('../../models');
+const { TimeOffRequest } = require('../../models');
 const GmailService = require('../../services/gmailService');
 const { sanitizeRequestBody } = require('../../utils/sanitize');
 const { v4: uuidv4 } = require('uuid');

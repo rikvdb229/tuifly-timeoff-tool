@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Add event listener for Gmail authorization button
   const gmailBtn = document.getElementById('authorizeGmailBtn');
   if (gmailBtn) {
-    gmailBtn.addEventListener('click', authorizeGmail);
+    gmailBtn.addEventListener('click', window.authorizeGmail);
   }
 
   // Form submissions

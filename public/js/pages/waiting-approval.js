@@ -1,3 +1,5 @@
+// TODO: Implement periodic approval checking  
+/*
 async function checkApprovalStatus() {
   try {
     const response = await fetch('/auth/status');
@@ -29,3 +31,4 @@ async function checkApprovalStatus() {
     alert('Error checking status. Please try again.');
   }
 }
+*/
