@@ -1,5 +1,6 @@
 // src/models/User.js
 const { DataTypes } = require('sequelize');
+const { encryptToken, decryptToken, isTokenEncrypted } = require('../utils/crypto');
 
 /**
  * Defines the User model for the database
@@ -239,11 +240,11 @@ function defineUser(sequelize) {
     };
 
     if (tokens.access_token) {
-      updates.gmailAccessToken = tokens.access_token; // TODO: Encrypt in production
+      updates.gmailAccessToken = encryptToken(tokens.access_token);
     }
 
     if (tokens.refresh_token) {
-      updates.gmailRefreshToken = tokens.refresh_token; // TODO: Encrypt in production
+      updates.gmailRefreshToken = encryptToken(tokens.refresh_token);
     }
 
     if (tokens.expiry_date) {
@@ -251,6 +252,31 @@ function defineUser(sequelize) {
     }
 
     return await this.update(updates);
+  };
+
+  // Methods to get decrypted tokens
+  User.prototype.getDecryptedGmailAccessToken = function () {
+    if (!this.gmailAccessToken) return null;
+    try {
+      return isTokenEncrypted(this.gmailAccessToken) 
+        ? decryptToken(this.gmailAccessToken)
+        : this.gmailAccessToken; // Handle legacy unencrypted tokens
+    } catch (error) {
+      console.error('Failed to decrypt Gmail access token:', error);
+      return null;
+    }
+  };
+
+  User.prototype.getDecryptedGmailRefreshToken = function () {
+    if (!this.gmailRefreshToken) return null;
+    try {
+      return isTokenEncrypted(this.gmailRefreshToken)
+        ? decryptToken(this.gmailRefreshToken)
+        : this.gmailRefreshToken; // Handle legacy unencrypted tokens
+    } catch (error) {
+      console.error('Failed to decrypt Gmail refresh token:', error);
+      return null;
+    }
   };
 
   User.prototype.toSafeObject = function () {

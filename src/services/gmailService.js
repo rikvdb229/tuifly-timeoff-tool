@@ -30,8 +30,8 @@ class GmailService {
     }
 
     this.oauth2Client.setCredentials({
-      access_token: user.gmailAccessToken,
-      refresh_token: user.gmailRefreshToken,
+      access_token: user.getDecryptedGmailAccessToken(),
+      refresh_token: user.getDecryptedGmailRefreshToken(),
       expiry_date: user.gmailTokenExpiry
         ? user.gmailTokenExpiry.getTime()
         : null,

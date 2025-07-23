@@ -166,17 +166,23 @@ class NotificationManager {
     const typeConfig = this.getTypeConfig(type);
     const title = options.title || typeConfig.title;
 
+    // Create toast structure safely to prevent XSS
     toast.innerHTML = `
       <div class="toast-header bg-${typeConfig.bgClass} text-white">
         <i class="bi bi-${typeConfig.icon} notification-icon"></i>
-        <strong class="me-auto">${title}</strong>
+        <strong class="me-auto"></strong>
         ${options.timestamp !== false ? `<small class="text-white-50">${new Date().toLocaleTimeString()}</small>` : ''}
         <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
       </div>
       <div class="toast-body">
-        ${message}
       </div>
     `;
+    
+    // Set text content safely
+    const titleElement = toast.querySelector('.me-auto');
+    const bodyElement = toast.querySelector('.toast-body');
+    if (titleElement) titleElement.textContent = title;
+    if (bodyElement) bodyElement.textContent = message;
 
     return toast;
   }
@@ -248,18 +254,19 @@ class NotificationManager {
 
     const typeConfig = this.getModalTypeConfig(type);
 
+    // Create modal structure safely to prevent XSS
     modal.innerHTML = `
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="${id}-label">
               <i class="bi bi-${typeConfig.icon} me-2 text-${typeConfig.textClass}"></i>
-              ${title}
+              <span class="title-text"></span>
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <p class="mb-0">${message}</p>
+            <p class="mb-0 message-text"></p>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -270,6 +277,12 @@ class NotificationManager {
         </div>
       </div>
     `;
+    
+    // Set text content safely
+    const titleTextElement = modal.querySelector('.title-text');
+    const messageTextElement = modal.querySelector('.message-text');
+    if (titleTextElement) titleTextElement.textContent = title;
+    if (messageTextElement) messageTextElement.textContent = message;
 
     // Add event listeners
     const cancelBtn = modal.querySelector('[data-bs-dismiss="modal"]');
@@ -379,18 +392,19 @@ class NotificationManager {
 
     const typeConfig = this.getModalTypeConfig(type);
 
+    // Create modal structure safely to prevent XSS
     modal.innerHTML = `
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="${id}-label">
               <i class="bi bi-${typeConfig.icon} me-2 text-${typeConfig.textClass}"></i>
-              ${title}
+              <span class="title-text"></span>
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <p class="mb-0">${message}</p>
+            <p class="mb-0 message-text"></p>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
@@ -398,6 +412,12 @@ class NotificationManager {
         </div>
       </div>
     `;
+    
+    // Set text content safely
+    const titleTextElement = modal.querySelector('.title-text');
+    const messageTextElement = modal.querySelector('.message-text');
+    if (titleTextElement) titleTextElement.textContent = title;
+    if (messageTextElement) messageTextElement.textContent = message;
 
     // Add event listener
     modal.addEventListener('hidden.bs.modal', () => {

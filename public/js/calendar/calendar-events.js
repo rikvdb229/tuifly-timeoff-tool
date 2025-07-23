@@ -253,7 +253,16 @@ window.updateRequestPreview = function () {
       window.TUIFLY_CONFIG?.EMPLOYEE_SIGNATURE ||
       `Brgds,\n${window.currentUserData?.name || window.TUIFLY_CONFIG?.EMPLOYEE_NAME || 'Unknown'}`;
 
-    userSignatureElement.innerHTML = `<br><br>${signature.replace(/\n/g, '<br>')}`;
+    // Create elements safely to prevent XSS
+    userSignatureElement.innerHTML = ''; // Clear first
+    userSignatureElement.appendChild(document.createElement('br'));
+    userSignatureElement.appendChild(document.createElement('br'));
+    
+    // Create text node for safe content
+    const signatureDiv = document.createElement('div');
+    signatureDiv.style.whiteSpace = 'pre-line'; // Preserve line breaks
+    signatureDiv.textContent = signature; // Use textContent for safety
+    userSignatureElement.appendChild(signatureDiv);
   }
 };
 
