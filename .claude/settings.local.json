@@ -6,7 +6,19 @@
       "Bash(node:*)",
       "Bash(npm run lint)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(npx jest:*)",
+      "Bash(NODE_ENV=test npx jest tests/integration/api/users.test.js --testNamePattern=\"should return user email preference data\" --verbose)",
+      "Bash(sed:*)",
+      "Bash(NODE_ENV=test npx jest tests/integration/api/users.test.js --testNamePattern=\"should return user email preference data\" --verbose --maxWorkers=1)",
+      "Bash(NODE_ENV=test npx jest tests/integration/api/users.test.js --testNamePattern=\"should require authentication\" --verbose --maxWorkers=1)",
+      "Bash(NODE_ENV=test npx jest tests/e2e --coverage --coverageReporters=text --verbose --maxWorkers=1)",
+      "Bash(NODE_ENV=test npx jest tests/unit --coverage --coverageReporters=text --verbose --maxWorkers=1)",
+      "Bash(NODE_ENV=test npx jest tests/unit/models/User.test.js tests/unit/services --coverage --coverageReporters=text --verbose --maxWorkers=1)",
+      "Bash(NODE_ENV=test npx jest tests/integration --coverage --coverageReporters=text --verbose --maxWorkers=1)",
+      "Bash(NODE_ENV=test npx jest tests/e2e/userWorkflows.test.js --testNamePattern=\"should complete entire single request lifecycle\" --verbose --maxWorkers=1)",
+      "Bash(NODE_ENV=test npx jest tests/unit tests/integration/api/users.test.js --coverage --coverageReporters=text --maxWorkers=1)",
+      "Bash(NODE_ENV=test npx jest tests/unit/models/TimeOffRequest.test.js --testNamePattern=\"Model Creation\" --verbose --maxWorkers=1)"
     ],
     "deny": []
   }

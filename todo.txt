@@ -1,126 +1,134 @@
+Implement a dynamic roster schedule management system for the TUIfly Time-Off application that allows admins to configure request deadlines based on actual TUIfly roster publication dates. Build upon the existing refactored codebase structure.
 
-
-  -----
-  Features
-
-  Implement a dynamic roster schedule management system for the TUIfly Time-Off application that allows admins to configure request deadlines based on actual TUIfly roster publication dates.
+CURRENT CODEBASE CONTEXT:
+- Models: User, TimeOffRequest, EmailTemplate, UserSetting (with associations)
+- Frontend: Modular JavaScript (calendar-core.js, calendar-events.js, calendar-requests.js, calendar-ui.js)
+- Admin: Basic user approval system in /admin/users
+- API: Standardized ApiResponse utility, Winston logging
+- CSS: Extracted and organized with variables
+- Auth: requireAuth, requireOnboarding, requireAdmin middleware
 
 REQUIREMENTS:
 
-1. **Create Database Model for Roster Schedule:**
-   - Create new Sequelize model: `src/models/RosterSchedule.js`
+1. **Create RosterSchedule Model:**
+   - Add `src/models/RosterSchedule.js` using existing model patterns
    - Fields: id, publicationDate, latestRequestDate, startPeriod, endPeriod, isActive, createdAt, updatedAt
-   - Add to `src/models/index.js` exports
-   - Include model sync in database initialization
+   - Include in `src/models/index.js` with sync in initializeDatabase()
+   - Add associations if needed
 
-2. **Create App Settings Model:**
-   - Create `src/models/AppSetting.js` for global configuration
+2. **Create AppSetting Model (if not exists):**
+   - Add `src/models/AppSetting.js` for global configuration
    - Fields: id, key, value, type, description, createdAt, updatedAt
    - Default settings:
-     * MAX_ADVANCE_MONTHS: 6
-     * FALLBACK_MIN_ADVANCE_DAYS: 60  
+     * MAX_ADVANCE_MONTHS: 6 (instead of current 4 months)
+     * FALLBACK_MIN_ADVANCE_DAYS: 60
      * FALLBACK_MAX_ADVANCE_DAYS: 180
-   - Add to models index and sync
+   - Include in model index and database sync
 
-3. **Admin Interface for Roster Schedule Management:**
-   - Add new routes to `src/routes/admin.js`:
-     * GET `/admin/roster-schedule` - Admin roster management page
-     * GET `/admin/settings` - Global settings management page
-   - Create EJS template `src/views/pages/admin-roster-schedule.ejs` with:
-     * Table showing all roster periods with edit/delete actions
-     * Form to add new roster periods (modal)
-     * CSV upload functionality for bulk import
-     * Visual timeline of upcoming deadlines
-     * Settings panel for global configuration
-   - Create `src/views/pages/admin-settings.ejs` for app settings
+3. **Extend Admin Routes:**
+   - Update `src/routes/admin.js` to include:
+     * GET `/admin/roster-schedule` - Roster management page
+     * GET `/admin/settings` - App settings page
+   - Use existing requireAdmin middleware pattern
+   - Follow existing HTML template pattern (like current admin user interface)
 
-4. **API Endpoints for Roster Management:**
-   - Add to `src/routes/api.js`:
+4. **Add API Endpoints to src/routes/api.js:**
+   - Group under `/api/admin/` prefix:
      * GET `/api/admin/roster-schedule` - Get all roster periods
-     * POST `/api/admin/roster-schedule` - Add new roster period
-     * PUT `/api/admin/roster-schedule/:id` - Update roster period
-     * DELETE `/api/admin/roster-schedule/:id` - Delete roster period
+     * POST `/api/admin/roster-schedule` - Add new period
+     * PUT `/api/admin/roster-schedule/:id` - Update period
+     * DELETE `/api/admin/roster-schedule/:id` - Delete period  
      * POST `/api/admin/roster-schedule/upload-csv` - Bulk CSV import
      * GET `/api/admin/settings` - Get app settings
-     * PUT `/api/admin/settings` - Update app settings
-     * GET `/api/calendar/request-deadline/:date` - Get deadline for specific date
+     * PUT `/api/admin/settings` - Update settings
+   - Add user-facing endpoint:
+     * GET `/api/calendar/request-deadline/:date` - Get deadline for date
+   - Use existing ApiResponse format and Winston logging
 
-5. **Dynamic Request Deadline Calculation:**
-   - Update `public/js/calendar/calendar-core.js` with new validation logic:
-     * Replace hardcoded advance days with dynamic lookup
-     * Function `getRequestDeadlineForDate(targetDate)` that queries roster schedule
-     * Function `isDateRequestable(targetDate)` using roster data
-     * Fallback to app settings if no roster period found
-   - Update calendar UI to show request deadlines as visual markers
+5. **Create Admin Interface Templates:**
+   - `src/views/pages/admin-roster-schedule.ejs` with:
+     * Bootstrap 5 styling (match existing admin interface)
+     * Table showing roster periods with edit/delete actions
+     * Modal form for add/edit roster periods
+     * CSV upload functionality with file input
+     * Visual timeline showing upcoming deadlines
+     * Settings panel for MAX_ADVANCE_MONTHS configuration
+   - Follow existing admin template patterns from admin.js
 
-6. **CSV Import Functionality:**
-   - Support CSV format:
-     ```csv
-     Publication Date,Latest Request Date,Start Period,End Period
-     2024-10-04,2024-09-19,2024-11-04,2024-12-01
-     ```
-   - Include CSV parsing, validation, and bulk insert
-   - Show preview before confirming import
-   - Handle duplicate date ranges
+6. **Update Calendar Validation Logic:**
+   - Modify `public/js/calendar/calendar-core.js`:
+     * Replace hardcoded CONFIG.MIN_ADVANCE_DAYS/MAX_ADVANCE_DAYS with dynamic lookup
+     * Add function `getRequestDeadlineForDate(targetDate)` that queries roster API
+     * Update `isDateAvailable(date)` to use roster-based validation
+     * Fallback to AppSetting defaults if no roster period found
+   - Update `public/js/calendar/calendar-events.js`:
+     * Enhance date selection validation to show roster deadline info
+     * Update error messages to show specific request deadlines
 
-7. **Calendar Integration Updates:**
-   - Update calendar rendering to show:
-     * Request deadline dates with special styling
+7. **Visual Calendar Enhancements:**
+   - Update `public/js/calendar/calendar-ui.js`:
+     * Add visual markers for request deadline dates
+     * Different styling for dates with known vs fallback deadlines
      * Tooltip showing "Request deadline: [date]" for each period
-     * Gray out dates past their request deadline
-     * Different colors for dates with known vs fallback deadlines
-   - Update date selection validation to use roster schedule
+     * Gray out dates that are past their request deadline
+   - Update CSS to support new roster deadline styling
 
-8. **Admin Interface Features:**
-   - Sortable table of roster periods
-   - Search/filter roster periods by date range
-   - Bulk delete functionality
-   - Export current schedule to CSV
-   - Warning alerts for missing future roster periods
-   - Settings panel with form validation
+8. **CSV Import System:**
+   - Support format: "Publication Date,Latest Request Date,Start Period,End Period"
+   - Include server-side CSV parsing with validation
+   - Preview table before confirming import
+   - Handle duplicate/overlapping date ranges with user prompts
+   - Use existing notification system for feedback
 
-9. **Database Seeding:**
-   - Create `scripts/seedRosterSchedule.js` with TUIfly roster data
-   - Populate with the provided 2024-2025 roster schedule
-   - Include in package.json as `npm run seed:roster`
+9. **Frontend JavaScript for Admin:**
+   - Create `public/js/pages/admin-roster.js`:
+     * Modal management for add/edit forms
+     * CSV file upload with progress feedback
+     * Table sorting and filtering
+     * AJAX calls using existing patterns
+   - Follow existing JavaScript modular structure
 
-10. **Validation & Error Handling:**
+10. **Database Seeding:**
+    - Create `scripts/seedRosterSchedule.js` with provided TUIfly data
+    - Populate with 2024-2025 roster schedule from the provided table
+    - Use existing database connection patterns
+    - Include in package.json as script
+
+11. **Validation & Error Handling:**
     - Prevent overlapping roster periods
     - Ensure logical date sequence (request < publication < start < end)
-    - Validate CSV format and data integrity
-    - User-friendly error messages for date conflicts
-    - Admin warnings for gaps in roster coverage
+    - Use existing Winston logging for errors
+    - Return standardized ApiResponse formats
+    - Show user-friendly error messages using existing notification system
 
-11. **User Experience Enhancements:**
-    - When user selects dates, show applicable request deadline
-    - Clear error messages: "Request deadline for this period was [date]"
-    - Suggest next available dates if current selection invalid
-    - Loading states during roster data fetching
+12. **Integration with Existing Systems:**
+    - Maintain compatibility with current TimeOffRequest validation
+    - Extend existing calendar date selection logic (don't replace)
+    - Use existing user authentication and admin permissions
+    - Follow existing API response patterns and error handling
+    - Integrate with current Bootstrap 5 modal and notification systems
 
-12. **Frontend JavaScript Files:**
-    - Create `public/js/pages/admin-roster.js` for admin interface
-    - Create `public/js/core/roster-api.js` for roster API calls
-    - Update existing calendar files to integrate roster logic
+TECHNICAL REQUIREMENTS:
+- Use existing Sequelize model patterns and database connection
+- Follow existing route organization (middleware, error handling, logging)
+- Maintain Bootstrap 5 styling consistency with current admin interface
+- Use existing modal patterns and notification system
+- Implement proper JSDoc documentation (as done in current codebase)
+- Ensure mobile responsive design (Bootstrap 5 classes)
+- Use existing ApiResponse utility for standardized responses
+- Follow current Winston logging patterns
 
-TECHNICAL SPECIFICATIONS:
-- Use existing authentication/authorization (requireAuth, requireOnboarding)
-- Maintain Bootstrap 5 styling and existing modal patterns
-- Follow current API response format (ApiResponse utility)
-- Include comprehensive error handling and logging
-- Add JSDoc documentation to all functions
-- Ensure mobile responsive design
-- Use existing notification system (toasts/alerts)
+ADMIN PERMISSIONS:
+- Use existing requireAdmin middleware
+- Only admin users can access roster management
+- Include audit logging for roster changes using existing Winston setup
+- Show who made changes and when in roster management interface
 
-INTEGRATION REQUIREMENTS:
-- Extend existing admin panel navigation
-- Hook into current calendar date validation system  
-- Use existing database connection and Sequelize setup
-- Maintain compatibility with current user permission system
-- Preserve existing functionality as fallback
+USER EXPERIENCE IMPROVEMENTS:
+- When user selects dates, immediately show applicable request deadline
+- Clear error messages: "Request deadline for this period was [date]"
+- Suggest next available request window if current selection invalid
+- Loading states during roster data fetching
+- Success/error toasts using existing notification system
 
-ADMIN PERMISSION REQUIREMENTS:
-- Only users with admin role can access roster management
-- Add admin role check middleware to all roster endpoints
-- Include audit logging for roster schedule changes
-
-The system should allow TUIfly to easily manage their roster schedule without code deployments, providing accurate request deadlines based on actual airline operations.
+The system should integrate seamlessly with the current codebase while providing TUIfly with professional roster management capabilities that eliminate the need for annual code changes.
