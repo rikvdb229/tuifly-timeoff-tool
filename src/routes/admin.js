@@ -61,7 +61,7 @@ router.get('/users', async (req, res) => {
                     ? '<p>No pending approvals</p>'
                     : pendingUsers
                         .map(
-                          (user) => `
+                          user => `
                     <div class="border p-3 mb-2">
                       <h6>${user.name || 'No name set'}</h6>
                       <p class="mb-1"><strong>Email:</strong> ${user.email}</p>
@@ -88,7 +88,7 @@ router.get('/users', async (req, res) => {
               <div class="card-body" style="max-height: 500px; overflow-y: auto;">
                 ${allUsers
                   .map(
-                    (user) => `
+                    user => `
                   <div class="border p-2 mb-1">
                     <h6 class="mb-0">${user.name || user.email}</h6>
                     <small class="text-muted">

@@ -20,7 +20,7 @@ class APIClient {
    */
   async createRequest(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
-    
+
     const config = {
       headers: { ...this.defaultHeaders, ...options.headers },
       ...options,
@@ -57,11 +57,18 @@ class APIClient {
     try {
       data = isJSON ? await response.json() : await response.text();
     } catch (error) {
-      throw new APIError('Invalid response format', response.status, 'PARSE_ERROR');
+      throw new APIError(
+        'Invalid response format',
+        response.status,
+        'PARSE_ERROR'
+      );
     }
 
     if (!response.ok) {
-      const message = isJSON && data.error ? data.error : `HTTP ${response.status}: ${response.statusText}`;
+      const message =
+        isJSON && data.error
+          ? data.error
+          : `HTTP ${response.status}: ${response.statusText}`;
       const code = isJSON && data.code ? data.code : 'HTTP_ERROR';
       throw new APIError(message, response.status, code, data);
     }
@@ -168,9 +175,10 @@ class APIClient {
 
     // Generic error
     console.error(`API ${method} ${endpoint} failed:`, error);
-    return new APIError('Request failed', 500, 'UNKNOWN_ERROR', { originalError: error.message });
+    return new APIError('Request failed', 500, 'UNKNOWN_ERROR', {
+      originalError: error.message,
+    });
   }
-
 }
 
 /**
@@ -224,13 +232,15 @@ class APIError extends Error {
       case 'UNAUTHORIZED':
         return 'You need to log in to perform this action.';
       case 'FORBIDDEN':
-        return 'You don\'t have permission to perform this action.';
+        return "You don't have permission to perform this action.";
       case 'NOT_FOUND':
         return 'The requested resource was not found.';
       case 'VALIDATION_ERROR':
         return 'Please check your input and try again.';
       default:
-        return this.message || 'An unexpected error occurred. Please try again.';
+        return (
+          this.message || 'An unexpected error occurred. Please try again.'
+        );
     }
   }
 

@@ -44,7 +44,7 @@ function addDays(dateStr, days) {
 
 // Enhanced consecutive date validation
 function validateConsecutiveDates(dates) {
-  if (dates.length <= 1) return true;
+  if (dates.length <= 1) {return true;}
 
   const sortedDates = [...dates].sort();
   for (let i = 1; i < sortedDates.length; i++) {
@@ -88,7 +88,7 @@ class CalendarManager {
 
   getMonthsToDisplay() {
     const months = [];
-    let current = new Date(this.currentViewStart);
+    const current = new Date(this.currentViewStart);
 
     for (let i = 0; i < this.monthsToShow; i++) {
       months.push(new Date(current));
@@ -143,8 +143,8 @@ class CalendarManager {
     const nextBtn = document.getElementById('nextMonthBtn');
     const currentDisplay = document.getElementById('currentMonthDisplay');
 
-    if (prevBtn) prevBtn.disabled = !this.canNavigatePrevious();
-    if (nextBtn) nextBtn.disabled = !this.canNavigateNext();
+    if (prevBtn) {prevBtn.disabled = !this.canNavigatePrevious();}
+    if (nextBtn) {nextBtn.disabled = !this.canNavigateNext();}
 
     // Update current month display
     const months = this.getMonthsToDisplay();
@@ -189,7 +189,7 @@ class CalendarManager {
 
     const months = this.getMonthsToDisplay();
 
-    months.forEach((monthStart) => {
+    months.forEach(monthStart => {
       const monthContainer = this.createMonthContainer(monthStart);
       calendarGrid.appendChild(monthContainer);
     });
@@ -213,7 +213,7 @@ class CalendarManager {
     // Weekday headers
     const weekdayHeader = document.createElement('div');
     weekdayHeader.className = 'weekday-header';
-    ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach((day) => {
+    ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach(day => {
       const dayElement = document.createElement('div');
       dayElement.className = 'weekday';
       dayElement.textContent = day;
@@ -358,13 +358,12 @@ class CalendarManager {
   getExistingRequest(date) {
     const dateStr = this.formatDate(date);
     return window.existingRequests.find(
-      (request) =>
-        request.startDate === dateStr || request.endDate === dateStr
+      request => request.startDate === dateStr || request.endDate === dateStr
     );
   }
 
   handleDateClick(date) {
-    if (!this.isDateAvailable(date)) return;
+    if (!this.isDateAvailable(date)) {return;}
 
     const dateStr = this.formatDate(date);
     const existingRequest = this.getExistingRequest(date);
@@ -376,7 +375,7 @@ class CalendarManager {
     }
 
     // Regular date selection logic...
-    const index = window.selectedDates.findIndex((d) => d.date === dateStr);
+    const index = window.selectedDates.findIndex(d => d.date === dateStr);
 
     if (index > -1) {
       // Deselecting - check if remaining dates stay consecutive
@@ -385,7 +384,7 @@ class CalendarManager {
 
       if (
         tempSelection.length > 1 &&
-        !validateConsecutiveDates(tempSelection.map((d) => d.date))
+        !validateConsecutiveDates(tempSelection.map(d => d.date))
       ) {
         window.showToast(
           'Removing this date would break consecutive selection. Starting fresh.',
@@ -426,9 +425,9 @@ class CalendarManager {
 
   // DST-safe consecutive check
   isConsecutiveToSelection(newDateStr) {
-    if (window.selectedDates.length === 0) return true;
+    if (window.selectedDates.length === 0) {return true;}
 
-    const selectedDateStrings = window.selectedDates.map((d) => d.date).sort();
+    const selectedDateStrings = window.selectedDates.map(d => d.date).sort();
     const allDates = [...selectedDateStrings, newDateStr].sort();
 
     for (let i = 1; i < allDates.length; i++) {
@@ -445,11 +444,11 @@ class CalendarManager {
 
   updateDateSelection() {
     const allSelected = document.querySelectorAll('.day-cell.selected');
-    allSelected.forEach((cell) => cell.classList.remove('selected'));
+    allSelected.forEach(cell => cell.classList.remove('selected'));
 
     window.selectedDates.forEach(({ date }) => {
       const cells = document.querySelectorAll(`[data-date="${date}"]`);
-      cells.forEach((cell) => {
+      cells.forEach(cell => {
         if (cell.style.visibility !== 'hidden') {
           cell.classList.add('selected');
         }
@@ -473,7 +472,6 @@ class CalendarManager {
       }
     }
   }
-
 
   getStatusColor(status) {
     switch (status) {

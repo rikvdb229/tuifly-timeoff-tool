@@ -79,7 +79,7 @@ class GmailService {
 
     // Generate request lines
     const requestLines = requests
-      .map((request) => {
+      .map(request => {
         const date = new Date(request.startDate);
         const formattedDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
 
@@ -228,7 +228,7 @@ class GmailService {
 
         // Skip if message is from the user (not a reply)
         const fromHeader = messageDetails.data.payload.headers.find(
-          (h) => h.name.toLowerCase() === 'from'
+          h => h.name.toLowerCase() === 'from'
         );
         if (fromHeader && fromHeader.value.includes(user.email)) {
           continue;
@@ -280,23 +280,23 @@ class GmailService {
       process.env.APPROVAL_KEYWORDS || 'approved,approve,yes,ok,confirmed'
     )
       .split(',')
-      .map((k) => k.trim().toLowerCase());
+      .map(k => k.trim().toLowerCase());
     const denialKeywords = (
       process.env.DENIAL_KEYWORDS || 'denied,deny,no,rejected,decline'
     )
       .split(',')
-      .map((k) => k.trim().toLowerCase());
+      .map(k => k.trim().toLowerCase());
 
     const bodyLower = replyBody.toLowerCase();
 
     // Check for approval keywords
     const hasApprovalKeyword = approvalKeywords.some(
-      (keyword) => keyword && bodyLower.includes(keyword)
+      keyword => keyword && bodyLower.includes(keyword)
     );
 
     // Check for denial keywords
     const hasDenialKeyword = denialKeywords.some(
-      (keyword) => keyword && bodyLower.includes(keyword)
+      keyword => keyword && bodyLower.includes(keyword)
     );
 
     // Determine status

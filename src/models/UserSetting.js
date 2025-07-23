@@ -79,7 +79,7 @@ function defineUserSetting(sequelize) {
     const settings = await this.findAll({ where: { userId } });
     const settingsObject = {};
 
-    settings.forEach((setting) => {
+    settings.forEach(setting => {
       settingsObject[setting.settingKey] = setting.getParsedValue();
     });
 

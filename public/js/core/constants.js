@@ -214,25 +214,25 @@ const ERROR_CODES = {
   NETWORK_ERROR: 'NETWORK_ERROR',
   TIMEOUT: 'TIMEOUT',
   PARSE_ERROR: 'PARSE_ERROR',
-  
+
   // Authentication errors
   UNAUTHORIZED: 'UNAUTHORIZED',
   FORBIDDEN: 'FORBIDDEN',
   TOKEN_EXPIRED: 'TOKEN_EXPIRED',
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
-  
+
   // Validation errors
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   REQUIRED_FIELD: 'REQUIRED_FIELD',
   INVALID_FORMAT: 'INVALID_FORMAT',
   DUPLICATE_ENTRY: 'DUPLICATE_ENTRY',
-  
+
   // Business logic errors
   REQUEST_CONFLICT: 'REQUEST_CONFLICT',
   INSUFFICIENT_DAYS: 'INSUFFICIENT_DAYS',
   BLACKOUT_PERIOD: 'BLACKOUT_PERIOD',
   MAX_REQUESTS_EXCEEDED: 'MAX_REQUESTS_EXCEEDED',
-  
+
   // System errors
   SERVER_ERROR: 'SERVER_ERROR',
   DATABASE_ERROR: 'DATABASE_ERROR',
@@ -256,7 +256,6 @@ const FEATURES = {
 // ===================================================================
 // UTILITY FUNCTIONS
 // ===================================================================
-
 
 // Make constants available globally for backwards compatibility
 if (typeof window !== 'undefined') {

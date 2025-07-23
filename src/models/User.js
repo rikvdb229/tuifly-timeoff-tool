@@ -1,6 +1,10 @@
 // src/models/User.js
 const { DataTypes } = require('sequelize');
-const { encryptToken, decryptToken, isTokenEncrypted } = require('../utils/crypto');
+const {
+  encryptToken,
+  decryptToken,
+  isTokenEncrypted,
+} = require('../utils/crypto');
 
 /**
  * Defines the User model for the database
@@ -256,9 +260,9 @@ function defineUser(sequelize) {
 
   // Methods to get decrypted tokens
   User.prototype.getDecryptedGmailAccessToken = function () {
-    if (!this.gmailAccessToken) return null;
+    if (!this.gmailAccessToken) {return null;}
     try {
-      return isTokenEncrypted(this.gmailAccessToken) 
+      return isTokenEncrypted(this.gmailAccessToken)
         ? decryptToken(this.gmailAccessToken)
         : this.gmailAccessToken; // Handle legacy unencrypted tokens
     } catch (error) {
@@ -268,7 +272,7 @@ function defineUser(sequelize) {
   };
 
   User.prototype.getDecryptedGmailRefreshToken = function () {
-    if (!this.gmailRefreshToken) return null;
+    if (!this.gmailRefreshToken) {return null;}
     try {
       return isTokenEncrypted(this.gmailRefreshToken)
         ? decryptToken(this.gmailRefreshToken)
@@ -362,7 +366,7 @@ function defineUser(sequelize) {
   User.isEmailAdmin = function (email) {
     const adminEmails = (process.env.ADMIN_EMAILS || '')
       .split(',')
-      .map((e) => e.trim().toLowerCase());
+      .map(e => e.trim().toLowerCase());
     return adminEmails.includes(email.toLowerCase());
   };
 

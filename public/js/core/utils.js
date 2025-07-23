@@ -45,8 +45,8 @@ async function loadSettings() {
   const settingsLoading = document.getElementById('settingsLoading');
   const settingsContent = document.getElementById('settingsContent');
 
-  if (settingsLoading) settingsLoading.style.display = 'block';
-  if (settingsContent) settingsContent.style.display = 'none';
+  if (settingsLoading) {settingsLoading.style.display = 'block';}
+  if (settingsContent) {settingsContent.style.display = 'none';}
 
   try {
     const response = await fetch('/settings/api');
@@ -68,9 +68,9 @@ async function loadSettings() {
       const userCode = document.getElementById('userCode');
       const userSignature = document.getElementById('userSignature');
 
-      if (userName) userName.value = data.data.user.name || '';
-      if (userCode) userCode.value = data.data.user.code || '';
-      if (userSignature) userSignature.value = data.data.user.signature || '';
+      if (userName) {userName.value = data.data.user.name || '';}
+      if (userCode) {userCode.value = data.data.user.code || '';}
+      if (userSignature) {userSignature.value = data.data.user.signature || '';}
 
       // Note: Application settings (theme, language, notifications, autoSave) removed
 
@@ -80,17 +80,26 @@ async function loadSettings() {
       const maxDaysPerRequest = document.getElementById('maxDaysPerRequest');
       const approverEmail = document.getElementById('approverEmail');
 
-      if (minAdvanceDays) minAdvanceDays.textContent = data.data.globalSettings?.MIN_ADVANCE_DAYS || 60;
-      if (maxAdvanceDays) maxAdvanceDays.textContent = data.data.globalSettings?.MAX_ADVANCE_DAYS || 120;
-      if (maxDaysPerRequest) maxDaysPerRequest.textContent = data.data.globalSettings?.MAX_DAYS_PER_REQUEST || 4;
-      if (approverEmail) approverEmail.textContent = data.data.globalSettings?.TUIFLY_APPROVER_EMAIL || 'scheduling@tuifly.be';
+      if (minAdvanceDays)
+        {minAdvanceDays.textContent =
+          data.data.globalSettings?.MIN_ADVANCE_DAYS || 60;}
+      if (maxAdvanceDays)
+        {maxAdvanceDays.textContent =
+          data.data.globalSettings?.MAX_ADVANCE_DAYS || 120;}
+      if (maxDaysPerRequest)
+        {maxDaysPerRequest.textContent =
+          data.data.globalSettings?.MAX_DAYS_PER_REQUEST || 4;}
+      if (approverEmail)
+        {approverEmail.textContent =
+          data.data.globalSettings?.TUIFLY_APPROVER_EMAIL ||
+          'scheduling@tuifly.be';}
     }
   } catch (error) {
     console.error('Error loading settings:', error);
     showToast('Failed to load settings', 'error');
   } finally {
-    if (settingsLoading) settingsLoading.style.display = 'none';
-    if (settingsContent) settingsContent.style.display = 'block';
+    if (settingsLoading) {settingsLoading.style.display = 'none';}
+    if (settingsContent) {settingsContent.style.display = 'block';}
   }
 }
 
@@ -163,10 +172,9 @@ function updateEmailPreferenceUI() {
   // Update header badge
   const headerEmailModeBadge = document.getElementById('headerEmailModeBadge');
   if (headerEmailModeBadge) {
-    headerEmailModeBadge.textContent = 
+    headerEmailModeBadge.textContent =
       currentEmailPreference === 'automatic' ? '🤖 Automatic' : '📧 Manual';
-    headerEmailModeBadge.className = 
-      `badge ms-1 ${currentEmailPreference === 'automatic' ? 'bg-primary' : 'bg-success'}`;
+    headerEmailModeBadge.className = `badge ms-1 ${currentEmailPreference === 'automatic' ? 'bg-primary' : 'bg-success'}`;
   }
 }
 
@@ -178,17 +186,20 @@ function updateEmailPreferenceUI() {
  */
 function selectEmailPreference(preference) {
   console.log(`Selecting email preference: ${preference}`);
-  
+
   // If selecting automatic but Gmail not connected, show auth section
   if (preference === 'automatic' && !gmailConnected) {
     const gmailAuthSection = document.getElementById('gmailAuthSection');
     if (gmailAuthSection) {
       gmailAuthSection.style.display = 'block';
     }
-    
+
     // Highlight the automatic card but don't update preference yet
     updateEmailMethodCardHighlights('automatic');
-    showToast('Gmail authorization required for automatic email mode', 'warning');
+    showToast(
+      'Gmail authorization required for automatic email mode',
+      'warning'
+    );
     return;
   }
 
@@ -221,7 +232,7 @@ async function updateEmailPreference(preference) {
       currentEmailPreference = preference;
       updateEmailPreferenceUI();
       showToast(result.message, 'success');
-      
+
       // Hide Gmail auth section if switching to manual
       if (preference === 'manual') {
         const gmailAuthSection = document.getElementById('gmailAuthSection');
@@ -235,11 +246,10 @@ async function updateEmailPreference(preference) {
         console.log('Refreshing calendar after email preference change...');
         await loadExistingRequests();
       }
-      
     } else {
       // Reset card selection to previous state
       updateEmailMethodCardHighlights(currentEmailPreference);
-      
+
       if (result.requiresGmailAuth) {
         const gmailAuthSection = document.getElementById('gmailAuthSection');
         if (gmailAuthSection) {
@@ -253,7 +263,7 @@ async function updateEmailPreference(preference) {
   } catch (error) {
     console.error('Email preference update error:', error);
     showToast('Failed to update email preference', 'error');
-    
+
     // Reset card selection to previous state
     updateEmailMethodCardHighlights(currentEmailPreference);
   }
@@ -267,7 +277,7 @@ async function updateEmailPreference(preference) {
  */
 function updateEmailMethodCardHighlights(preference) {
   // Clear all selections
-  document.querySelectorAll('.email-method-card').forEach((card) => {
+  document.querySelectorAll('.email-method-card').forEach(card => {
     card.classList.remove(
       'border-primary',
       'border-success',
@@ -303,15 +313,17 @@ function loadEmailPreferences(data) {
 }
 
 // Check authorization status manually
-window.checkGmailAuth = async function() {
+window.checkGmailAuth = async function () {
   console.log('Checking Gmail authorization status...');
   await loadGmailStatus();
-  
+
   const status = gmailConnected ? 'Connected' : 'Not Connected';
   const message = `Gmail Status: ${status}\nEmail Mode: ${currentEmailPreference}`;
-  
+
   if (!gmailConnected && currentEmailPreference === 'automatic') {
-    const shouldAuthorize = confirm(message + '\n\nWould you like to authorize Gmail now?');
+    const shouldAuthorize = confirm(
+      message + '\n\nWould you like to authorize Gmail now?'
+    );
     if (shouldAuthorize) {
       await connectGmail();
     }
@@ -321,7 +333,7 @@ window.checkGmailAuth = async function() {
 };
 
 // Force show Gmail authorization section
-window.showGmailAuth = function() {
+window.showGmailAuth = function () {
   const gmailAuthSection = document.getElementById('gmailAuthSection');
   if (gmailAuthSection) {
     gmailAuthSection.style.display = 'block';
@@ -329,7 +341,7 @@ window.showGmailAuth = function() {
 };
 
 // Gmail authorization function (alias for connectGmail)
-window.authorizeGmail = async function() {
+window.authorizeGmail = async function () {
   await connectGmail();
 };
 
@@ -344,7 +356,8 @@ async function connectGmail() {
     const authorizeBtn = document.getElementById('authorizeGmailBtn');
     if (authorizeBtn) {
       authorizeBtn.disabled = true;
-      authorizeBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Connecting...';
+      authorizeBtn.innerHTML =
+        '<i class="bi bi-hourglass-split me-2"></i>Connecting...';
     }
 
     // Set redirect target to come back to settings modal
@@ -356,15 +369,15 @@ async function connectGmail() {
 
     // Redirect to Gmail OAuth
     window.location.href = '/auth/google/gmail';
-    
   } catch (error) {
     console.error('Gmail connection error:', error);
     showToast('Failed to connect Gmail. Please try again.', 'error');
-    
+
     const authorizeBtn = document.getElementById('authorizeGmailBtn');
     if (authorizeBtn) {
       authorizeBtn.disabled = false;
-      authorizeBtn.innerHTML = '<i class="bi bi-google me-2"></i>Authorize Gmail Access';
+      authorizeBtn.innerHTML =
+        '<i class="bi bi-google me-2"></i>Authorize Gmail Access';
     }
   }
 }
@@ -376,7 +389,11 @@ async function connectGmail() {
  * @throws {Error} When Gmail disconnection fails
  */
 async function disconnectGmail() {
-  if (!confirm('Are you sure you want to disconnect Gmail? This will switch your email preference to manual mode.')) {
+  if (
+    !confirm(
+      'Are you sure you want to disconnect Gmail? This will switch your email preference to manual mode.'
+    )
+  ) {
     return;
   }
 
@@ -406,19 +423,22 @@ async function disconnectGmail() {
 }
 
 // Handle Gmail success from URL (when redirected back)
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   const urlParams = new URLSearchParams(window.location.search);
-  
+
   if (urlParams.get('gmail_success') === '1') {
-    showToast('Gmail connected successfully! Email preference set to automatic.', 'success');
-    
+    showToast(
+      'Gmail connected successfully! Email preference set to automatic.',
+      'success'
+    );
+
     // Open settings modal if requested
     if (urlParams.get('open_settings') === '1') {
       setTimeout(() => {
         openSettingsModal();
       }, 1000);
     }
-    
+
     // Clean up URL
     const url = new URL(window.location);
     url.searchParams.delete('gmail_success');
@@ -482,8 +502,7 @@ function showToast(message, type = 'info') {
   let toastContainer = document.querySelector('.toast-container');
   if (!toastContainer) {
     toastContainer = document.createElement('div');
-    toastContainer.className =
-      'toast-container position-fixed top-0 end-0 p-3';
+    toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
     toastContainer.style.zIndex = '9999';
     document.body.appendChild(toastContainer);
   }
@@ -540,7 +559,7 @@ function showToast(message, type = 'info') {
 async function deleteAccount() {
   const confirmed = confirm(
     'Are you absolutely sure you want to delete your account?\n\n' +
-    'This action cannot be undone.\n\nAll your time-off requests will be lost forever.'
+      'This action cannot be undone.\n\nAll your time-off requests will be lost forever.'
   );
 
   if (confirmed) {
@@ -623,7 +642,10 @@ function resetSettings() {
     // Reset form values to defaults
     // Application settings removed - reset function simplified
 
-    showToast('Settings reset to defaults. Click "Save Settings" to apply.', 'info');
+    showToast(
+      'Settings reset to defaults. Click "Save Settings" to apply.',
+      'info'
+    );
   }
 }
 
@@ -660,9 +682,9 @@ window.confirmDeleteAccount = confirmDeleteAccount;
 // ===================================================================
 
 // Fix Bootstrap modal accessibility issue with aria-hidden and focused elements
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   // Add global modal accessibility fix
-  document.addEventListener('hide.bs.modal', function(event) {
+  document.addEventListener('hide.bs.modal', function (event) {
     const modal = event.target;
     const focusedElement = modal.querySelector(':focus');
     if (focusedElement) {
@@ -679,6 +701,6 @@ if (typeof module !== 'undefined' && module.exports) {
     loadSettings,
     showToast,
     formatDate,
-    formatDateTime
+    formatDateTime,
   };
 }

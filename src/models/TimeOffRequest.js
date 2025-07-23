@@ -192,7 +192,7 @@ function defineTimeOffRequest(sequelize) {
         },
       },
       hooks: {
-        beforeCreate: (request) => {
+        beforeCreate: request => {
           // Generate groupId for single day requests if not provided
           if (!request.groupId) {
             request.groupId = uuidv4();
@@ -318,13 +318,13 @@ function defineTimeOffRequest(sequelize) {
 
   TimeOffRequest.prototype.getEmailStatus = function () {
     if (this.emailMode === 'automatic') {
-      if (this.emailSent) return 'sent';
-      if (this.emailFailed) return 'failed'; // Use the new emailFailed field
+      if (this.emailSent) {return 'sent';}
+      if (this.emailFailed) {return 'failed';} // Use the new emailFailed field
       return 'not_sent';
     } else {
       // manual mode
-      if (this.manualEmailConfirmed) return 'confirmed';
-      if (this.manualEmailContent) return 'ready';
+      if (this.manualEmailConfirmed) {return 'confirmed';}
+      if (this.manualEmailContent) {return 'ready';}
       return 'not_sent';
     }
   };
@@ -447,9 +447,9 @@ function defineTimeOffRequest(sequelize) {
     const subject = `${user.code || 'RVB'} - CREW REQUEST - ${month}`;
 
     // Generate body with all dates
-    let bodyLines = ['Dear,', ''];
+    const bodyLines = ['Dear,', ''];
 
-    requestsToProcess.forEach((request) => {
+    requestsToProcess.forEach(request => {
       let line = `${request.startDate} - `;
 
       // Convert type to display format
@@ -568,7 +568,7 @@ function defineTimeOffRequest(sequelize) {
       awaitingReply: 0,
     };
 
-    counts.forEach((count) => {
+    counts.forEach(count => {
       result[count.status.toLowerCase()] = parseInt(count.count);
       result.total += parseInt(count.count);
     });

@@ -9,18 +9,17 @@
  * @returns {void}
  */
 function selectEmailPreference(preference) {
-  
   // Update visual selection
   const cards = document.querySelectorAll('.email-method-card');
   cards.forEach(card => {
     card.classList.remove('border-primary', 'bg-light');
   });
-  
+
   const selectedCard = document.getElementById(preference + 'Card');
   if (selectedCard) {
     selectedCard.classList.add('border-primary', 'bg-light');
   }
-  
+
   // Show/hide Gmail authorization section
   const gmailAuthSection = document.getElementById('gmailAuthSection');
   if (gmailAuthSection) {
@@ -30,7 +29,7 @@ function selectEmailPreference(preference) {
       gmailAuthSection.style.display = 'none';
     }
   }
-  
+
   // Store preference (this will be handled by main settings logic)
   if (window.updateEmailPreference) {
     window.updateEmailPreference(preference);
@@ -64,55 +63,57 @@ function selectEmailPreference(preference) {
 // Removed - use global function directly
 
 // Event listeners for settings modal
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   // Add event listeners for email preference cards
   const manualCard = document.getElementById('manualCard');
   const automaticCard = document.getElementById('automaticCard');
-  
+
   if (manualCard) {
     manualCard.addEventListener('click', () => selectEmailPreference('manual'));
   }
-  
+
   if (automaticCard) {
-    automaticCard.addEventListener('click', () => selectEmailPreference('automatic'));
+    automaticCard.addEventListener('click', () =>
+      selectEmailPreference('automatic')
+    );
   }
-  
+
   // Add event listener for Gmail authorization button
   const gmailBtn = document.getElementById('authorizeGmailBtn');
   if (gmailBtn) {
     gmailBtn.addEventListener('click', authorizeGmail);
   }
-  
+
   // Form submissions
   const profileForm = document.getElementById('profileForm');
   if (profileForm) {
-    profileForm.addEventListener('submit', function(e) {
+    profileForm.addEventListener('submit', function (e) {
       e.preventDefault();
       if (window.handleProfileUpdate) {
         window.handleProfileUpdate(new FormData(this));
       }
     });
   }
-  
+
   // Event delegation for data-action buttons
-  document.addEventListener('click', function(e) {
+  document.addEventListener('click', function (e) {
     const button = e.target.closest('[data-action]');
-    if (!button) return;
-    
+    if (!button) {return;}
+
     const action = button.getAttribute('data-action');
-    
-    switch(action) {
+
+    switch (action) {
       case 'checkGmailAuth':
-        if (window.checkGmailAuth) window.checkGmailAuth();
+        if (window.checkGmailAuth) {window.checkGmailAuth();}
         break;
       case 'showGmailAuth':
-        if (window.showGmailAuth) window.showGmailAuth();
+        if (window.showGmailAuth) {window.showGmailAuth();}
         break;
       case 'confirmDeleteAccount':
-        if (window.confirmDeleteAccount) window.confirmDeleteAccount();
+        if (window.confirmDeleteAccount) {window.confirmDeleteAccount();}
         break;
       case 'authorizeGmail':
-        if (window.authorizeGmail) window.authorizeGmail();
+        if (window.authorizeGmail) {window.authorizeGmail();}
         break;
     }
   });

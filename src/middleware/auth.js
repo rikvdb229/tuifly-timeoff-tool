@@ -120,7 +120,7 @@ const authRateLimit = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => {
+  skip: req => {
     return process.env.NODE_ENV === 'development';
   },
 });

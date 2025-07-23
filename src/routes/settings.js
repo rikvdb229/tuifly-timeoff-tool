@@ -3,6 +3,7 @@ const express = require('express');
 const { requireAuth, requireOnboarding } = require('../middleware/auth');
 const { User, UserSetting } = require('../models');
 const { Op } = require('sequelize');
+const { sanitizeRequestBody } = require('../utils/sanitize');
 
 const router = express.Router();
 
@@ -98,12 +99,11 @@ router.get('/api', async (req, res) => {
         // Email preference data
         emailPreference: req.user.emailPreference || 'manual',
         gmailConnected:
-          req.user.gmailScopeGranted && 
-          !!req.user.gmailAccessToken && 
-          (
-            (req.user.gmailTokenExpiry && new Date() < new Date(req.user.gmailTokenExpiry)) ||
-            !!req.user.gmailRefreshToken
-          ),
+          req.user.gmailScopeGranted &&
+          !!req.user.gmailAccessToken &&
+          ((req.user.gmailTokenExpiry &&
+            new Date() < new Date(req.user.gmailTokenExpiry)) ||
+            !!req.user.gmailRefreshToken),
         globalSettings: {
           MIN_ADVANCE_DAYS: process.env.MIN_ADVANCE_DAYS || 60,
           MAX_ADVANCE_DAYS: process.env.MAX_ADVANCE_DAYS || 120,
@@ -145,94 +145,102 @@ router.get('/email-preference', async (req, res) => {
 });
 
 // PUT update user's email preference
-router.put('/email-preference', async (req, res) => {
-  try {
-    const validation = validateEmailPreference(req.body);
+router.put(
+  '/email-preference',
+  sanitizeRequestBody(['preference']),
+  async (req, res) => {
+    try {
+      const validation = validateEmailPreference(req.body);
 
-    if (!validation.isValid) {
-      return res.status(400).json({
+      if (!validation.isValid) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: validation.errors,
+        });
+      }
+
+      const { preference } = req.body;
+      await req.user.setEmailPreference(preference);
+
+      // If switching to automatic mode, user needs to grant Gmail permissions
+      let requiresGmailAuth = false;
+      if (preference === 'automatic' && !req.user.gmailScopeGranted) {
+        requiresGmailAuth = true;
+      }
+
+      res.json({
+        success: true,
+        message: `Email preference updated to ${preference}`,
+        data: {
+          emailPreference: preference,
+          requiresGmailAuth,
+          gmailScopeGranted: req.user.gmailScopeGranted,
+        },
+      });
+    } catch (error) {
+      console.error('Error updating email preference:', error);
+      res.status(500).json({
         success: false,
-        error: 'Validation failed',
-        details: validation.errors,
+        error: 'Failed to update email preference',
+        message: error.message,
       });
     }
-
-    const { preference } = req.body;
-    await req.user.setEmailPreference(preference);
-
-    // If switching to automatic mode, user needs to grant Gmail permissions
-    let requiresGmailAuth = false;
-    if (preference === 'automatic' && !req.user.gmailScopeGranted) {
-      requiresGmailAuth = true;
-    }
-
-    res.json({
-      success: true,
-      message: `Email preference updated to ${preference}`,
-      data: {
-        emailPreference: preference,
-        requiresGmailAuth,
-        gmailScopeGranted: req.user.gmailScopeGranted,
-      },
-    });
-  } catch (error) {
-    console.error('Error updating email preference:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update email preference',
-      message: error.message,
-    });
   }
-});
-router.put('/profile', async (req, res) => {
-  try {
-    const validation = validateProfile(req.body);
+);
+router.put(
+  '/profile',
+  sanitizeRequestBody(['name', 'code', 'signature']),
+  async (req, res) => {
+    try {
+      const validation = validateProfile(req.body);
 
-    if (!validation.isValid) {
-      return res.status(400).json({
-        success: false,
-        error: 'Validation failed',
-        errors: validation.errors,
+      if (!validation.isValid) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          errors: validation.errors,
+        });
+      }
+
+      const { name, code, signature } = req.body;
+
+      // Check if code is already taken by another user
+      const existingUser = await User.findOne({
+        where: {
+          code: code.toUpperCase(),
+          id: { [Op.ne]: req.user.id },
+        },
       });
-    }
 
-    const { name, code, signature } = req.body;
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          error: 'Code already taken by another user',
+        });
+      }
 
-    // Check if code is already taken by another user
-    const existingUser = await User.findOne({
-      where: {
+      await req.user.update({
+        name: name.trim(),
         code: code.toUpperCase(),
-        id: { [Op.ne]: req.user.id },
-      },
-    });
+        signature: signature.trim(),
+      });
 
-    if (existingUser) {
-      return res.status(400).json({
+      res.json({
+        success: true,
+        message: 'Profile updated successfully',
+        data: req.user.toSafeObject(),
+      });
+    } catch (error) {
+      console.error('Profile update error:', error);
+      res.status(500).json({
         success: false,
-        error: 'Code already taken by another user',
+        error: 'Failed to update profile',
+        message: error.message,
       });
     }
-
-    await req.user.update({
-      name: name.trim(),
-      code: code.toUpperCase(),
-      signature: signature.trim(),
-    });
-
-    res.json({
-      success: true,
-      message: 'Profile updated successfully',
-      data: req.user.toSafeObject(),
-    });
-  } catch (error) {
-    console.error('Profile update error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update profile',
-      message: error.message,
-    });
   }
-});
+);
 
 // Note: Application preferences endpoint removed
 // Only email preferences are handled via /settings/email-preference
@@ -301,12 +309,15 @@ router.post('/disconnect-gmail', async (req, res) => {
 router.get('/gmail-status', async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id);
-    
+
     // Check if Gmail is properly connected and token is valid
     let gmailConnected = false;
     if (user.gmailScopeGranted && user.gmailAccessToken) {
       // Check if token is not expired
-      if (user.gmailTokenExpiry && new Date() < new Date(user.gmailTokenExpiry)) {
+      if (
+        user.gmailTokenExpiry &&
+        new Date() < new Date(user.gmailTokenExpiry)
+      ) {
         gmailConnected = true;
       } else if (user.gmailRefreshToken) {
         // Token expired but we have refresh token
@@ -330,50 +341,54 @@ router.get('/gmail-status', async (req, res) => {
   }
 });
 
-router.post('/email-preference', async (req, res) => {
-  try {
-    const { emailPreference } = req.body;
+router.post(
+  '/email-preference',
+  sanitizeRequestBody(['emailPreference']),
+  async (req, res) => {
+    try {
+      const { emailPreference } = req.body;
 
-    if (!['automatic', 'manual'].includes(emailPreference)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid email preference',
-      });
-    }
-
-    const user = await User.findByPk(req.user.id);
-
-    // If switching to automatic, check Gmail authorization
-    if (emailPreference === 'automatic') {
-      if (!user.gmailScopeGranted || !user.gmailAccessToken) {
+      if (!['automatic', 'manual'].includes(emailPreference)) {
         return res.status(400).json({
           success: false,
-          error: 'Gmail authorization required',
-          message: 'Connect Gmail first to use automatic email sending',
-          requiresGmailAuth: true,
+          error: 'Invalid email preference',
         });
       }
+
+      const user = await User.findByPk(req.user.id);
+
+      // If switching to automatic, check Gmail authorization
+      if (emailPreference === 'automatic') {
+        if (!user.gmailScopeGranted || !user.gmailAccessToken) {
+          return res.status(400).json({
+            success: false,
+            error: 'Gmail authorization required',
+            message: 'Connect Gmail first to use automatic email sending',
+            requiresGmailAuth: true,
+          });
+        }
+      }
+
+      // Update email preference
+      await user.update({ emailPreference });
+
+      console.log(
+        `✅ Email preference changed: ${user.email} → ${emailPreference}`
+      );
+
+      res.json({
+        success: true,
+        message: `Email preference changed to ${emailPreference}`,
+        emailPreference,
+      });
+    } catch (error) {
+      console.error('Email preference change error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to change email preference',
+      });
     }
-
-    // Update email preference
-    await user.update({ emailPreference });
-
-    console.log(
-      `✅ Email preference changed: ${user.email} → ${emailPreference}`
-    );
-
-    res.json({
-      success: true,
-      message: `Email preference changed to ${emailPreference}`,
-      emailPreference,
-    });
-  } catch (error) {
-    console.error('Email preference change error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to change email preference',
-    });
   }
-});
+);
 
 module.exports = router;

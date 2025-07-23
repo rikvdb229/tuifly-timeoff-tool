@@ -40,11 +40,16 @@ class NotificationManager {
    * @param {string} position - Position ('top-start', 'top-center', 'top-end', 'bottom-start', 'bottom-center', 'bottom-end')
    */
   setToastPosition(position) {
-    if (!this.toastContainer) return;
+    if (!this.toastContainer) {return;}
 
     // Remove all position classes
     this.toastContainer.classList.remove(
-      'top-0', 'bottom-0', 'start-0', 'end-0', 'start-50', 'translate-middle-x'
+      'top-0',
+      'bottom-0',
+      'start-0',
+      'end-0',
+      'start-50',
+      'translate-middle-x'
     );
 
     const positions = {
@@ -64,7 +69,7 @@ class NotificationManager {
    * Add custom styles for notifications
    */
   addStyles() {
-    if (document.getElementById('notification-styles')) return;
+    if (document.getElementById('notification-styles')) {return;}
 
     const styles = document.createElement('style');
     styles.id = 'notification-styles';
@@ -125,8 +130,13 @@ class NotificationManager {
   showToast(message, type = 'info', options = {}) {
     const config = { ...this.defaultToastOptions, ...options };
     const toastId = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    const toastElement = this.createToastElement(toastId, message, type, config);
+
+    const toastElement = this.createToastElement(
+      toastId,
+      message,
+      type,
+      config
+    );
     this.toastContainer.appendChild(toastElement);
 
     // Initialize Bootstrap toast
@@ -177,12 +187,12 @@ class NotificationManager {
       <div class="toast-body">
       </div>
     `;
-    
+
     // Set text content safely
     const titleElement = toast.querySelector('.me-auto');
     const bodyElement = toast.querySelector('.toast-body');
-    if (titleElement) titleElement.textContent = title;
-    if (bodyElement) bodyElement.textContent = message;
+    if (titleElement) {titleElement.textContent = title;}
+    if (bodyElement) {bodyElement.textContent = message;}
 
     return toast;
   }
@@ -195,8 +205,16 @@ class NotificationManager {
   getTypeConfig(type) {
     const configs = {
       success: { title: 'Success', icon: 'check-circle', bgClass: 'success' },
-      error: { title: 'Error', icon: 'exclamation-triangle', bgClass: 'danger' },
-      warning: { title: 'Warning', icon: 'exclamation-triangle', bgClass: 'warning' },
+      error: {
+        title: 'Error',
+        icon: 'exclamation-triangle',
+        bgClass: 'danger',
+      },
+      warning: {
+        title: 'Warning',
+        icon: 'exclamation-triangle',
+        bgClass: 'warning',
+      },
       info: { title: 'Information', icon: 'info-circle', bgClass: 'info' },
       primary: { title: 'Notice', icon: 'bell', bgClass: 'primary' },
     };
@@ -212,10 +230,16 @@ class NotificationManager {
    * @returns {Promise<boolean>} User's choice
    */
   async showConfirm(message, title = 'Confirm Action', type = 'warning') {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const modalId = `confirm-modal-${Date.now()}`;
-      const modal = this.createConfirmModal(modalId, message, title, type, resolve);
-      
+      const modal = this.createConfirmModal(
+        modalId,
+        message,
+        title,
+        type,
+        resolve
+      );
+
       document.body.appendChild(modal);
       const bsModal = new bootstrap.Modal(modal);
       bsModal.show();
@@ -224,7 +248,7 @@ class NotificationManager {
       modal.addEventListener('hidden.bs.modal', () => {
         modal.remove();
       });
-      
+
       // Fix accessibility: Remove focus from modal elements before hiding
       modal.addEventListener('hide.bs.modal', () => {
         const focusedElement = modal.querySelector(':focus');
@@ -277,12 +301,12 @@ class NotificationManager {
         </div>
       </div>
     `;
-    
+
     // Set text content safely
     const titleTextElement = modal.querySelector('.title-text');
     const messageTextElement = modal.querySelector('.message-text');
-    if (titleTextElement) titleTextElement.textContent = title;
-    if (messageTextElement) messageTextElement.textContent = message;
+    if (titleTextElement) {titleTextElement.textContent = title;}
+    if (messageTextElement) {messageTextElement.textContent = message;}
 
     // Add event listeners
     const cancelBtn = modal.querySelector('[data-bs-dismiss="modal"]');
@@ -313,29 +337,29 @@ class NotificationManager {
    */
   getModalTypeConfig(type) {
     const configs = {
-      danger: { 
-        icon: 'exclamation-triangle', 
-        textClass: 'danger', 
-        btnClass: 'danger', 
-        confirmText: 'Delete'
+      danger: {
+        icon: 'exclamation-triangle',
+        textClass: 'danger',
+        btnClass: 'danger',
+        confirmText: 'Delete',
       },
-      warning: { 
-        icon: 'exclamation-triangle', 
-        textClass: 'warning', 
-        btnClass: 'warning', 
-        confirmText: 'Proceed'
+      warning: {
+        icon: 'exclamation-triangle',
+        textClass: 'warning',
+        btnClass: 'warning',
+        confirmText: 'Proceed',
       },
-      info: { 
-        icon: 'info-circle', 
-        textClass: 'info', 
-        btnClass: 'primary', 
-        confirmText: 'OK'
+      info: {
+        icon: 'info-circle',
+        textClass: 'info',
+        btnClass: 'primary',
+        confirmText: 'OK',
       },
-      success: { 
-        icon: 'check-circle', 
-        textClass: 'success', 
-        btnClass: 'success', 
-        confirmText: 'Continue'
+      success: {
+        icon: 'check-circle',
+        textClass: 'success',
+        btnClass: 'success',
+        confirmText: 'Continue',
       },
     };
 
@@ -350,10 +374,16 @@ class NotificationManager {
    * @returns {Promise<void>}
    */
   async showAlert(message, title = 'Alert', type = 'info') {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const modalId = `alert-modal-${Date.now()}`;
-      const modal = this.createAlertModal(modalId, message, title, type, resolve);
-      
+      const modal = this.createAlertModal(
+        modalId,
+        message,
+        title,
+        type,
+        resolve
+      );
+
       document.body.appendChild(modal);
       const bsModal = new bootstrap.Modal(modal);
       bsModal.show();
@@ -362,7 +392,7 @@ class NotificationManager {
       modal.addEventListener('hidden.bs.modal', () => {
         modal.remove();
       });
-      
+
       // Fix accessibility: Remove focus from modal elements before hiding
       modal.addEventListener('hide.bs.modal', () => {
         const focusedElement = modal.querySelector(':focus');
@@ -412,12 +442,12 @@ class NotificationManager {
         </div>
       </div>
     `;
-    
+
     // Set text content safely
     const titleTextElement = modal.querySelector('.title-text');
     const messageTextElement = modal.querySelector('.message-text');
-    if (titleTextElement) titleTextElement.textContent = title;
-    if (messageTextElement) messageTextElement.textContent = message;
+    if (titleTextElement) {titleTextElement.textContent = title;}
+    if (messageTextElement) {messageTextElement.textContent = message;}
 
     // Add event listener
     modal.addEventListener('hidden.bs.modal', () => {
@@ -479,8 +509,11 @@ window.NotificationManager = NotificationManager;
 window.notificationManager = notificationManager;
 
 // Legacy function names for backwards compatibility
-window.showToast = (message, type, options) => notificationManager.showToast(message, type, options);
-window.showError = (message, options) => notificationManager.error(message, options);
-window.showSuccess = (message, options) => notificationManager.success(message, options);
+window.showToast = (message, type, options) =>
+  notificationManager.showToast(message, type, options);
+window.showError = (message, options) =>
+  notificationManager.error(message, options);
+window.showSuccess = (message, options) =>
+  notificationManager.success(message, options);
 
 // Export statements removed for browser compatibility - objects are available globally

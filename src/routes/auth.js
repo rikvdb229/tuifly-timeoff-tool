@@ -7,6 +7,7 @@ const {
   authRateLimit,
 } = require('../middleware/auth');
 const { deleteUserAccount, User } = require('../models');
+const { sanitizeRequestBody } = require('../utils/sanitize');
 
 const router = express.Router();
 
@@ -255,12 +256,17 @@ router.get(
 );
 
 // Set Gmail OAuth redirect target (called before starting Gmail OAuth)
-router.post('/set-gmail-redirect', requireAuth, (req, res) => {
-  const { redirectTo } = req.body;
-  req.session.gmailOAuthRedirect =
-    redirectTo || '/onboarding?gmail_success=1&step=4';
-  res.json({ success: true });
-});
+router.post(
+  '/set-gmail-redirect',
+  requireAuth,
+  sanitizeRequestBody(['redirectTo']),
+  (req, res) => {
+    const { redirectTo } = req.body;
+    req.session.gmailOAuthRedirect =
+      redirectTo || '/onboarding?gmail_success=1&step=4';
+    res.json({ success: true });
+  }
+);
 
 // ===================================================================
 // LOGOUT & ACCOUNT MANAGEMENT
@@ -268,7 +274,7 @@ router.post('/set-gmail-redirect', requireAuth, (req, res) => {
 
 // GET Logout (for simple redirects)
 router.get('/logout', requireAuth, (req, res) => {
-  req.session.destroy((err) => {
+  req.session.destroy(err => {
     if (err) {
       console.error('Logout error:', err);
       return res.redirect('/?error=logout_failed');
@@ -282,7 +288,7 @@ router.get('/logout', requireAuth, (req, res) => {
 
 // POST Logout (for API calls)
 router.post('/logout', requireAuth, (req, res) => {
-  req.session.destroy((err) => {
+  req.session.destroy(err => {
     if (err) {
       console.error('Logout error:', err);
       return res.status(500).json({
@@ -305,7 +311,7 @@ router.delete('/account', requireAuth, async (req, res) => {
   try {
     await deleteUserAccount(req.user.id);
 
-    req.session.destroy((err) => {
+    req.session.destroy(err => {
       if (err) {
         console.error('Session destroy error during account deletion:', err);
       }

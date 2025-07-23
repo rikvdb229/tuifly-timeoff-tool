@@ -15,7 +15,6 @@ window.updateRequestStatus = async function (
   newStatus,
   updateGroup = false
 ) {
-
   const statusText = newStatus === 'APPROVED' ? 'approve' : 'deny';
   const groupText = updateGroup ? ' entire group' : '';
   const message = `Are you sure you want to ${statusText} this${groupText} request? This action can be changed later if needed.`;
@@ -56,7 +55,10 @@ window.updateRequestStatus = async function (
         modal.hide();
         await window.loadExistingRequests();
       } else {
-        window.showToast(result.error || `Failed to ${statusText} request`, 'error');
+        window.showToast(
+          result.error || `Failed to ${statusText} request`,
+          'error'
+        );
       }
     } catch (error) {
       console.error(`Error ${statusText}ing request:`, error);
@@ -73,7 +75,7 @@ window.showConfirmDialog = function (
   title = 'Confirm Action',
   type = 'warning'
 ) {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const modal = document.getElementById('confirmationModal');
 
     // If modal doesn't exist, create it
@@ -186,7 +188,7 @@ window.modernConfirm = function (
   title = 'Confirm Action',
   type = 'warning'
 ) {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const modal = document.getElementById('confirmationModal');
 
     // If modal doesn't exist, create it
@@ -262,12 +264,8 @@ window.modernConfirm = function (
   });
 };
 
-window.modernAlert = function (
-  message,
-  title = 'Information',
-  type = 'info'
-) {
-  return new Promise((resolve) => {
+window.modernAlert = function (message, title = 'Information', type = 'info') {
+  return new Promise(resolve => {
     let modal = document.getElementById('alertModal');
 
     // If modal doesn't exist, create it
@@ -334,14 +332,14 @@ function createAlertModal() {
 }
 
 // Modal z-index management utility
-window.getNextModalZIndex = function() {
+window.getNextModalZIndex = function () {
   const existingModals = document.querySelectorAll('.modal.show');
   const baseZIndex = 1050; // Bootstrap modal base z-index
   return baseZIndex + existingModals.length * 10 + 10;
 };
 
 // Modal utility functions
-window.closeModal = function(modalId) {
+window.closeModal = function (modalId) {
   const modal = document.getElementById(modalId);
   if (modal) {
     const bootstrapModal = bootstrap.Modal.getInstance(modal);
@@ -351,13 +349,13 @@ window.closeModal = function(modalId) {
   }
 };
 
-window.openModal = function(modalId, options = {}) {
+window.openModal = function (modalId, options = {}) {
   const modal = document.getElementById(modalId);
   if (modal) {
     const bootstrapModal = new bootstrap.Modal(modal, {
       backdrop: options.backdrop || 'static',
       keyboard: options.keyboard !== false,
-      ...options
+      ...options,
     });
     bootstrapModal.show();
     return bootstrapModal;

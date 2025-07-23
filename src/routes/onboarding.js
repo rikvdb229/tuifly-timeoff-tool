@@ -3,6 +3,7 @@ const express = require('express');
 const { requireAuth } = require('../middleware/auth');
 const { User, updateUserOnboarding } = require('../models');
 const Joi = require('joi');
+const { sanitizeRequestBody } = require('../utils/sanitize');
 
 const router = express.Router();
 
@@ -109,140 +110,151 @@ router.post('/start-gmail-oauth', requireAuth, async (req, res) => {
 });
 
 // Complete onboarding - MERGED VERSION
-router.post('/complete', requireAuth, async (req, res) => {
-  try {
-    const { error, value } = onboardingSchema.validate(req.body);
+router.post(
+  '/complete',
+  requireAuth,
+  sanitizeRequestBody(['name', 'code', 'signature', 'emailPreference']),
+  async (req, res) => {
+    try {
+      const { error, value } = onboardingSchema.validate(req.body);
 
-    if (error) {
-      return res.status(400).json({
-        success: false,
-        error: 'Validation failed',
-        details: error.details.map((detail) => ({
-          field: detail.path[0],
-          message: detail.message,
-        })),
-      });
-    }
-
-    const { name, code, signature, emailPreference } = value;
-
-    // ✅ KEEP: Original code uniqueness check
-    const existingUser = await User.findByCode(code);
-    if (existingUser && existingUser.id !== req.session.userId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Code already taken',
-        details: [
-          {
-            field: 'code',
-            message: 'This 3-letter code is already in use',
-          },
-        ],
-      });
-    }
-
-    // ✅ ADD: Check if user chose automatic email but doesn't have Gmail permissions
-    if (emailPreference === 'automatic') {
-      const user = await User.findByPk(req.session.userId);
-      if (!user.gmailScopeGranted || !user.gmailAccessToken) {
+      if (error) {
         return res.status(400).json({
           success: false,
-          error: 'Gmail permissions required for automatic email',
-          details: [
-            {
-              field: 'emailPreference',
-              message:
-                'Gmail authorization is required for automatic email sending',
-            },
-          ],
-          requiresGmailAuth: true,
+          error: 'Validation failed',
+          details: error.details.map(detail => ({
+            field: detail.path[0],
+            message: detail.message,
+          })),
         });
       }
-    }
 
-    // ✅ KEEP: Original user update logic with added email preference
-    const user = await updateUserOnboarding(req.session.userId, {
-      name,
-      code: code.toUpperCase(),
-      signature,
-      emailPreference, // ✅ ADD: Include email preference
-    });
+      const { name, code, signature, emailPreference } = value;
 
-    // Update session
-    req.session.needsOnboarding = false;
+      // ✅ KEEP: Original code uniqueness check
+      const existingUser = await User.findByCode(code);
+      if (existingUser && existingUser.id !== req.session.userId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Code already taken',
+          details: [
+            {
+              field: 'code',
+              message: 'This 3-letter code is already in use',
+            },
+          ],
+        });
+      }
 
-    // Fetch fresh user data to ensure we have the latest state
-    const updatedUser = await User.findByPk(req.session.userId);
+      // ✅ ADD: Check if user chose automatic email but doesn't have Gmail permissions
+      if (emailPreference === 'automatic') {
+        const user = await User.findByPk(req.session.userId);
+        if (!user.gmailScopeGranted || !user.gmailAccessToken) {
+          return res.status(400).json({
+            success: false,
+            error: 'Gmail permissions required for automatic email',
+            details: [
+              {
+                field: 'emailPreference',
+                message:
+                  'Gmail authorization is required for automatic email sending',
+              },
+            ],
+            requiresGmailAuth: true,
+          });
+        }
+      }
 
-    if (updatedUser.canUseApp()) {
-      // User is admin or already approved - go to dashboard
-      console.log(
-        `✅ Onboarding complete - User ${updatedUser.email} can access app`
-      );
-      res.json({
-        success: true,
-        message: 'Profile completed successfully! Welcome to TUIfly Time-Off.',
-        user: updatedUser.toSafeObject(),
-        redirect: '/',
-        redirectUrl: '/', // ✅ ADD: Alternative redirect property
+      // ✅ KEEP: Original user update logic with added email preference
+      const user = await updateUserOnboarding(req.session.userId, {
+        name,
+        code: code.toUpperCase(),
+        signature,
+        emailPreference, // ✅ ADD: Include email preference
       });
-    } else {
-      // User needs admin approval - go to waiting page
-      console.log(
-        `⏳ Onboarding complete - User ${updatedUser.email} needs admin approval`
-      );
-      res.json({
-        success: true,
-        message:
-          'Profile completed successfully! Your account is now pending admin approval.',
-        user: updatedUser.toSafeObject(),
-        redirect: '/auth/waiting-approval',
-        redirectUrl: '/auth/waiting-approval', // ✅ ADD: Alternative redirect property
+
+      // Update session
+      req.session.needsOnboarding = false;
+
+      // Fetch fresh user data to ensure we have the latest state
+      const updatedUser = await User.findByPk(req.session.userId);
+
+      if (updatedUser.canUseApp()) {
+        // User is admin or already approved - go to dashboard
+        console.log(
+          `✅ Onboarding complete - User ${updatedUser.email} can access app`
+        );
+        res.json({
+          success: true,
+          message:
+            'Profile completed successfully! Welcome to TUIfly Time-Off.',
+          user: updatedUser.toSafeObject(),
+          redirect: '/',
+          redirectUrl: '/', // ✅ ADD: Alternative redirect property
+        });
+      } else {
+        // User needs admin approval - go to waiting page
+        console.log(
+          `⏳ Onboarding complete - User ${updatedUser.email} needs admin approval`
+        );
+        res.json({
+          success: true,
+          message:
+            'Profile completed successfully! Your account is now pending admin approval.',
+          user: updatedUser.toSafeObject(),
+          redirect: '/auth/waiting-approval',
+          redirectUrl: '/auth/waiting-approval', // ✅ ADD: Alternative redirect property
+        });
+      }
+    } catch (error) {
+      console.error('Onboarding completion error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to complete onboarding',
       });
     }
-  } catch (error) {
-    console.error('Onboarding completion error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to complete onboarding',
-    });
   }
-});
+);
 
 // ✅ KEEP: Original code availability check
-router.post('/check-code', requireAuth, async (req, res) => {
-  try {
-    const { code } = req.body;
+router.post(
+  '/check-code',
+  requireAuth,
+  sanitizeRequestBody(['code']),
+  async (req, res) => {
+    try {
+      const { code } = req.body;
 
-    if (!code || code.length !== 3) {
-      return res.json({
+      if (!code || code.length !== 3) {
+        return res.json({
+          available: false,
+          message: 'Code must be exactly 3 characters',
+        });
+      }
+
+      const normalizedCode = code.toUpperCase();
+      const existingUser = await User.findByCode(normalizedCode);
+
+      if (existingUser && existingUser.id !== req.session.userId) {
+        return res.json({
+          available: false,
+          message: 'Code already taken',
+        });
+      }
+
+      res.json({
+        available: true,
+        message: 'Code available',
+      });
+    } catch (error) {
+      console.error('Code check error:', error);
+      res.status(500).json({
         available: false,
-        message: 'Code must be exactly 3 characters',
+        message: 'Error checking code availability',
       });
     }
-
-    const normalizedCode = code.toUpperCase();
-    const existingUser = await User.findByCode(normalizedCode);
-
-    if (existingUser && existingUser.id !== req.session.userId) {
-      return res.json({
-        available: false,
-        message: 'Code already taken',
-      });
-    }
-
-    res.json({
-      available: true,
-      message: 'Code available',
-    });
-  } catch (error) {
-    console.error('Code check error:', error);
-    res.status(500).json({
-      available: false,
-      message: 'Error checking code availability',
-    });
   }
-});
+);
 
 // ✅ ADD: Check Gmail authorization status (for onboarding)
 router.get('/gmail-status', requireAuth, async (req, res) => {

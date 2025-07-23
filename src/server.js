@@ -64,7 +64,7 @@ async function startServer() {
     function gracefulShutdown() {
       console.log('\n🛑 Received shutdown signal, closing server...');
 
-      server.close(async (err) => {
+      server.close(async err => {
         if (err) {
           console.error('❌ Error during server shutdown:', err);
         } else {
@@ -113,11 +113,11 @@ function checkEnvironmentVariables() {
     'SESSION_SECRET',
   ];
 
-  const missing = required.filter((key) => !process.env[key]);
+  const missing = required.filter(key => !process.env[key]);
 
   if (missing.length > 0) {
     console.error('❌ Missing required environment variables:');
-    missing.forEach((key) => console.error(`   - ${key}`));
+    missing.forEach(key => console.error(`   - ${key}`));
     console.log('');
     console.log(
       '💡 Please check your .env file and ensure all required variables are set'

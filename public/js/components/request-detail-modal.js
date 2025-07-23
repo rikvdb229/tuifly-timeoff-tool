@@ -33,10 +33,7 @@ window.showRequestDetailModal = async function (request, dateStr) {
           }
         }
       } catch (error) {
-        console.warn(
-          'Could not load existing requests for modal:',
-          error
-        );
+        console.warn('Could not load existing requests for modal:', error);
         window.existingRequests = [request]; // Fallback to just this request
       }
     }
@@ -73,20 +70,20 @@ async function populateRequestModal(request, dateStr) {
   const statusIcon = document.getElementById('emailStatusIcon');
   const statusText = document.getElementById('emailStatusText');
   const statusDetails = document.getElementById('emailStatusDetails');
-  
-  if (statusIcon) statusIcon.textContent = emailStatus.icon;
-  if (statusText) statusText.textContent = emailStatus.title;
-  if (statusDetails) statusDetails.textContent = emailStatus.details;
+
+  if (statusIcon) {statusIcon.textContent = emailStatus.icon;}
+  if (statusText) {statusText.textContent = emailStatus.title;}
+  if (statusDetails) {statusDetails.textContent = emailStatus.details;}
 
   // Custom message (only show if exists)
   const messageSection = document.getElementById('messageSection');
   const messageEl = document.getElementById('requestMessage');
-  
+
   if (request.customMessage && request.customMessage.trim()) {
-    if (messageEl) messageEl.textContent = request.customMessage;
-    if (messageSection) messageSection.style.display = 'block';
+    if (messageEl) {messageEl.textContent = request.customMessage;}
+    if (messageSection) {messageSection.style.display = 'block';}
   } else {
-    if (messageSection) messageSection.style.display = 'none';
+    if (messageSection) {messageSection.style.display = 'none';}
   }
 
   // Populate dates with inline status buttons
@@ -94,10 +91,11 @@ async function populateRequestModal(request, dateStr) {
 
   // Email content section (for requests that need manual email handling)
   const emailContentSection = document.getElementById('emailContentSection');
-  const shouldShowEmailSection = !request.emailSent && !request.manualEmailConfirmed;
-  
+  const shouldShowEmailSection =
+    !request.emailSent && !request.manualEmailConfirmed;
+
   if (shouldShowEmailSection) {
-    if (emailContentSection) emailContentSection.style.display = 'block';
+    if (emailContentSection) {emailContentSection.style.display = 'block';}
 
     setTimeout(() => {
       if (request.manualEmailContent) {
@@ -108,7 +106,7 @@ async function populateRequestModal(request, dateStr) {
       }
     }, 50);
   } else {
-    if (emailContentSection) emailContentSection.style.display = 'none';
+    if (emailContentSection) {emailContentSection.style.display = 'none';}
   }
 
   // Modal actions
@@ -130,7 +128,7 @@ async function populateRequestDates(request) {
   const datesContainer = document.getElementById('requestDatesList');
   const bulkActions = document.getElementById('bulkActions');
 
-  if (!datesContainer) return;
+  if (!datesContainer) {return;}
 
   // Show loading state
   datesContainer.innerHTML =
@@ -141,9 +139,7 @@ async function populateRequestDates(request) {
   // If it's a group request, get all requests in the group
   if (request.groupId) {
     try {
-      const response = await fetch(
-        `/api/requests/${request.id}/group-details`
-      );
+      const response = await fetch(`/api/requests/${request.id}/group-details`);
       const result = await response.json();
       if (result.success) {
         requestsToShow = result.data.requests;
@@ -174,7 +170,7 @@ async function populateRequestDates(request) {
   // Generate dates HTML
   const datesHTML = requestsToShow
     .map(
-      (req) => `
+      req => `
 <div class="d-flex justify-content-between align-items-center date-row">
   <div class="flex-grow-1">
     <strong>${req.startDate}</strong>
@@ -225,13 +221,14 @@ async function populateRequestDates(request) {
     .join('');
 
   // Find the dates list container (not the parent container)
-  const datesList = datesContainer.querySelector('#datesList') || datesContainer;
-  
+  const datesList =
+    datesContainer.querySelector('#datesList') || datesContainer;
+
   datesList.innerHTML =
     datesHTML || '<div class="text-muted">No dates found</div>';
 
   // Add event listeners for status update buttons
-  datesContainer.addEventListener('click', function(e) {
+  datesContainer.addEventListener('click', function (e) {
     const button = e.target.closest('[data-action="updateStatus"]');
     if (button) {
       const requestId = button.dataset.requestId;
@@ -268,7 +265,11 @@ function populateEmailContent(request) {
     const subjectField = document.getElementById('emailSubjectDetail');
     const bodyField = document.getElementById('emailBody');
 
-    console.log('📧 DOM elements found:', { toField: !!toField, subjectField: !!subjectField, bodyField: !!bodyField });
+    console.log('📧 DOM elements found:', {
+      toField: !!toField,
+      subjectField: !!subjectField,
+      bodyField: !!bodyField,
+    });
 
     // Set TO field
     if (toField) {
@@ -309,9 +310,9 @@ function populateEmailContent(request) {
 async function generateEmailContentForModal(request) {
   try {
     console.log('📧 Generating email content for request:', request.id);
-    
+
     const response = await fetch(`/api/requests/${request.id}/email-content`);
-    
+
     if (response.ok) {
       const data = await response.json();
       if (data.success && data.data.emailContent) {
@@ -322,14 +323,15 @@ async function generateEmailContentForModal(request) {
       }
     } else {
       console.error('Failed to fetch email content:', response.status);
-      
+
       // Fallback: populate with default values
-      const approverEmail = window.TUIFLY_CONFIG?.APPROVER_EMAIL || 'scheduling@tuifly.be';
+      const approverEmail =
+        window.TUIFLY_CONFIG?.APPROVER_EMAIL || 'scheduling@tuifly.be';
       const toField = document.getElementById('emailTo');
       if (toField) {
         toField.value = approverEmail;
       }
-      
+
       console.warn('⚠️ Using fallback email address');
     }
   } catch (error) {
@@ -352,9 +354,9 @@ async function generateEmailContentForModal(request) {
 function populateModalActions(request) {
   const requestEmailMode = request.emailMode || 'automatic';
   const actionsContainer = document.getElementById('modalActions');
-  
-  if (!actionsContainer) return;
-  
+
+  if (!actionsContainer) {return;}
+
   let actions = '';
 
   // Open in Mail Client (only for requests without automatic email)
@@ -366,7 +368,7 @@ function populateModalActions(request) {
 `;
   }
 
-  // Mark as sent (only for requests without automatic email, not yet manually confirmed)  
+  // Mark as sent (only for requests without automatic email, not yet manually confirmed)
   if (!request.emailSent && !request.manualEmailConfirmed) {
     actions += `
   <button type="button" class="btn btn-success me-2" data-action="markEmailAsSent" data-request-id="${request.id}">
@@ -401,9 +403,9 @@ function populateModalActions(request) {
   actionsContainer.innerHTML = actions;
 
   // Add event listeners for action buttons
-  actionsContainer.addEventListener('click', function(e) {
+  actionsContainer.addEventListener('click', function (e) {
     const button = e.target.closest('[data-action]');
-    if (!button) return;
+    if (!button) {return;}
 
     const action = button.dataset.action;
     const requestId = button.dataset.requestId;
@@ -413,14 +415,14 @@ function populateModalActions(request) {
         openInMailClient(requestId);
         break;
       case 'markEmailAsSent':
-        if (window.markEmailAsSent) window.markEmailAsSent(requestId);
+        if (window.markEmailAsSent) {window.markEmailAsSent(requestId);}
         break;
       case 'resendEmail':
-        if (window.resendEmail) window.resendEmail(requestId);
+        if (window.resendEmail) {window.resendEmail(requestId);}
         break;
       case 'deleteRequest':
         const isGroup = button.dataset.isGroup === 'true';
-        if (window.deleteRequest) window.deleteRequest(requestId, isGroup);
+        if (window.deleteRequest) {window.deleteRequest(requestId, isGroup);}
         break;
     }
   });
@@ -558,14 +560,14 @@ function getEmailStatusInfo(request) {
  * @param {string} status - New status to apply ('APPROVED', 'DENIED', 'PENDING')
  * @returns {void}
  */
-window.bulkUpdateStatus = function(status) {
+window.bulkUpdateStatus = function (status) {
   // Implementation will be in calendar.js where the actual bulk update logic exists
 };
 
 // Event delegation for modal interactions
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   // Handle bulk action button clicks
-  document.addEventListener('click', function(e) {
+  document.addEventListener('click', function (e) {
     const bulkButton = e.target.closest('[data-action="bulkUpdateStatus"]');
     if (bulkButton) {
       e.preventDefault();

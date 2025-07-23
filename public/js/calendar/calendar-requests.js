@@ -27,9 +27,9 @@ async function loadExistingRequests() {
 }
 
 function updateStatistics(requests) {
-  const pending = requests.filter((r) => r.status === 'PENDING').length;
-  const approved = requests.filter((r) => r.status === 'APPROVED').length;
-  const denied = requests.filter((r) => r.status === 'DENIED').length;
+  const pending = requests.filter(r => r.status === 'PENDING').length;
+  const approved = requests.filter(r => r.status === 'APPROVED').length;
+  const denied = requests.filter(r => r.status === 'DENIED').length;
 
   document.getElementById('pendingCount').textContent = pending;
   document.getElementById('approvedCount').textContent = approved;
@@ -42,7 +42,7 @@ function initializeTooltips() {
     document.querySelectorAll('[data-bs-toggle="tooltip"]')
   );
   tooltipTriggerList.map(
-    (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl)
+    tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl)
   );
 }
 
@@ -52,12 +52,7 @@ window.updateRequestStatus = async function (
   newStatus,
   updateGroup = false
 ) {
-  console.log(
-    'updateRequestStatus called:',
-    requestId,
-    newStatus,
-    updateGroup
-  );
+  console.log('updateRequestStatus called:', requestId, newStatus, updateGroup);
 
   const statusText = newStatus === 'APPROVED' ? 'approve' : 'deny';
   const groupText = updateGroup ? ' entire group' : '';
@@ -99,7 +94,10 @@ window.updateRequestStatus = async function (
         modal.hide();
         await loadExistingRequests();
       } else {
-        window.showToast(result.error || `Failed to ${statusText} request`, 'error');
+        window.showToast(
+          result.error || `Failed to ${statusText} request`,
+          'error'
+        );
       }
     } catch (error) {
       console.error(`Error ${statusText}ing request:`, error);
@@ -128,7 +126,7 @@ window.updateIndividualStatus = async function (requestId, newStatus) {
       const allButtons = document.querySelectorAll(
         `[id^="${['deny', 'pending', 'approve'].join(`-btn-${requestId}"], [id^="`)}-btn-${requestId}"]`
       );
-      allButtons.forEach((btn) => btn.classList.remove('active'));
+      allButtons.forEach(btn => btn.classList.remove('active'));
 
       // Activate the correct button
       const buttonMap = {
@@ -171,8 +169,8 @@ window.bulkUpdateStatus = async function (newStatus) {
 
   // Use appropriate dialog type
   let dialogType = 'warning';
-  if (newStatus === 'APPROVED') dialogType = 'success';
-  if (newStatus === 'DENIED') dialogType = 'denied';
+  if (newStatus === 'APPROVED') {dialogType = 'success';}
+  if (newStatus === 'DENIED') {dialogType = 'denied';}
 
   const confirmed = await window.showConfirmDialog(
     confirmMessage,
@@ -186,7 +184,7 @@ window.bulkUpdateStatus = async function (newStatus) {
       const statusBadges = document.querySelectorAll('[id^="status-badge-"]');
       const requestIds = [];
 
-      statusBadges.forEach((badge) => {
+      statusBadges.forEach(badge => {
         const idMatch = badge.id.match(/status-badge-(\d+)/);
         if (idMatch) {
           requestIds.push(parseInt(idMatch[1]));
@@ -201,7 +199,7 @@ window.bulkUpdateStatus = async function (newStatus) {
       console.log('Updating request IDs:', requestIds);
 
       // Update all requests
-      const updatePromises = requestIds.map((id) =>
+      const updatePromises = requestIds.map(id =>
         fetch(`/api/requests/${id}/status`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -214,10 +212,10 @@ window.bulkUpdateStatus = async function (newStatus) {
       );
 
       const responses = await Promise.all(updatePromises);
-      const results = await Promise.all(responses.map((r) => r.json()));
+      const results = await Promise.all(responses.map(r => r.json()));
 
       // Check if all updates were successful
-      const failedUpdates = results.filter((r) => !r.success);
+      const failedUpdates = results.filter(r => !r.success);
       if (failedUpdates.length > 0) {
         console.error('Some updates failed:', failedUpdates);
         window.showToast(
@@ -228,12 +226,12 @@ window.bulkUpdateStatus = async function (newStatus) {
       }
 
       // Update all button states in the modal
-      requestIds.forEach((requestId) => {
+      requestIds.forEach(requestId => {
         // Remove active class from all buttons for this request
         const allButtons = document.querySelectorAll(
           `[id^="${['deny', 'pending', 'approve'].join(`-btn-${requestId}"], [id^="`)}-btn-${requestId}"]`
         );
-        allButtons.forEach((btn) => btn.classList.remove('active'));
+        allButtons.forEach(btn => btn.classList.remove('active'));
 
         // Activate the correct button
         const buttonMap = {
@@ -248,7 +246,9 @@ window.bulkUpdateStatus = async function (newStatus) {
         }
 
         // Update the status badge
-        const statusBadge = document.getElementById(`status-badge-${requestId}`);
+        const statusBadge = document.getElementById(
+          `status-badge-${requestId}`
+        );
         if (statusBadge) {
           statusBadge.textContent = newStatus;
           statusBadge.className = `badge bg-${getStatusColor(newStatus)} me-3`;
@@ -295,12 +295,12 @@ window.generateEmailContent = function (request) {
     year: 'numeric',
   });
 
-  let bodyLines = ['Dear,', ''];
+  const bodyLines = ['Dear,', ''];
 
   // Process each request (1 for single, multiple for group)
-  requestsToProcess.forEach((req) => {
+  requestsToProcess.forEach(req => {
     let line = `${req.startDate} - `;
-    
+
     // Format request type
     switch (req.type) {
       case 'REQ_DO':
@@ -323,7 +323,7 @@ window.generateEmailContent = function (request) {
     if (req.flightNumber) {
       line += ` ${req.flightNumber}`;
     }
-    
+
     bodyLines.push(line);
   });
 
@@ -353,13 +353,10 @@ window.markEmailAsSent = async function (requestId) {
   console.log('markEmailAsSent called with requestId:', requestId);
 
   try {
-    const response = await fetch(
-      `/api/requests/${requestId}/mark-email-sent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    const response = await fetch(`/api/requests/${requestId}/mark-email-sent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
 
     const result = await response.json();
     if (result.success) {
@@ -440,7 +437,10 @@ window.loadGroupEmailContent = async function (requestId) {
         'success'
       );
     } else {
-      window.showToast(result.error || 'Failed to generate email content', 'error');
+      window.showToast(
+        result.error || 'Failed to generate email content',
+        'error'
+      );
     }
   } catch (error) {
     console.error('Error loading email content:', error);
@@ -502,13 +502,13 @@ window.deleteRequest = async function (requestId, isGroup = false) {
 
 // Submit group request
 window.submitGroupRequest = async function () {
-  if (window.isSubmitting) return;
+  if (window.isSubmitting) {return;}
 
   const customMessage = document.getElementById('customMessage').value.trim();
   const submitButton = document.getElementById('submitGroupRequest');
 
   // Validate flight numbers
-  const flightDates = window.selectedDates.filter((d) => d.type === 'FLIGHT');
+  const flightDates = window.selectedDates.filter(d => d.type === 'FLIGHT');
   for (const date of flightDates) {
     if (!date.flightNumber || !date.flightNumber.startsWith('TB')) {
       window.showToast('Flight numbers must start with "TB"', 'error');
@@ -516,12 +516,15 @@ window.submitGroupRequest = async function () {
     }
   }
 
-  if (window.validateConsecutiveDates && !window.validateConsecutiveDates(window.selectedDates.map((d) => d.date))) {
+  if (
+    window.validateConsecutiveDates &&
+    !window.validateConsecutiveDates(window.selectedDates.map(d => d.date))
+  ) {
     window.showToast('Selected dates must be consecutive', 'error');
     return;
   }
 
-  if (window.selectedDates.length === 0) return;
+  if (window.selectedDates.length === 0) {return;}
 
   window.isSubmitting = true;
   submitButton.disabled = true;
@@ -573,13 +576,13 @@ window.submitGroupRequest = async function () {
 
 // Submit group request in manual mode (mark as sent and create)
 window.submitGroupRequestManual = async function () {
-  if (window.isSubmitting) return;
+  if (window.isSubmitting) {return;}
 
   const customMessage = document.getElementById('customMessage').value.trim();
   const submitButton = document.getElementById('markAsSentAndCreate');
 
   // Validate flight numbers
-  const flightDates = window.selectedDates.filter((d) => d.type === 'FLIGHT');
+  const flightDates = window.selectedDates.filter(d => d.type === 'FLIGHT');
   for (const date of flightDates) {
     if (!date.flightNumber || !date.flightNumber.startsWith('TB')) {
       window.showToast('Flight numbers must start with "TB"', 'error');
@@ -587,12 +590,15 @@ window.submitGroupRequestManual = async function () {
     }
   }
 
-  if (window.validateConsecutiveDates && !window.validateConsecutiveDates(window.selectedDates.map((d) => d.date))) {
+  if (
+    window.validateConsecutiveDates &&
+    !window.validateConsecutiveDates(window.selectedDates.map(d => d.date))
+  ) {
     window.showToast('Selected dates must be consecutive', 'error');
     return;
   }
 
-  if (window.selectedDates.length === 0) return;
+  if (window.selectedDates.length === 0) {return;}
 
   window.isSubmitting = true;
   submitButton.disabled = true;
@@ -600,7 +606,10 @@ window.submitGroupRequestManual = async function () {
     '<i class="bi bi-hourglass-split me-1"></i>Creating Request...';
 
   try {
-    console.log('Submitting manual group request with dates:', window.selectedDates);
+    console.log(
+      'Submitting manual group request with dates:',
+      window.selectedDates
+    );
     const response = await fetch('/api/requests/group-manual', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -649,8 +658,18 @@ function generateEmailContentLikeGmailService(user, requests) {
 
   // Generate subject (matches gmailService)
   const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
   const monthName = monthNames[startDate.getMonth()];
   const year = startDate.getFullYear();
@@ -658,7 +677,7 @@ function generateEmailContentLikeGmailService(user, requests) {
 
   // Generate request lines (matches gmailService format)
   const requestLines = requests
-    .map((request) => {
+    .map(request => {
       const start = new Date(request.startDate);
       const end = new Date(request.endDate);
       const dates = [];
@@ -669,7 +688,7 @@ function generateEmailContentLikeGmailService(user, requests) {
       }
 
       return dates
-        .map((date) => {
+        .map(date => {
           const formattedDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
 
           switch (request.type) {
@@ -716,5 +735,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 window.loadExistingRequests = loadExistingRequests;
 window.updateStatistics = updateStatistics;
 window.initializeTooltips = initializeTooltips;
-window.generateEmailContentLikeGmailService = generateEmailContentLikeGmailService;
+window.generateEmailContentLikeGmailService =
+  generateEmailContentLikeGmailService;
 window.getStatusColor = getStatusColor;

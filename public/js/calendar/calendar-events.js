@@ -18,7 +18,8 @@ async function loadUserDataAndSettings() {
       window.currentUserData = window.currentUserData; // Make it globally available
 
       // Load email preference
-      window.userEmailPreference = data.data.user.emailPreference || 'automatic';
+      window.userEmailPreference =
+        data.data.user.emailPreference || 'automatic';
 
       console.log('User data loaded:', window.currentUserData);
       console.log('User email preference:', window.userEmailPreference);
@@ -84,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function () {
             window.showToast('Copied to clipboard!', 'success');
             highlightCopyButton(copyBtn);
           })
-          .catch((err) => {
+          .catch(err => {
             console.error('Clipboard API failed:', err);
             fallbackCopy(textToCopy, copyBtn);
           });
@@ -177,12 +178,12 @@ window.updateRequestPreview = function () {
   const customMessagePreview = document.getElementById('customMessagePreview');
   const userSignatureElement = document.getElementById('userSignature');
 
-  if (!requestLinesContainer || !emailSubjectElement) return;
+  if (!requestLinesContainer || !emailSubjectElement) {return;}
 
   // Generate proper request lines from selected dates
   if (window.selectedDates && window.selectedDates.length > 0) {
     const requestLines = window.selectedDates
-      .map((dateInfo) => {
+      .map(dateInfo => {
         const formattedDate = formatDateForEmail(new Date(dateInfo.date));
 
         switch (dateInfo.type) {
@@ -210,8 +211,18 @@ window.updateRequestPreview = function () {
   if (window.selectedDates && window.selectedDates.length > 0) {
     const firstDate = new Date(window.selectedDates[0].date);
     const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     const monthName = monthNames[firstDate.getMonth()];
     const year = firstDate.getFullYear();
@@ -257,7 +268,7 @@ window.updateRequestPreview = function () {
     userSignatureElement.innerHTML = ''; // Clear first
     userSignatureElement.appendChild(document.createElement('br'));
     userSignatureElement.appendChild(document.createElement('br'));
-    
+
     // Create text node for safe content
     const signatureDiv = document.createElement('div');
     signatureDiv.style.whiteSpace = 'pre-line'; // Preserve line breaks
@@ -308,7 +319,7 @@ function addDynamicPreviewListeners() {
     'select[id^="dateType_"], input[id^="flightNumber_"]'
   );
 
-  dateInputs.forEach((input) => {
+  dateInputs.forEach(input => {
     input.addEventListener('change', function () {
       // Update the selectedDates array with the new values
       updateSelectedDatesFromInputs();
@@ -444,7 +455,7 @@ function populateModalDates() {
 // Event listeners initialization
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('Calendar events module: DOM loaded');
-  
+
   await loadUserDataAndSettings();
 
   // Load email preferences
@@ -502,7 +513,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }, 100);
 
   // Submit group request listener
-  document.addEventListener('click', (e) => {
+  document.addEventListener('click', e => {
     if (e.target.id === 'submitGroupRequest') {
       e.preventDefault();
       if (window.submitGroupRequest) {
@@ -512,11 +523,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Modal cleanup listener
-  document.addEventListener('hidden.bs.modal', (e) => {
+  document.addEventListener('hidden.bs.modal', e => {
     if (e.target.id === 'groupRequestModal') {
       document.getElementById('groupRequestForm')?.reset();
       const customMessage = document.getElementById('customMessage');
-      if (customMessage) customMessage.value = '';
+      if (customMessage) {customMessage.value = '';}
       window.isSubmitting = false;
     }
   });
@@ -529,7 +540,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     'flightNumber',
     'customMessage',
   ];
-  fieldsToWatch.forEach((fieldId) => {
+  fieldsToWatch.forEach(fieldId => {
     const field = document.getElementById(fieldId);
     if (field) {
       field.addEventListener('change', window.updateRequestPreview);

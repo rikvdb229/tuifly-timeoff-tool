@@ -10,7 +10,7 @@ class EmailNotificationService {
 
   // Initialize the email service
   async initialize() {
-    if (this.initialized) return;
+    if (this.initialized) {return;}
 
     try {
       // Check if SMTP is configured

@@ -8,8 +8,7 @@ function showToast(message, type = 'info') {
   let toastContainer = document.querySelector('.toast-container');
   if (!toastContainer) {
     toastContainer = document.createElement('div');
-    toastContainer.className =
-      'toast-container position-fixed top-0 end-0 p-3';
+    toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
     toastContainer.style.zIndex = '1055';
     document.body.appendChild(toastContainer);
   }
@@ -48,8 +47,12 @@ function showToast(message, type = 'info') {
 }
 
 // Confirmation dialog function
-function showConfirmDialog(message, title = 'Confirm Action', type = 'warning') {
-  return new Promise((resolve) => {
+function showConfirmDialog(
+  message,
+  title = 'Confirm Action',
+  type = 'warning'
+) {
+  return new Promise(resolve => {
     // Remove existing confirmation modal if any
     const existing = document.getElementById('confirmationModal');
     if (existing) {
@@ -111,7 +114,7 @@ function showConfirmDialog(message, title = 'Confirm Action', type = 'warning') 
 
     const bootstrapModal = new bootstrap.Modal(modal, {
       backdrop: 'static',
-      keyboard: false
+      keyboard: false,
     });
 
     // Handle confirm button click
@@ -133,9 +136,14 @@ function showConfirmDialog(message, title = 'Confirm Action', type = 'warning') 
 // Request detail modal function
 function showRequestDetailModal(request, dateStr) {
   // Check if the request is part of a group
-  const isGroupRequest = request.groupId && window.existingRequests.filter(r => r.groupId === request.groupId).length > 1;
-  const groupRequests = isGroupRequest 
-    ? window.existingRequests.filter(r => r.groupId === request.groupId).sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+  const isGroupRequest =
+    request.groupId &&
+    window.existingRequests.filter(r => r.groupId === request.groupId).length >
+      1;
+  const groupRequests = isGroupRequest
+    ? window.existingRequests
+        .filter(r => r.groupId === request.groupId)
+        .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
     : [request];
 
   // Get modal elements
@@ -144,7 +152,9 @@ function showRequestDetailModal(request, dateStr) {
   const modalBody = modal.querySelector('.modal-body');
 
   // Set modal title (no icon needed, it's already in the HTML)
-  modalTitle.textContent = isGroupRequest ? 'Group Request Details' : 'Request Details';
+  modalTitle.textContent = isGroupRequest
+    ? 'Group Request Details'
+    : 'Request Details';
 
   // Generate modal content
   let modalContent = '';
@@ -161,15 +171,20 @@ function showRequestDetailModal(request, dateStr) {
     // Email information section
     const emailMode = request.emailMode || 'automatic';
     const emailSent = request.emailSent || request.manualEmailConfirmed;
-    const emailFailed = emailMode === 'automatic' && !emailSent && request.emailFailed;
-    
+    const emailFailed =
+      emailMode === 'automatic' && !emailSent && request.emailFailed;
+
     modalContent += `
       <div class="row mb-3">
         <div class="col-md-6">
           <strong>Date sent:</strong> 
-          ${emailSent ? formatDisplayDate(request.emailSentAt || request.createdAt) : 
-            (emailFailed ? '<span class="text-danger">Failed to send</span>' : 
-             '<span class="text-muted">Not sent yet</span>')}
+          ${
+            emailSent
+              ? formatDisplayDate(request.emailSentAt || request.createdAt)
+              : emailFailed
+                ? '<span class="text-danger">Failed to send</span>'
+                : '<span class="text-muted">Not sent yet</span>'
+          }
         </div>
         <div class="col-md-6">
           <strong>Sending method:</strong> 
@@ -194,7 +209,7 @@ function showRequestDetailModal(request, dateStr) {
 
     // Group details container
     modalContent += '<div class="mb-4">';
-    
+
     // Bulk action row - matching the exact padding of card-body
     modalContent += `
       <div class="mb-2">
@@ -232,11 +247,11 @@ function showRequestDetailModal(request, dateStr) {
         </div>
       </div>
     `;
-    
+
     groupRequests.forEach((req, index) => {
       const statusColor = getStatusColor(req.status);
       const emailStatus = getSimpleEmailStatus(req);
-      
+
       modalContent += `
         <div class="card mb-2">
           <div class="card-body py-2">
@@ -275,13 +290,13 @@ function showRequestDetailModal(request, dateStr) {
         </div>
       `;
     });
-    
+
     modalContent += '</div>';
   } else {
     // Single request details - use same layout as group request for consistency
     const statusColor = getStatusColor(request.status);
     const emailStatus = getSimpleEmailStatus(request);
-    
+
     // Single request header
     modalContent += `
       <div class="alert alert-info mb-3">
@@ -293,15 +308,20 @@ function showRequestDetailModal(request, dateStr) {
     // Email information section (same as group)
     const emailMode = request.emailMode || 'automatic';
     const emailSent = request.emailSent || request.manualEmailConfirmed;
-    const emailFailed = emailMode === 'automatic' && !emailSent && request.emailFailed;
-    
+    const emailFailed =
+      emailMode === 'automatic' && !emailSent && request.emailFailed;
+
     modalContent += `
       <div class="row mb-3">
         <div class="col-md-6">
           <strong>Date sent:</strong> 
-          ${emailSent ? formatDisplayDate(request.emailSentAt || request.createdAt) : 
-            (emailFailed ? '<span class="text-danger">Failed to send</span>' : 
-             '<span class="text-muted">Not sent yet</span>')}
+          ${
+            emailSent
+              ? formatDisplayDate(request.emailSentAt || request.createdAt)
+              : emailFailed
+                ? '<span class="text-danger">Failed to send</span>'
+                : '<span class="text-muted">Not sent yet</span>'
+          }
         </div>
         <div class="col-md-6">
           <strong>Sending method:</strong> 
@@ -366,10 +386,10 @@ function showRequestDetailModal(request, dateStr) {
     modalContent += '</div>';
   }
 
-
   // Email section (only show if email not sent yet)
-  const shouldShowEmailSection = !request.emailSent && !request.manualEmailConfirmed;
-  
+  const shouldShowEmailSection =
+    !request.emailSent && !request.manualEmailConfirmed;
+
   if (shouldShowEmailSection) {
     // Generate email content for copying (unified function handles both single and group)
     const emailContent = window.generateEmailContent(request);
@@ -532,10 +552,7 @@ function getEmailStatusIcon(request) {
     // Manual mode: Check manual confirmation status
     if (request.manualEmailConfirmed) {
       return '✅';
-    } else if (
-      request.manualEmailContent &&
-      !request.manualEmailConfirmed
-    ) {
+    } else if (request.manualEmailContent && !request.manualEmailConfirmed) {
       return '📧';
     } else {
       return '⚠️';
@@ -569,41 +586,41 @@ function hideLoadingSpinner(element, originalContent) {
 function fadeIn(element, duration = 300) {
   element.style.opacity = '0';
   element.style.display = 'block';
-  
+
   let start = null;
   function animate(timestamp) {
-    if (!start) start = timestamp;
+    if (!start) {start = timestamp;}
     const progress = timestamp - start;
     const opacity = Math.min(progress / duration, 1);
-    
+
     element.style.opacity = opacity.toString();
-    
+
     if (progress < duration) {
       requestAnimationFrame(animate);
     }
   }
-  
+
   requestAnimationFrame(animate);
 }
 
 function fadeOut(element, duration = 300) {
   let start = null;
   const initialOpacity = parseFloat(element.style.opacity) || 1;
-  
+
   function animate(timestamp) {
-    if (!start) start = timestamp;
+    if (!start) {start = timestamp;}
     const progress = timestamp - start;
-    const opacity = Math.max(initialOpacity - (progress / duration), 0);
-    
+    const opacity = Math.max(initialOpacity - progress / duration, 0);
+
     element.style.opacity = opacity.toString();
-    
+
     if (progress < duration) {
       requestAnimationFrame(animate);
     } else {
       element.style.display = 'none';
     }
   }
-  
+
   requestAnimationFrame(animate);
 }
 
@@ -611,10 +628,10 @@ function fadeOut(element, duration = 300) {
 function highlightElement(element, color = '#28a745', duration = 2000) {
   const originalBackground = element.style.backgroundColor;
   const originalTransition = element.style.transition;
-  
+
   element.style.transition = 'background-color 0.3s ease';
   element.style.backgroundColor = color;
-  
+
   setTimeout(() => {
     element.style.backgroundColor = originalBackground;
     setTimeout(() => {
@@ -641,7 +658,8 @@ function openInMailClient(requestId) {
   }
 
   // Get approver email
-  const approverEmail = window.TUIFLY_CONFIG?.APPROVER_EMAIL || 'scheduling@tuifly.be';
+  const approverEmail =
+    window.TUIFLY_CONFIG?.APPROVER_EMAIL || 'scheduling@tuifly.be';
 
   // Create mailto link
   const to = encodeURIComponent(approverEmail);
@@ -657,7 +675,10 @@ function openInMailClient(requestId) {
     window.showToast('Opening in your default mail client...', 'success');
   } catch (error) {
     console.error('Error opening mail client:', error);
-    window.showToast('Could not open mail client. Please copy the content manually.', 'error');
+    window.showToast(
+      'Could not open mail client. Please copy the content manually.',
+      'error'
+    );
   }
 }
 

@@ -11,7 +11,7 @@ let onboardingData = {
   name: '',
   code: '',
   signature: '',
-  emailPreference: 'manual'
+  emailPreference: 'manual',
 };
 let gmailAuthorized = false;
 
@@ -26,15 +26,16 @@ function loadOnboardingData() {
   const saved = sessionStorage.getItem('onboardingData');
   if (saved) {
     onboardingData = JSON.parse(saved);
-    
+
     // Restore form fields if they exist
     const nameField = document.getElementById('name');
     const codeField = document.getElementById('code');
     const signatureField = document.getElementById('signature');
-    
-    if (nameField && onboardingData.name) nameField.value = onboardingData.name;
-    if (codeField && onboardingData.code) codeField.value = onboardingData.code;
-    if (signatureField && onboardingData.signature) signatureField.value = onboardingData.signature;
+
+    if (nameField && onboardingData.name) {nameField.value = onboardingData.name;}
+    if (codeField && onboardingData.code) {codeField.value = onboardingData.code;}
+    if (signatureField && onboardingData.signature)
+      {signatureField.value = onboardingData.signature;}
   }
 }
 
@@ -49,7 +50,8 @@ function showToast(message, type = 'info') {
   // Simple toast notification
   const toast = document.createElement('div');
   toast.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
-  toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+  toast.style.cssText =
+    'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
   toast.innerHTML = `
     ${message}
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -124,13 +126,13 @@ function nextStep(targetStep) {
   if (currentStep === 3 && !validateEmailStep()) {
     return;
   }
-  
+
   // Additional check for code availability before moving from step 2
   if (currentStep === 2 && targetStep === 3) {
     checkCodeAndProceed(targetStep);
     return;
   }
-  
+
   showStep(targetStep);
 }
 
@@ -138,20 +140,23 @@ function nextStep(targetStep) {
 async function checkCodeAndProceed(targetStep) {
   const codeField = document.getElementById('code');
   const code = codeField.value.trim().toUpperCase();
-  
+
   if (code.length === 3) {
     // Show loading state
-    const continueBtn = document.querySelector('button[data-action="nextStep"][data-target="3"]');
+    const continueBtn = document.querySelector(
+      'button[data-action="nextStep"][data-target="3"]'
+    );
     const originalText = continueBtn.innerHTML;
     continueBtn.disabled = true;
-    continueBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Checking code...';
-    
+    continueBtn.innerHTML =
+      '<i class="bi bi-hourglass-split me-2"></i>Checking code...';
+
     const result = await checkCodeAvailability(code);
-    
+
     // Restore button
     continueBtn.disabled = false;
     continueBtn.innerHTML = originalText;
-    
+
     if (result.available) {
       showStep(targetStep);
     } else {
@@ -171,7 +176,7 @@ function prevStep(targetStep) {
 // ===================================================================
 function validateProfileStep() {
   clearValidationErrors();
-  
+
   const nameField = document.getElementById('name');
   const codeField = document.getElementById('code');
   const signatureField = document.getElementById('signature');
@@ -209,11 +214,14 @@ function validateProfileStep() {
       signatureField.value = placeholder;
     }
   }
-  
+
   if (signatureValue && signatureValue.length >= 2) {
     onboardingData.signature = signatureValue;
   } else {
-    showValidationError(signatureField, 'Signature is required and must be at least 2 characters');
+    showValidationError(
+      signatureField,
+      'Signature is required and must be at least 2 characters'
+    );
     isValid = false;
   }
 
@@ -256,7 +264,7 @@ async function checkCodeAvailability(code) {
     console.error('Code check error:', error);
     return {
       available: false,
-      message: 'Error checking code availability'
+      message: 'Error checking code availability',
     };
   }
 }
@@ -273,7 +281,9 @@ function selectEmailPreference(preference) {
     card.classList.remove('border-primary', 'bg-light', 'selected');
   });
 
-  const selectedCard = document.getElementById(preference === 'manual' ? 'manualCard' : 'automaticCard');
+  const selectedCard = document.getElementById(
+    preference === 'manual' ? 'manualCard' : 'automaticCard'
+  );
   if (selectedCard) {
     selectedCard.classList.add('border-primary', 'bg-light', 'selected');
   }
@@ -298,7 +308,9 @@ async function authorizeGmail() {
     await fetch('/auth/set-gmail-redirect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ redirectTo: '/onboarding?gmail_success=1&step=4' }),
+      body: JSON.stringify({
+        redirectTo: '/onboarding?gmail_success=1&step=4',
+      }),
     });
 
     // Redirect to Gmail OAuth
@@ -315,9 +327,11 @@ async function authorizeGmail() {
 // REVIEW AND COMPLETION
 // ===================================================================
 function populateReview() {
-  document.getElementById('reviewName').textContent = onboardingData.name || 'Not set';
-  document.getElementById('reviewCode').textContent = onboardingData.code || 'Not set';
-  
+  document.getElementById('reviewName').textContent =
+    onboardingData.name || 'Not set';
+  document.getElementById('reviewCode').textContent =
+    onboardingData.code || 'Not set';
+
   // For signature, show the actual value or indicate it will use placeholder
   let signatureDisplay = onboardingData.signature;
   if (!signatureDisplay) {
@@ -326,8 +340,11 @@ function populateReview() {
     signatureDisplay = placeholder || 'Not set';
   }
   document.getElementById('reviewSignature').textContent = signatureDisplay;
-  
-  const emailMethod = onboardingData.emailPreference === 'automatic' ? 'Automatic (Gmail)' : 'Manual (Copy & Paste)';
+
+  const emailMethod =
+    onboardingData.emailPreference === 'automatic'
+      ? 'Automatic (Gmail)'
+      : 'Manual (Copy & Paste)';
   document.getElementById('reviewEmailMethod').textContent = emailMethod;
 }
 
@@ -367,7 +384,9 @@ async function completeOnboarding() {
     } else {
       // Handle validation errors from backend
       if (result.requiresGmailAuth) {
-        showError('Gmail authorization is required for automatic email sending.');
+        showError(
+          'Gmail authorization is required for automatic email sending.'
+        );
         showStep(3); // Go back to email preference step
       } else if (result.details) {
         // Show field-specific validation errors
@@ -379,7 +398,7 @@ async function completeOnboarding() {
   } catch (error) {
     console.error('Onboarding error:', error);
     showError(`Failed to complete onboarding: ${error.message}`);
-    
+
     const btn = document.getElementById('completeBtn');
     btn.disabled = false;
     btn.innerHTML = 'Complete Setup <i class="bi bi-check-circle ms-2"></i>';
@@ -389,7 +408,7 @@ async function completeOnboarding() {
 // Handle validation errors from server
 function showValidationErrors(errors) {
   clearValidationErrors();
-  
+
   errors.forEach(error => {
     const field = document.getElementById(error.field);
     if (field) {
@@ -404,7 +423,7 @@ function showValidationErrors(errors) {
 // ===================================================================
 // INITIALIZATION
 // ===================================================================
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   const urlParams = new URLSearchParams(window.location.search);
   const gmailSuccess = urlParams.get('gmail_success') === '1';
   const startStep = parseInt(urlParams.get('step') || '1');
@@ -426,14 +445,14 @@ document.addEventListener('DOMContentLoaded', function() {
   // ===================================================================
   // EVENT LISTENERS FOR BUTTONS (replaced inline onclick handlers)
   // ===================================================================
-  
+
   // Navigation buttons (nextStep/prevStep)
-  document.addEventListener('click', function(e) {
+  document.addEventListener('click', function (e) {
     if (e.target.closest('[data-action]')) {
       const button = e.target.closest('[data-action]');
       const action = button.dataset.action;
       const target = parseInt(button.dataset.target);
-      
+
       if (action === 'nextStep') {
         nextStep(target);
       } else if (action === 'prevStep') {
@@ -441,22 +460,22 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
   });
-  
+
   // Email preference cards
-  document.addEventListener('click', function(e) {
+  document.addEventListener('click', function (e) {
     const card = e.target.closest('[data-preference]');
     if (card) {
       const preference = card.dataset.preference;
       selectEmailPreference(preference);
     }
   });
-  
+
   // Gmail authorization button
   const authorizeGmailBtn = document.getElementById('authorizeGmailBtn');
   if (authorizeGmailBtn) {
     authorizeGmailBtn.addEventListener('click', authorizeGmail);
   }
-  
+
   // Complete onboarding button
   const completeBtn = document.getElementById('completeBtn');
   if (completeBtn) {
@@ -466,9 +485,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // Auto-uppercase code field and add real-time validation
   const codeField = document.getElementById('code');
   if (codeField) {
-    codeField.addEventListener('input', function(e) {
+    codeField.addEventListener('input', function (e) {
       e.target.value = e.target.value.toUpperCase();
-      
+
       // Clear validation errors when user types
       if (e.target.classList.contains('is-invalid')) {
         e.target.classList.remove('is-invalid');
@@ -480,12 +499,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Check code availability on blur (when user leaves the field)
-    codeField.addEventListener('blur', async function(e) {
+    codeField.addEventListener('blur', async function (e) {
       const code = e.target.value.trim();
       if (code.length === 3 && /^[A-Z]{3}$/.test(code)) {
         const result = await checkCodeAvailability(code);
         if (!result.available) {
-          showValidationError(e.target, result.message || 'Code is not available');
+          showValidationError(
+            e.target,
+            result.message || 'Code is not available'
+          );
         }
       }
     });
