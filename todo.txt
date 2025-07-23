@@ -1,0 +1,290 @@
+● Update Todos
+  ⎿  ☐ Fix all 126 ESLint violations (console.log, undefined globals, unused vars)
+     ☐ Increase test coverage from 3% to minimum 70%
+     ☐ Add comprehensive API integration tests
+     ☐ Remove hardcoded encryption key fallbacks
+     ☐ Implement CSRF protection for state-changing operations
+     ☐ Add Application Performance Monitoring (APM)
+     ☐ Set up CI/CD pipeline with automated testing
+     ☐ Optimize database queries and add query monitoring
+     ☐ Add comprehensive documentation
+
+● 🚀 Strategic Recommendation: Polish First, Features Later
+
+  Based on my analysis, I strongly recommend polishing the current codebase before adding new features. Here's     
+   why:
+
+  🎯 Why Polish Now:
+
+  1. Quality Debt is Compounding
+
+  - 126 ESLint violations will only multiply with new features
+  - 3% test coverage means any new features will be untested
+  - Code quality issues make adding features risky and error-prone
+
+  2. Production Readiness vs Feature Creep
+
+  - You have 94% feature completeness - the core app is functionally complete
+  - The remaining 25% to production readiness is quality, not features
+  - New features on a shaky foundation create technical debt
+
+  3. Maintenance Nightmare Prevention
+
+  - Fixing quality issues becomes exponentially harder with more code
+  - Testing becomes more complex as the codebase grows
+  - Debugging production issues without proper test coverage is painful
+
+  ---
+  📋 My Polishing Plan (4-6 Week Timeline)
+
+  🔥 Phase 1: Critical Quality Fixes (Week 1-2)
+
+● Update Todos
+  ⎿  ☐ Fix all 126 ESLint violations (console.log, undefined globals, unused vars)
+     ☐ Replace remaining console.log statements with Winston logger
+     ☐ Fix undefined browser globals in ESLint config
+     ☐ Remove unused variables and clean up imports
+     ☐ Replace process.exit() with proper error handling
+     ☐ Add basic unit tests for all services
+     ☐ Add model tests with test database
+     ☐ Target: 40% test coverage
+
+● Week 1 Focus: Code Quality Emergency
+  - Fix all ESLint violations (estimated: 2-3 days)
+  - Add pre-commit hooks to prevent regression
+  - Basic unit tests for services and models
+  - Target: 40% test coverage
+
+  Week 2 Focus: Testing Foundation
+  - API integration tests with Supertest
+  - Middleware testing
+  - Error handling validation
+  - Database operation tests
+
+  🏗️ Phase 2: Production Infrastructure (Week 3-4)
+
+● Update Todos
+  ⎿  ☐ Fix all 126 ESLint violations (console.log, undefined globals, unused vars)
+     ☐ Replace remaining console.log statements with Winston logger
+     ☐ Fix undefined browser globals in ESLint config
+     ☐ Remove unused variables and clean up imports
+     ☐ Replace process.exit() with proper error handling
+     ☐ Add basic unit tests for all services
+     ☐ Add model tests with test database
+     ☐ Target: 40% test coverage
+     ☐ Add comprehensive API integration tests
+     ☐ Target: 70% test coverage
+     ☐ Remove hardcoded encryption key fallbacks
+     ☐ Implement CSRF protection
+     ☐ Add Application Performance Monitoring
+     ☐ Set up CI/CD pipeline
+     ☐ Add comprehensive monitoring and alerting
+
+● Week 3 Focus: Security & Testing
+  - Remove security vulnerabilities (hardcoded keys)
+  - CSRF protection implementation
+  - Comprehensive integration testing
+  - Target: 70% test coverage
+
+  Week 4 Focus: Production Readiness
+  - APM monitoring setup
+  - CI/CD pipeline configuration
+  - Performance optimization
+  - Security audit
+
+  🚀 Phase 3: Production Deployment (Week 5-6)
+
+  Week 5: Production Environment
+  - Docker containerization
+  - Environment configuration
+  - Database migration procedures
+  - Backup and recovery setup
+
+  Week 6: Go-Live Preparation
+  - Load testing
+  - Security penetration testing
+  - Documentation completion
+  - Production deployment
+
+  ---
+  ⚖️ Alternative: Features First (Not Recommended)
+
+  If you choose to add features first:
+
+  🔻 Risks:
+
+  - Quality debt compounds exponentially
+  - New features will be untested and potentially buggy
+  - Debugging production issues becomes nightmare
+  - Technical debt may require complete refactor later
+
+  📈 If You Must Add Features:
+
+  Only if features are:
+  1. Critical business requirements (blocking users)
+  2. Simple additions (minimal complexity)
+  3. Externally enforced deadlines (compliance, etc.)
+
+  ---
+  🎯 My Strong Recommendation:
+
+  Polish First Strategy:
+
+  Current State: B (82/100) - 75% Production Ready
+  After Polish: A- (92/100) - 95% Production Ready
+  Timeline: 4-6 weeks focused work
+  Risk: Low - Builds on solid foundation
+
+  Benefits:
+
+  - Stable foundation for future features
+  - Production confidence with comprehensive testing
+  - Maintainable codebase with quality standards
+  - Scalable architecture ready for growth
+
+  Decision Framework:
+
+  Ask yourself:
+  1. Can users effectively use current features? ✅ YES
+  2. Are there critical blocking bugs? ❌ NO
+  3. Is the core value proposition delivered? ✅ YES
+  4. Do you need production stability? ✅ YES
+
+  Verdict: Polish the diamond you've already mined! 💎
+
+  ---
+  🚀 Next Steps:
+
+  Would you like me to:
+
+  1. Start the polishing process - Begin fixing ESLint violations immediately?
+  2. Create detailed testing strategy - Plan comprehensive test coverage?
+  3. Set up CI/CD pipeline - Automate quality gates?
+  4. Discuss specific features - If there are truly critical missing features?
+
+  My vote: Let's start polishing this excellent foundation into production-ready gold! 🏆
+
+  -----
+  Features
+
+  Implement a dynamic roster schedule management system for the TUIfly Time-Off application that allows admins to configure request deadlines based on actual TUIfly roster publication dates.
+
+REQUIREMENTS:
+
+1. **Create Database Model for Roster Schedule:**
+   - Create new Sequelize model: `src/models/RosterSchedule.js`
+   - Fields: id, publicationDate, latestRequestDate, startPeriod, endPeriod, isActive, createdAt, updatedAt
+   - Add to `src/models/index.js` exports
+   - Include model sync in database initialization
+
+2. **Create App Settings Model:**
+   - Create `src/models/AppSetting.js` for global configuration
+   - Fields: id, key, value, type, description, createdAt, updatedAt
+   - Default settings:
+     * MAX_ADVANCE_MONTHS: 6
+     * FALLBACK_MIN_ADVANCE_DAYS: 60  
+     * FALLBACK_MAX_ADVANCE_DAYS: 180
+   - Add to models index and sync
+
+3. **Admin Interface for Roster Schedule Management:**
+   - Add new routes to `src/routes/admin.js`:
+     * GET `/admin/roster-schedule` - Admin roster management page
+     * GET `/admin/settings` - Global settings management page
+   - Create EJS template `src/views/pages/admin-roster-schedule.ejs` with:
+     * Table showing all roster periods with edit/delete actions
+     * Form to add new roster periods (modal)
+     * CSV upload functionality for bulk import
+     * Visual timeline of upcoming deadlines
+     * Settings panel for global configuration
+   - Create `src/views/pages/admin-settings.ejs` for app settings
+
+4. **API Endpoints for Roster Management:**
+   - Add to `src/routes/api.js`:
+     * GET `/api/admin/roster-schedule` - Get all roster periods
+     * POST `/api/admin/roster-schedule` - Add new roster period
+     * PUT `/api/admin/roster-schedule/:id` - Update roster period
+     * DELETE `/api/admin/roster-schedule/:id` - Delete roster period
+     * POST `/api/admin/roster-schedule/upload-csv` - Bulk CSV import
+     * GET `/api/admin/settings` - Get app settings
+     * PUT `/api/admin/settings` - Update app settings
+     * GET `/api/calendar/request-deadline/:date` - Get deadline for specific date
+
+5. **Dynamic Request Deadline Calculation:**
+   - Update `public/js/calendar/calendar-core.js` with new validation logic:
+     * Replace hardcoded advance days with dynamic lookup
+     * Function `getRequestDeadlineForDate(targetDate)` that queries roster schedule
+     * Function `isDateRequestable(targetDate)` using roster data
+     * Fallback to app settings if no roster period found
+   - Update calendar UI to show request deadlines as visual markers
+
+6. **CSV Import Functionality:**
+   - Support CSV format:
+     ```csv
+     Publication Date,Latest Request Date,Start Period,End Period
+     2024-10-04,2024-09-19,2024-11-04,2024-12-01
+     ```
+   - Include CSV parsing, validation, and bulk insert
+   - Show preview before confirming import
+   - Handle duplicate date ranges
+
+7. **Calendar Integration Updates:**
+   - Update calendar rendering to show:
+     * Request deadline dates with special styling
+     * Tooltip showing "Request deadline: [date]" for each period
+     * Gray out dates past their request deadline
+     * Different colors for dates with known vs fallback deadlines
+   - Update date selection validation to use roster schedule
+
+8. **Admin Interface Features:**
+   - Sortable table of roster periods
+   - Search/filter roster periods by date range
+   - Bulk delete functionality
+   - Export current schedule to CSV
+   - Warning alerts for missing future roster periods
+   - Settings panel with form validation
+
+9. **Database Seeding:**
+   - Create `scripts/seedRosterSchedule.js` with TUIfly roster data
+   - Populate with the provided 2024-2025 roster schedule
+   - Include in package.json as `npm run seed:roster`
+
+10. **Validation & Error Handling:**
+    - Prevent overlapping roster periods
+    - Ensure logical date sequence (request < publication < start < end)
+    - Validate CSV format and data integrity
+    - User-friendly error messages for date conflicts
+    - Admin warnings for gaps in roster coverage
+
+11. **User Experience Enhancements:**
+    - When user selects dates, show applicable request deadline
+    - Clear error messages: "Request deadline for this period was [date]"
+    - Suggest next available dates if current selection invalid
+    - Loading states during roster data fetching
+
+12. **Frontend JavaScript Files:**
+    - Create `public/js/pages/admin-roster.js` for admin interface
+    - Create `public/js/core/roster-api.js` for roster API calls
+    - Update existing calendar files to integrate roster logic
+
+TECHNICAL SPECIFICATIONS:
+- Use existing authentication/authorization (requireAuth, requireOnboarding)
+- Maintain Bootstrap 5 styling and existing modal patterns
+- Follow current API response format (ApiResponse utility)
+- Include comprehensive error handling and logging
+- Add JSDoc documentation to all functions
+- Ensure mobile responsive design
+- Use existing notification system (toasts/alerts)
+
+INTEGRATION REQUIREMENTS:
+- Extend existing admin panel navigation
+- Hook into current calendar date validation system  
+- Use existing database connection and Sequelize setup
+- Maintain compatibility with current user permission system
+- Preserve existing functionality as fallback
+
+ADMIN PERMISSION REQUIREMENTS:
+- Only users with admin role can access roster management
+- Add admin role check middleware to all roster endpoints
+- Include audit logging for roster schedule changes
+
+The system should allow TUIfly to easily manage their roster schedule without code deployments, providing accurate request deadlines based on actual airline operations.
