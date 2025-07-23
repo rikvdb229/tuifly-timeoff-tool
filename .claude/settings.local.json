@@ -18,7 +18,11 @@
       "Bash(NODE_ENV=test npx jest tests/integration --coverage --coverageReporters=text --verbose --maxWorkers=1)",
       "Bash(NODE_ENV=test npx jest tests/e2e/userWorkflows.test.js --testNamePattern=\"should complete entire single request lifecycle\" --verbose --maxWorkers=1)",
       "Bash(NODE_ENV=test npx jest tests/unit tests/integration/api/users.test.js --coverage --coverageReporters=text --maxWorkers=1)",
-      "Bash(NODE_ENV=test npx jest tests/unit/models/TimeOffRequest.test.js --testNamePattern=\"Model Creation\" --verbose --maxWorkers=1)"
+      "Bash(NODE_ENV=test npx jest tests/unit/models/TimeOffRequest.test.js --testNamePattern=\"Model Creation\" --verbose --maxWorkers=1)",
+      "Bash(npm test:*)",
+      "Bash(grep:*)",
+      "Bash(npm run test:coverage:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }

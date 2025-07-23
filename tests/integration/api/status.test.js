@@ -2,6 +2,7 @@
 const request = require('supertest');
 const app = require('../../../src/app');
 const { User, TimeOffRequest, sequelize } = require('../../../src/models');
+const { createAuthenticatedSession } = require('../../helpers/auth');
 
 // Mock external services
 jest.mock('../../../src/services/gmailService');
@@ -20,7 +21,7 @@ jest.mock('../../../src/utils/logger', () => ({
 
 describe('Status API Integration Tests', () => {
   let testUser;
-  let authCookies;
+  let authenticatedAgent;
   let testRequest;
 
   beforeAll(async () => {
@@ -41,10 +42,13 @@ describe('Status API Integration Tests', () => {
       email: 'test@tuifly.com',
       name: 'Test User',
       code: 'TST',
+      signature: 'Test User - TST',
+      onboardedAt: new Date(),
+      adminApproved: true,
+      adminApprovedAt: new Date(),
       isAdmin: false,
       emailPreference: 'automatic',
-      gmailScopeGranted: true,
-      isOnboarded: true
+      gmailScopeGranted: true
     });
 
     // Create test request with email sent (prerequisite for status updates)
@@ -60,20 +64,14 @@ describe('Status API Integration Tests', () => {
       emailSentAt: new Date()
     });
 
-    // Mock authentication
-    const agent = request.agent(app);
-    const loginResponse = await agent
-      .post('/auth/test-login')
-      .send({ userId: testUser.id });
-    
-    authCookies = loginResponse.headers['set-cookie'];
+    // Create authenticated session
+    authenticatedAgent = await createAuthenticatedSession(app, testUser);
   });
 
   describe('PUT /api/requests/:id/status', () => {
     it('should update request status to APPROVED', async () => {
-      const response = await request(app)
+      const response = await authenticatedAgent
         .put(`/api/requests/${testRequest.id}/status`)
-        
         .send({ status: 'APPROVED' })
         .expect(200);
 
@@ -92,9 +90,8 @@ describe('Status API Integration Tests', () => {
     });
 
     it('should update request status to DENIED', async () => {
-      const response = await request(app)
+      const response = await authenticatedAgent
         .put(`/api/requests/${testRequest.id}/status`)
-        
         .send({ status: 'DENIED' })
         .expect(200);
 
@@ -112,9 +109,8 @@ describe('Status API Integration Tests', () => {
       testRequest.approvalDate = new Date();
       await testRequest.save();
 
-      const response = await request(app)
+      const response = await authenticatedAgent
         .put(`/api/requests/${testRequest.id}/status`)
-        
         .send({ status: 'PENDING' })
         .expect(200);
 
@@ -142,9 +138,8 @@ describe('Status API Integration Tests', () => {
         emailSent: true
       });
 
-      const response = await request(app)
+      const response = await authenticatedAgent
         .put(`/api/requests/${testRequest.id}/status`)
-        
         .send({ 
           status: 'APPROVED',
           updateGroup: true
@@ -164,9 +159,8 @@ describe('Status API Integration Tests', () => {
     });
 
     it('should validate status values', async () => {
-      const response = await request(app)
+      const response = await authenticatedAgent
         .put(`/api/requests/${testRequest.id}/status`)
-        
         .send({ status: 'INVALID_STATUS' })
         .expect(400);
 
@@ -186,9 +180,8 @@ describe('Status API Integration Tests', () => {
         emailSent: false
       });
 
-      const response = await request(app)
+      const response = await authenticatedAgent
         .put(`/api/requests/${noEmailRequest.id}/status`)
-        
         .send({ status: 'APPROVED' })
         .expect(400);
 
@@ -208,9 +201,8 @@ describe('Status API Integration Tests', () => {
         manualEmailConfirmedAt: new Date()
       });
 
-      const response = await request(app)
+      const response = await authenticatedAgent
         .put(`/api/requests/${manualRequest.id}/status`)
-        
         .send({ status: 'APPROVED' })
         .expect(200);
 
@@ -218,9 +210,8 @@ describe('Status API Integration Tests', () => {
     });
 
     it('should return 404 for non-existent request', async () => {
-      await request(app)
+      await authenticatedAgent
         .put('/api/requests/99999/status')
-        
         .send({ status: 'APPROVED' })
         .expect(404);
     });
@@ -231,7 +222,10 @@ describe('Status API Integration Tests', () => {
         email: 'other@tuifly.com',
         name: 'Other User',
         code: 'OTH',
-        isOnboarded: true
+        signature: 'Other User - OTH',
+        onboardedAt: new Date(),
+        adminApproved: true,
+        adminApprovedAt: new Date()
       });
 
       const otherRequest = await TimeOffRequest.create({
@@ -243,9 +237,8 @@ describe('Status API Integration Tests', () => {
         emailSent: true
       });
 
-      await request(app)
+      await authenticatedAgent
         .put(`/api/requests/${otherRequest.id}/status`)
-        
         .send({ status: 'APPROVED' })
         .expect(404);
     });
@@ -280,9 +273,8 @@ describe('Status API Integration Tests', () => {
     });
 
     it('should update all requests in group', async () => {
-      const response = await request(app)
+      const response = await authenticatedAgent
         .put(`/api/requests/group/${groupId}/status`)
-        
         .send({ status: 'APPROVED' })
         .expect(200);
 
@@ -304,9 +296,8 @@ describe('Status API Integration Tests', () => {
       groupRequest2.emailSent = false;
       await groupRequest2.save();
 
-      const response = await request(app)
+      const response = await authenticatedAgent
         .put(`/api/requests/group/${groupId}/status`)
-        
         .send({ status: 'APPROVED' })
         .expect(400);
 
@@ -314,9 +305,8 @@ describe('Status API Integration Tests', () => {
     });
 
     it('should return 404 for non-existent group', async () => {
-      await request(app)
+      await authenticatedAgent
         .put('/api/requests/group/non-existent-group/status')
-        
         .send({ status: 'APPROVED' })
         .expect(404);
     });
@@ -324,9 +314,8 @@ describe('Status API Integration Tests', () => {
 
   describe('GET /api/requests/:id/status-validation', () => {
     it('should validate status update is allowed', async () => {
-      const response = await request(app)
+      const response = await authenticatedAgent
         .get(`/api/requests/${testRequest.id}/status-validation?newStatus=APPROVED`)
-        
         .expect(200);
 
       expect(response.body.success).toBe(true);
@@ -339,9 +328,8 @@ describe('Status API Integration Tests', () => {
       testRequest.status = 'APPROVED';
       await testRequest.save();
 
-      const response = await request(app)
+      const response = await authenticatedAgent
         .get(`/api/requests/${testRequest.id}/status-validation?newStatus=APPROVED`)
-        
         .expect(200);
 
       expect(response.body.data.isValid).toBe(false);
@@ -358,9 +346,8 @@ describe('Status API Integration Tests', () => {
         emailSent: false
       });
 
-      const response = await request(app)
+      const response = await authenticatedAgent
         .get(`/api/requests/${noEmailRequest.id}/status-validation?newStatus=APPROVED`)
-        
         .expect(200);
 
       expect(response.body.data.isValid).toBe(false);
@@ -368,9 +355,8 @@ describe('Status API Integration Tests', () => {
     });
 
     it('should validate status parameter', async () => {
-      const response = await request(app)
+      const response = await authenticatedAgent
         .get(`/api/requests/${testRequest.id}/status-validation?newStatus=INVALID`)
-        
         .expect(200);
 
       expect(response.body.data.isValid).toBe(false);
@@ -380,9 +366,8 @@ describe('Status API Integration Tests', () => {
 
   describe('GET /api/requests/:id/status-transitions', () => {
     it('should return available status transitions', async () => {
-      const response = await request(app)
+      const response = await authenticatedAgent
         .get(`/api/requests/${testRequest.id}/status-transitions`)
-        
         .expect(200);
 
       expect(response.body.success).toBe(true);
@@ -394,9 +379,8 @@ describe('Status API Integration Tests', () => {
       testRequest.status = 'APPROVED';
       await testRequest.save();
 
-      const response = await request(app)
+      const response = await authenticatedAgent
         .get(`/api/requests/${testRequest.id}/status-transitions`)
-        
         .expect(200);
 
       expect(response.body.data.currentStatus).toBe('APPROVED');
@@ -415,9 +399,8 @@ describe('Status API Integration Tests', () => {
     });
 
     it('should return status history', async () => {
-      const response = await request(app)
+      const response = await authenticatedAgent
         .get(`/api/requests/${testRequest.id}/status-history`)
-        
         .expect(200);
 
       expect(response.body.success).toBe(true);
@@ -432,9 +415,8 @@ describe('Status API Integration Tests', () => {
     });
 
     it('should sort history by date', async () => {
-      const response = await request(app)
+      const response = await authenticatedAgent
         .get(`/api/requests/${testRequest.id}/status-history`)
-        
         .expect(200);
 
       const history = response.body.data.history;
@@ -451,9 +433,8 @@ describe('Status API Integration Tests', () => {
       // Mock database error
       jest.spyOn(TimeOffRequest.prototype, 'update').mockRejectedValue(new Error('Database error'));
 
-      const response = await request(app)
+      const response = await authenticatedAgent
         .put(`/api/requests/${testRequest.id}/status`)
-        
         .send({ status: 'APPROVED' })
         .expect(500);
 
@@ -462,9 +443,8 @@ describe('Status API Integration Tests', () => {
     });
 
     it('should validate request data', async () => {
-      const response = await request(app)
+      const response = await authenticatedAgent
         .put(`/api/requests/${testRequest.id}/status`)
-        
         .send({}) // Missing status
         .expect(400);
 
@@ -473,12 +453,12 @@ describe('Status API Integration Tests', () => {
     });
 
     it('should require authentication', async () => {
-      await request(app)
+      await authenticatedAgent
         .put(`/api/requests/${testRequest.id}/status`)
         .send({ status: 'APPROVED' })
         .expect(401);
 
-      await request(app)
+      await authenticatedAgent
         .get(`/api/requests/${testRequest.id}/status-validation`)
         .expect(401);
     });
@@ -486,9 +466,8 @@ describe('Status API Integration Tests', () => {
 
   describe('Custom Status Update Methods', () => {
     it('should support custom update methods', async () => {
-      const response = await request(app)
+      const response = await authenticatedAgent
         .put(`/api/requests/${testRequest.id}/status`)
-        
         .send({ 
           status: 'APPROVED',
           method: 'admin_override'
@@ -502,9 +481,8 @@ describe('Status API Integration Tests', () => {
     });
 
     it('should default to manual_user_update method', async () => {
-      const response = await request(app)
+      const response = await authenticatedAgent
         .put(`/api/requests/${testRequest.id}/status`)
-        
         .send({ status: 'APPROVED' })
         .expect(200);
 
