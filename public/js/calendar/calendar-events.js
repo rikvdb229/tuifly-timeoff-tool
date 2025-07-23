@@ -21,11 +21,15 @@ async function loadUserDataAndSettings() {
       window.userEmailPreference =
         data.data.user.emailPreference || 'automatic';
 
-      console.log('User data loaded:', window.currentUserData);
-      console.log('User email preference:', window.userEmailPreference);
+      logger.info('User data and preferences loaded', {
+        userId: window.currentUserData?.id,
+        emailPreference: window.userEmailPreference
+      });
     }
   } catch (error) {
-    console.error('Failed to load user data and settings:', error);
+    logger.logError(error, { 
+      operation: 'loadUserDataAndSettings' 
+    });
     // Default to automatic if we can't load settings
     window.userEmailPreference = 'automatic';
   }
@@ -33,7 +37,7 @@ async function loadUserDataAndSettings() {
 
 // Copy functionality with event delegation
 document.addEventListener('DOMContentLoaded', function () {
-  console.log('DOM loaded, setting up copy button handlers');
+  logger.debug('Setting up copy button handlers');
 
   // Single event listener for all copy buttons using event delegation
   document.addEventListener('click', function (event) {
@@ -45,17 +49,17 @@ document.addEventListener('DOMContentLoaded', function () {
       event.stopPropagation();
 
       const targetId = copyBtn.getAttribute('data-copy-target');
-      console.log('Copy button clicked, target ID:', targetId);
+      logger.logUserAction('copyButtonClick', { targetId: targetId });
 
       if (!targetId) {
-        console.error('No target ID found');
+        logger.error('No target ID found for copy operation');
         window.showToast('Copy failed - no target specified', 'error');
         return;
       }
 
       const element = document.getElementById(targetId);
       if (!element) {
-        console.error('Target element not found:', targetId);
+        logger.error('Copy target element not found', { targetId: targetId });
         window.showToast('Copy failed - element not found', 'error');
         return;
       }
@@ -69,28 +73,31 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       if (!textToCopy || !textToCopy.trim()) {
-        console.error('No text to copy');
+        logger.warn('No text to copy');
         window.showToast('Nothing to copy', 'error');
         return;
       }
 
-      console.log('Copying text:', textToCopy.substring(0, 50) + '...');
+      logger.debug('Copying text to clipboard', { 
+        textLength: textToCopy.length,
+        preview: textToCopy.substring(0, 50) + '...' 
+      });
 
       // Copy to clipboard
       if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard
           .writeText(textToCopy)
           .then(() => {
-            console.log('Copy successful via clipboard API');
+            logger.info('Clipboard copy successful');
             window.showToast('Copied to clipboard!', 'success');
             highlightCopyButton(copyBtn);
           })
           .catch(err => {
-            console.error('Clipboard API failed:', err);
+            logger.warn('Clipboard API failed, using fallback', { error: err.message });
             fallbackCopy(textToCopy, copyBtn);
           });
       } else {
-        console.log('Using fallback copy method');
+        logger.debug('Using fallback copy method');
         fallbackCopy(textToCopy, copyBtn);
       }
     }
@@ -111,15 +118,15 @@ document.addEventListener('DOMContentLoaded', function () {
       document.body.removeChild(textArea);
 
       if (successful) {
-        console.log('Fallback copy successful');
+        logger.info('Fallback copy successful');
         window.showToast('Copied to clipboard!', 'success');
         highlightCopyButton(button);
       } else {
-        console.error('Fallback copy failed');
+        logger.error('Fallback copy failed');
         window.showToast('Copy failed', 'error');
       }
     } catch (err) {
-      console.error('Fallback copy error:', err);
+      logger.logError(err, { operation: 'fallbackCopy' });
       window.showToast('Copy failed', 'error');
     }
   }
@@ -454,7 +461,7 @@ function populateModalDates() {
 
 // Event listeners initialization
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('Calendar events module: DOM loaded');
+  logger.debug('Calendar events module initialized');
 
   await loadUserDataAndSettings();
 
@@ -466,7 +473,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       loadEmailPreferences(data.data);
     }
   } catch (error) {
-    console.log('Could not load email preferences for header badge');
+    logger.debug('Could not load email preferences for header badge');
   }
 
   // Wait for other modules to load

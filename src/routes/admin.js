@@ -1,6 +1,7 @@
 // src/routes/admin.js
 const express = require('express');
 const { requireAuth, requireOnboarding } = require('../middleware/auth');
+const { routeLogger } = require('../utils/logger');
 const {
   getAllUsers,
   approveUser,
@@ -163,7 +164,11 @@ router.get('/users', async (req, res) => {
 
     res.send(html);
   } catch (error) {
-    console.error('Error loading admin panel:', error);
+    routeLogger.logError(error, { 
+      operation: 'loadAdminPanel', 
+      userId: req.user?.id, 
+      endpoint: '/admin/users' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to load admin panel',
@@ -177,13 +182,25 @@ router.post('/users/:id/approve', async (req, res) => {
     const userIdToApprove = parseInt(req.params.id);
     const approvedUser = await approveUser(req.user.id, userIdToApprove);
 
+    routeLogger.info('User approved successfully', { 
+      adminId: req.user.id, 
+      adminEmail: req.user.email, 
+      approvedUserId: userIdToApprove, 
+      operation: 'approveUser' 
+    });
+
     res.json({
       success: true,
       message: 'User approved successfully',
       user: approvedUser.toSafeObject(),
     });
   } catch (error) {
-    console.error('Error approving user:', error);
+    routeLogger.logError(error, { 
+      operation: 'approveUser', 
+      adminId: req.user?.id, 
+      targetUserId: parseInt(req.params.id), 
+      endpoint: '/admin/users/:id/approve' 
+    });
     res.status(400).json({
       success: false,
       error: error.message,
@@ -199,13 +216,25 @@ router.post('/users/:id/deny', async (req, res) => {
     // For now, we'll just mark them as denied (we could delete the account)
     // TODO: Add proper denial handling
 
+    routeLogger.info('User denial attempted', { 
+      adminId: req.user.id, 
+      adminEmail: req.user.email, 
+      deniedUserId: userIdToDeny, 
+      operation: 'denyUser' 
+    });
+
     res.json({
       success: true,
       message:
         'User denied (this is a placeholder - implement proper denial logic)',
     });
   } catch (error) {
-    console.error('Error denying user:', error);
+    routeLogger.logError(error, { 
+      operation: 'denyUser', 
+      adminId: req.user?.id, 
+      targetUserId: parseInt(req.params.id), 
+      endpoint: '/admin/users/:id/deny' 
+    });
     res.status(400).json({
       success: false,
       error: error.message,
@@ -219,13 +248,25 @@ router.post('/users/:id/promote', async (req, res) => {
     const userIdToPromote = parseInt(req.params.id);
     const promotedUser = await makeUserAdmin(req.user.id, userIdToPromote);
 
+    routeLogger.info('User promoted to admin successfully', { 
+      adminId: req.user.id, 
+      adminEmail: req.user.email, 
+      promotedUserId: userIdToPromote, 
+      operation: 'promoteUser' 
+    });
+
     res.json({
       success: true,
       message: 'User promoted to admin successfully',
       user: promotedUser.toSafeObject(),
     });
   } catch (error) {
-    console.error('Error promoting user:', error);
+    routeLogger.logError(error, { 
+      operation: 'promoteUser', 
+      adminId: req.user?.id, 
+      targetUserId: parseInt(req.params.id), 
+      endpoint: '/admin/users/:id/promote' 
+    });
     res.status(400).json({
       success: false,
       error: error.message,

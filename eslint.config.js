@@ -30,7 +30,7 @@ module.exports = [
       'no-script-url': 'error',
       
       // Best practices
-      'no-console': 'warn',
+      'no-console': 'error', // Changed to error since we now use Winston
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       'no-var': 'error',
       'prefer-const': 'error',
@@ -53,10 +53,14 @@ module.exports = [
         location: 'readonly',
         alert: 'readonly',
         confirm: 'readonly',
+        logger: 'readonly', // Allow global logger
         $: 'readonly',
         jQuery: 'readonly',
         bootstrap: 'readonly',
       }
+    },
+    rules: {
+      'no-console': 'error', // Enforce using logger instead of console in client code
     }
   },
   {

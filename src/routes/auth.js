@@ -8,6 +8,7 @@ const {
 } = require('../middleware/auth');
 const { deleteUserAccount, User } = require('../models');
 const { sanitizeRequestBody } = require('../utils/sanitize');
+const { routeLogger } = require('../utils/logger');
 
 const router = express.Router();
 
@@ -68,7 +69,11 @@ router.get('/status', async (req, res) => {
       user: user.toSafeObject(),
     });
   } catch (error) {
-    console.error('Error checking auth status:', error);
+    routeLogger.logError(error, { 
+      operation: 'checkAuthStatus', 
+      userId: req.session?.userId, 
+      endpoint: '/auth/status' 
+    });
     res.status(500).json({
       authenticated: false,
       error: 'Internal server error',
@@ -110,7 +115,11 @@ router.get('/waiting-approval', async (req, res) => {
       additionalJS: ['waiting-approval'],
     });
   } catch (error) {
-    console.error('Error in waiting-approval route:', error);
+    routeLogger.logError(error, { 
+      operation: 'waitingApproval', 
+      userId: req.session?.userId, 
+      endpoint: '/auth/waiting-approval' 
+    });
     res.status(500).render('layouts/base', {
       title: 'Error',
       body: '../pages/error',
@@ -153,7 +162,14 @@ router.get(
       req.session.googleId = req.user.googleId;
       req.session.email = req.user.email;
 
-      console.log(`✅ User ${req.user.email} logged in with basic permissions`);
+      routeLogger.info('User logged in with basic OAuth', { 
+        userId: req.user.id, 
+        userEmail: req.user.email, 
+        googleId: req.user.googleId, 
+        isOnboarded: req.user.isOnboarded(), 
+        canUseApp: req.user.canUseApp(), 
+        operation: 'basicOAuthLogin' 
+      });
 
       // Check if user needs onboarding
       if (!req.user.isOnboarded()) {
@@ -169,7 +185,12 @@ router.get(
       // Success - redirect to dashboard
       res.redirect('/?message=login_success');
     } catch (error) {
-      console.error('Basic OAuth callback error:', error);
+      routeLogger.logError(error, { 
+        operation: 'basicOAuthCallback', 
+        userId: req.user?.id, 
+        userEmail: req.user?.email, 
+        endpoint: '/auth/google/callback' 
+      });
       res.redirect('/auth/login?error=callback_error');
     }
   }
@@ -202,9 +223,12 @@ router.get(
 router.get(
   '/google/gmail/callback',
   (req, res, next) => {
-    console.log('🔍 Gmail callback received:');
-    console.log('Query params:', req.query);
-    console.log('Session before passport:', req.session);
+    routeLogger.debug('Gmail OAuth callback received', { 
+      queryParams: req.query, 
+      sessionId: req.sessionID, 
+      hasSession: !!req.session, 
+      operation: 'gmailOAuthCallback' 
+    });
     next();
   },
   passport.authenticate('google-gmail', {
@@ -213,12 +237,20 @@ router.get(
   }),
   async (req, res) => {
     try {
-      console.log('🔍 Gmail callback successful:');
-      console.log('req.user:', req.user ? req.user.toSafeObject() : 'NULL');
-      console.log('req.session:', req.session);
+      routeLogger.debug('Gmail OAuth callback successful', { 
+        userId: req.user?.id, 
+        userEmail: req.user?.email, 
+        hasUser: !!req.user, 
+        sessionId: req.sessionID, 
+        operation: 'gmailOAuthCallback' 
+      });
 
       if (!req.user) {
-        console.error('❌ No user object after Gmail OAuth');
+        routeLogger.error('No user object after Gmail OAuth', { 
+          sessionId: req.sessionID, 
+          queryParams: req.query, 
+          operation: 'gmailOAuthCallback' 
+        });
         return res.redirect('/onboarding?error=no_user_object&step=3');
       }
 
@@ -229,27 +261,48 @@ router.get(
       if (req.user.gmailScopeGranted) {
         try {
           await req.user.update({ emailPreference: 'automatic' });
-          console.log(
-            `✅ Automatically switched ${req.user.email} to automatic email mode`
-          );
+          routeLogger.info('User switched to automatic email mode after Gmail OAuth', { 
+            userId: req.user.id, 
+            userEmail: req.user.email, 
+            operation: 'autoSwitchEmailMode' 
+          });
         } catch (error) {
-          console.error('❌ Failed to update email preference:', error);
+          routeLogger.error('Failed to update email preference after Gmail OAuth', { 
+            userId: req.user.id, 
+            userEmail: req.user.email, 
+            error: error.message, 
+            operation: 'autoSwitchEmailMode' 
+          });
           // Don't fail the whole callback for this
         }
       }
 
-      console.log(`✅ User ${req.user.email} granted Gmail permissions`);
+      routeLogger.info('User granted Gmail permissions', { 
+        userId: req.user.id, 
+        userEmail: req.user.email, 
+        gmailScopeGranted: req.user.gmailScopeGranted, 
+        operation: 'gmailOAuthSuccess' 
+      });
 
       // Check where to redirect based on context
       const redirectTo =
         req.session.gmailOAuthRedirect || '/onboarding?gmail_success=1&step=4';
       delete req.session.gmailOAuthRedirect; // Clean up
 
-      console.log('Redirecting to:', redirectTo);
+      routeLogger.debug('Redirecting after Gmail OAuth', { 
+        userId: req.user.id, 
+        redirectTo, 
+        operation: 'gmailOAuthRedirect' 
+      });
       res.redirect(redirectTo);
     } catch (error) {
-      console.error('Gmail OAuth callback error:', error);
-      console.error('Error stack:', error.stack);
+      routeLogger.logError(error, { 
+        operation: 'gmailOAuthCallback', 
+        userId: req.user?.id, 
+        userEmail: req.user?.email, 
+        sessionId: req.sessionID, 
+        endpoint: '/auth/google/gmail/callback' 
+      });
       res.redirect('/onboarding?error=gmail_callback_error&step=3');
     }
   }
@@ -276,9 +329,20 @@ router.post(
 router.get('/logout', requireAuth, (req, res) => {
   req.session.destroy(err => {
     if (err) {
-      console.error('Logout error:', err);
+      routeLogger.logError(err, { 
+        operation: 'logout', 
+        userId: req.user?.id, 
+        userEmail: req.user?.email, 
+        endpoint: '/auth/logout' 
+      });
       return res.redirect('/?error=logout_failed');
     }
+
+    routeLogger.info('User logged out successfully (GET)', { 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      operation: 'logout' 
+    });
 
     res.clearCookie('connect.sid');
     res.clearCookie('tuifly.sid');
@@ -290,12 +354,23 @@ router.get('/logout', requireAuth, (req, res) => {
 router.post('/logout', requireAuth, (req, res) => {
   req.session.destroy(err => {
     if (err) {
-      console.error('Logout error:', err);
+      routeLogger.logError(err, { 
+        operation: 'logout', 
+        userId: req.user?.id, 
+        userEmail: req.user?.email, 
+        endpoint: 'POST /auth/logout' 
+      });
       return res.status(500).json({
         success: false,
         error: 'Logout failed',
       });
     }
+
+    routeLogger.info('User logged out successfully (POST)', { 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      operation: 'logout' 
+    });
 
     res.clearCookie('connect.sid');
     res.clearCookie('tuifly.sid');
@@ -311,9 +386,20 @@ router.delete('/account', requireAuth, async (req, res) => {
   try {
     await deleteUserAccount(req.user.id);
 
+    routeLogger.info('User account deleted successfully', { 
+      userId: req.user.id, 
+      userEmail: req.user.email, 
+      operation: 'deleteAccount' 
+    });
+
     req.session.destroy(err => {
       if (err) {
-        console.error('Session destroy error during account deletion:', err);
+        routeLogger.error('Session destroy error during account deletion', { 
+          userId: req.user?.id, 
+          userEmail: req.user?.email, 
+          error: err.message, 
+          operation: 'deleteAccount' 
+        });
       }
       res.clearCookie('connect.sid');
       res.clearCookie('tuifly.sid');
@@ -324,7 +410,12 @@ router.delete('/account', requireAuth, async (req, res) => {
       });
     });
   } catch (error) {
-    console.error('Account deletion error:', error);
+    routeLogger.logError(error, { 
+      operation: 'deleteAccount', 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: 'DELETE /auth/account' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to delete account',

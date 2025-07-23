@@ -33,7 +33,10 @@ window.showRequestDetailModal = async function (request, dateStr) {
           }
         }
       } catch (error) {
-        console.warn('Could not load existing requests for modal:', error);
+        logger.logError(error, { 
+          operation: 'loadExistingRequestsForModal',
+          requestId: request.id 
+        });
         window.existingRequests = [request]; // Fallback to just this request
       }
     }
@@ -148,7 +151,10 @@ async function populateRequestDates(request) {
         );
       }
     } catch (error) {
-      console.error('Error loading group details:', error);
+      logger.logError(error, { 
+        operation: 'loadGroupDetails',
+        requestId: request.id 
+      });
       datesContainer.innerHTML =
         '<div class="text-danger">Error loading request details</div>';
       return;
@@ -254,8 +260,10 @@ function populateEmailContent(request) {
   const approverEmail =
     window.TUIFLY_CONFIG?.APPROVER_EMAIL || 'scheduling@tuifly.be';
 
-  console.log('📧 Populating email content for request:', request.id);
-  console.log('📧 Manual email content:', request.manualEmailContent);
+  logger.debug('Populating email content for request', { 
+    requestId: request.id,
+    hasEmailContent: !!request.manualEmailContent 
+  });
 
   if (request.manualEmailContent) {
     const emailContent = request.manualEmailContent;
@@ -265,40 +273,41 @@ function populateEmailContent(request) {
     const subjectField = document.getElementById('emailSubjectDetail');
     const bodyField = document.getElementById('emailBody');
 
-    console.log('📧 DOM elements found:', {
+    logger.debug('Email form elements found', {
       toField: !!toField,
       subjectField: !!subjectField,
       bodyField: !!bodyField,
+      requestId: request.id
     });
 
     // Set TO field
     if (toField) {
       toField.value = emailContent.to || approverEmail;
-      console.log('📧 Set TO field:', toField.value);
+      logger.debug('Set TO field', { to: toField.value, requestId: request.id });
     } else {
-      console.error('❌ emailTo field not found!');
+      logger.error('emailTo field not found', { requestId: request.id });
     }
 
     // Set SUBJECT field
     if (subjectField) {
       subjectField.value = emailContent.subject || '';
-      console.log('📧 Set SUBJECT field:', subjectField.value);
+      logger.debug('Set SUBJECT field', { subject: subjectField.value, requestId: request.id });
     } else {
-      console.error('❌ emailSubjectDetail field not found!');
+      logger.error('emailSubjectDetail field not found', { requestId: request.id });
     }
 
     // Set BODY field
     if (bodyField) {
       bodyField.value = emailContent.body || emailContent.text || '';
-      console.log('📧 Set BODY field length:', bodyField.value.length);
+      logger.debug('Set BODY field', { bodyLength: bodyField.value.length, requestId: request.id });
     } else {
-      console.error('❌ emailBody field not found!');
+      logger.error('emailBody field not found', { requestId: request.id });
     }
 
     return;
   }
 
-  console.warn('⚠️ No stored email content found');
+  logger.warn('No stored email content found', { requestId: request.id });
 }
 
 /**
@@ -309,7 +318,7 @@ function populateEmailContent(request) {
  */
 async function generateEmailContentForModal(request) {
   try {
-    console.log('📧 Generating email content for request:', request.id);
+    logger.debug('Generating email content for request', { requestId: request.id });
 
     const response = await fetch(`/api/requests/${request.id}/email-content`);
 
@@ -322,7 +331,10 @@ async function generateEmailContentForModal(request) {
         populateEmailContent(request);
       }
     } else {
-      console.error('Failed to fetch email content:', response.status);
+      logger.error('Failed to fetch email content', { 
+        status: response.status,
+        requestId: request.id 
+      });
 
       // Fallback: populate with default values
       const approverEmail =
@@ -332,10 +344,13 @@ async function generateEmailContentForModal(request) {
         toField.value = approverEmail;
       }
 
-      console.warn('⚠️ Using fallback email address');
+      logger.warn('Using fallback email address', { requestId: request.id });
     }
   } catch (error) {
-    console.error('Error generating email content:', error);
+    logger.logError(error, { 
+      operation: 'generateEmailContentForModal',
+      requestId: request.id 
+    });
   }
 }
 
@@ -440,7 +455,7 @@ function openInMailClient(requestId) {
   const bodyField = document.getElementById('emailBody');
 
   if (!toField || !subjectField || !bodyField) {
-    console.error('Email fields not found');
+    logger.error('Email fields not found', { requestId: requestId });
     if (window.showToast) {
       window.showToast('Could not find email content', 'error');
     }
@@ -463,7 +478,10 @@ function openInMailClient(requestId) {
       window.showToast('Opening in your default mail client...', 'success');
     }
   } catch (error) {
-    console.error('Error opening mail client:', error);
+    logger.logError(error, { 
+      operation: 'openInMailClient',
+      requestId: requestId 
+    });
     if (window.showToast) {
       window.showToast(
         'Could not open mail client. Please copy the content manually.',

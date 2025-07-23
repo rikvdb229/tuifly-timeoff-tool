@@ -261,7 +261,10 @@ async function checkCodeAvailability(code) {
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error('Code check error:', error);
+    logger.logError(error, { 
+      operation: 'checkCodeAvailability',
+      code: code 
+    });
     return {
       available: false,
       message: 'Error checking code availability',
@@ -363,7 +366,10 @@ async function completeOnboarding() {
       }
     }
 
-    console.log('Completing onboarding with data:', onboardingData);
+    logger.logUserAction('completeOnboarding', { 
+      userId: onboardingData.code,
+      emailPreference: onboardingData.emailPreference 
+    });
 
     const response = await fetch('/onboarding/complete', {
       method: 'POST',
@@ -372,7 +378,10 @@ async function completeOnboarding() {
     });
 
     const result = await response.json();
-    console.log('Server response:', result);
+    logger.info('Onboarding completed successfully', { 
+      success: result.success,
+      userId: onboardingData.code 
+    });
 
     if (result.success) {
       showSuccess('Onboarding completed successfully!');
@@ -396,7 +405,10 @@ async function completeOnboarding() {
       }
     }
   } catch (error) {
-    console.error('Onboarding error:', error);
+    logger.logError(error, { 
+      operation: 'completeOnboarding',
+      userId: onboardingData.code 
+    });
     showError(`Failed to complete onboarding: ${error.message}`);
 
     const btn = document.getElementById('completeBtn');

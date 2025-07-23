@@ -21,7 +21,7 @@ async function loadExistingRequests() {
       initializeTooltips();
     }
   } catch (error) {
-    console.error('Error loading requests:', error);
+    logger.logError(error, { operation: 'loadExistingRequests' });
     window.showToast('Failed to load existing requests', 'error');
   }
 }
@@ -52,7 +52,11 @@ window.updateRequestStatus = async function (
   newStatus,
   updateGroup = false
 ) {
-  console.log('updateRequestStatus called:', requestId, newStatus, updateGroup);
+  logger.logUserAction('updateRequestStatus', {
+    requestId: requestId,
+    newStatus: newStatus,
+    updateGroup: updateGroup
+  });
 
   const statusText = newStatus === 'APPROVED' ? 'approve' : 'deny';
   const groupText = updateGroup ? ' entire group' : '';
@@ -100,14 +104,21 @@ window.updateRequestStatus = async function (
         );
       }
     } catch (error) {
-      console.error(`Error ${statusText}ing request:`, error);
+      logger.logError(error, {
+        operation: `${statusText}Request`,
+        requestId: requestId,
+        newStatus: newStatus
+      });
       window.showToast(`Failed to ${statusText} request`, 'error');
     }
   }
 };
 
 window.updateIndividualStatus = async function (requestId, newStatus) {
-  console.log('updateIndividualStatus called:', requestId, newStatus);
+  logger.logUserAction('updateIndividualStatus', {
+    requestId: requestId,
+    newStatus: newStatus
+  });
 
   try {
     const response = await fetch(`/api/requests/${requestId}/status`, {
@@ -155,14 +166,18 @@ window.updateIndividualStatus = async function (requestId, newStatus) {
       window.showToast(result.error || 'Failed to update status', 'error');
     }
   } catch (error) {
-    console.error('Error updating individual status:', error);
+    logger.logError(error, {
+      operation: 'updateIndividualStatus',
+      requestId: requestId,
+      newStatus: newStatus
+    });
     window.showToast('Failed to update status', 'error');
   }
 };
 
 // Bulk status update
 window.bulkUpdateStatus = async function (newStatus) {
-  console.log('bulkUpdateStatus called:', newStatus);
+  logger.logUserAction('bulkUpdateStatus', { newStatus: newStatus });
 
   const statusText = newStatus.toLowerCase();
   const confirmMessage = `Are you sure you want to mark ALL dates as ${statusText}?`;
@@ -196,7 +211,10 @@ window.bulkUpdateStatus = async function (newStatus) {
         return;
       }
 
-      console.log('Updating request IDs:', requestIds);
+      logger.debug('Bulk updating request IDs', { 
+        requestIds: requestIds,
+        newStatus: newStatus 
+      });
 
       // Update all requests
       const updatePromises = requestIds.map(id =>
@@ -217,7 +235,10 @@ window.bulkUpdateStatus = async function (newStatus) {
       // Check if all updates were successful
       const failedUpdates = results.filter(r => !r.success);
       if (failedUpdates.length > 0) {
-        console.error('Some updates failed:', failedUpdates);
+        logger.error('Some bulk updates failed', {
+          failedCount: failedUpdates.length,
+          newStatus: newStatus
+        });
         window.showToast(
           `Failed to update ${failedUpdates.length} requests`,
           'error'
@@ -263,7 +284,10 @@ window.bulkUpdateStatus = async function (newStatus) {
       // Refresh calendar to show updated status
       setTimeout(() => loadExistingRequests(), 1000);
     } catch (error) {
-      console.error('Error in bulk update:', error);
+      logger.logError(error, {
+        operation: 'bulkUpdateStatus',
+        newStatus: newStatus
+      });
       window.showToast('Failed to update all dates', 'error');
     }
   }
@@ -350,7 +374,7 @@ window.generateGroupEmailContent = window.generateEmailContent;
 
 // Email management functions
 window.markEmailAsSent = async function (requestId) {
-  console.log('markEmailAsSent called with requestId:', requestId);
+  logger.logUserAction('markEmailAsSent', { requestId: requestId });
 
   try {
     const response = await fetch(`/api/requests/${requestId}/mark-email-sent`, {
@@ -376,13 +400,16 @@ window.markEmailAsSent = async function (requestId) {
       window.showToast(result.error || 'Failed to mark email as sent', 'error');
     }
   } catch (error) {
-    console.error('Error marking email as sent:', error);
+    logger.logError(error, {
+      operation: 'markEmailAsSent',
+      requestId: requestId
+    });
     window.showToast('Failed to mark email as sent', 'error');
   }
 };
 
 window.resendEmail = async function (requestId) {
-  console.log('resendEmail called with requestId:', requestId);
+  logger.logUserAction('resendEmail', { requestId: requestId });
 
   try {
     const response = await fetch(`/api/requests/${requestId}/resend-email`, {
@@ -408,7 +435,10 @@ window.resendEmail = async function (requestId) {
       window.showToast(result.error || 'Failed to resend email', 'error');
     }
   } catch (error) {
-    console.error('Error resending email:', error);
+    logger.logError(error, {
+      operation: 'resendEmail',
+      requestId: requestId
+    });
     window.showToast('Failed to resend email', 'error');
   }
 };
@@ -443,19 +473,20 @@ window.loadGroupEmailContent = async function (requestId) {
       );
     }
   } catch (error) {
-    console.error('Error loading email content:', error);
+    logger.logError(error, {
+      operation: 'loadGroupEmailContent',
+      requestId: requestId
+    });
     window.showToast('Failed to generate email content', 'error');
   }
 };
 
 // Request deletion
 window.deleteRequest = async function (requestId, isGroup = false) {
-  console.log(
-    'deleteRequest called with requestId:',
-    requestId,
-    'isGroup:',
-    isGroup
-  );
+  logger.logUserAction('deleteRequest', {
+    requestId: requestId,
+    isGroup: isGroup
+  });
 
   const message = isGroup
     ? 'Are you sure you want to delete this entire group request? This will delete all dates in the group. This action cannot be undone.'
@@ -494,7 +525,11 @@ window.deleteRequest = async function (requestId, isGroup = false) {
         window.showToast(result.error || 'Failed to delete request', 'error');
       }
     } catch (error) {
-      console.error('Error deleting request:', error);
+      logger.logError(error, {
+        operation: 'deleteRequest',
+        requestId: requestId,
+        isGroup: isGroup
+      });
       window.showToast('Failed to delete request', 'error');
     }
   }
@@ -532,7 +567,10 @@ window.submitGroupRequest = async function () {
     '<i class="bi bi-hourglass-split me-1"></i>Submitting...';
 
   try {
-    console.log('Submitting group request with dates:', window.selectedDates);
+    logger.logApiCall('POST', '/api/requests/group', null, null, {
+      dateCount: window.selectedDates.length,
+      hasCustomMessage: !!customMessage
+    });
     const response = await fetch('/api/requests/group', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -543,7 +581,10 @@ window.submitGroupRequest = async function () {
     });
 
     const result = await response.json();
-    console.log('Group request result:', result);
+    logger.logApiCall('POST', '/api/requests/group', response.status, null, {
+      success: result.success,
+      dateCount: window.selectedDates.length
+    });
 
     if (result.success) {
       const modal = bootstrap.Modal.getInstance(
@@ -563,7 +604,10 @@ window.submitGroupRequest = async function () {
       window.showToast(result.error, 'error');
     }
   } catch (error) {
-    console.error('Error creating group request:', error);
+    logger.logError(error, {
+      operation: 'submitGroupRequest',
+      dateCount: window.selectedDates.length
+    });
     window.showToast('Failed to create request', 'error');
   } finally {
     window.isSubmitting = false;
@@ -606,10 +650,10 @@ window.submitGroupRequestManual = async function () {
     '<i class="bi bi-hourglass-split me-1"></i>Creating Request...';
 
   try {
-    console.log(
-      'Submitting manual group request with dates:',
-      window.selectedDates
-    );
+    logger.logApiCall('POST', '/api/requests/group-manual', null, null, {
+      dateCount: window.selectedDates.length,
+      hasCustomMessage: !!customMessage
+    });
     const response = await fetch('/api/requests/group-manual', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -620,7 +664,10 @@ window.submitGroupRequestManual = async function () {
     });
 
     const result = await response.json();
-    console.log('Manual group request result:', result);
+    logger.logApiCall('POST', '/api/requests/group-manual', response.status, null, {
+      success: result.success,
+      dateCount: window.selectedDates.length
+    });
 
     if (result.success) {
       const modal = bootstrap.Modal.getInstance(
@@ -640,7 +687,10 @@ window.submitGroupRequestManual = async function () {
       window.showToast(result.error, 'error');
     }
   } catch (error) {
-    console.error('Error creating manual group request:', error);
+    logger.logError(error, {
+      operation: 'submitGroupRequestManual',
+      dateCount: window.selectedDates.length
+    });
     window.showToast('Failed to create request', 'error');
   } finally {
     window.isSubmitting = false;
@@ -727,7 +777,7 @@ function getStatusColor(status) {
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('Calendar requests module: DOM loaded');
+  logger.debug('Calendar requests module initialized');
   await loadExistingRequests();
 });
 

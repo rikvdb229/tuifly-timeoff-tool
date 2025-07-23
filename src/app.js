@@ -10,6 +10,7 @@ const RedisStore = require('connect-redis').default;
 const passport = require('../config/passport');
 const { redisClient } = require('../config/database');
 const { loadUser } = require('./middleware/auth');
+const { logger, createLogger } = require('./utils/logger');
 
 const app = express();
 
@@ -57,8 +58,46 @@ app.use(
   })
 );
 
-// Logging
-app.use(morgan('combined'));
+// Request logging middleware
+const requestLogger = createLogger({ component: 'http' });
+
+// Morgan with Winston integration
+const morganFormat = process.env.NODE_ENV === 'production' 
+  ? 'combined' 
+  : ':method :url :status :res[content-length] - :response-time ms';
+
+app.use(morgan(morganFormat, {
+  stream: {
+    write: message => logger.info(message.trim(), { component: 'morgan' })
+  }
+}));
+
+// Custom request logging middleware
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  
+  // Log the request
+  requestLogger.info('HTTP request started', {
+    method: req.method,
+    url: req.originalUrl,
+    userAgent: req.get('User-Agent'),
+    ip: req.ip || req.connection.remoteAddress,
+    sessionId: req.sessionID,
+    userId: req.session?.userId,
+  });
+
+  // Override res.end to capture response time and status
+  const originalEnd = res.end;
+  res.end = function(...args) {
+    const responseTime = Date.now() - startTime;
+    
+    requestLogger.logRequest(req, res, responseTime);
+    
+    originalEnd.apply(this, args);
+  };
+
+  next();
+});
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
@@ -135,7 +174,12 @@ try {
   const settingsRoutes = require('./routes/settings');
   app.use('/settings', settingsRoutes);
 } catch (err) {
-  console.error('Error loading routes:', err);
+  logger.error('Error loading routes', {
+    error: err.message,
+    stack: err.stack,
+    component: 'app',
+    operation: 'routeInitialization'
+  });
 }
 
 // 404 handler
@@ -161,12 +205,18 @@ app.use((req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error('Global error handler:', err);
-
-  // Don't log expected errors in production
-  if (process.env.NODE_ENV !== 'production' || err.status >= 500) {
-    console.error(err.stack);
-  }
+  const appLogger = createLogger({ component: 'errorHandler' });
+  
+  appLogger.logError(err, {
+    operation: 'globalErrorHandler',
+    method: req.method,
+    url: req.originalUrl,
+    userAgent: req.get('User-Agent'),
+    ip: req.ip,
+    userId: req.session?.userId,
+    sessionId: req.sessionID,
+    status: err.status || 500
+  });
 
   const statusCode = err.status || 500;
   const message =

@@ -2,6 +2,7 @@
 const express = require('express');
 const { TimeOffRequest } = require('../../models');
 const { sanitizeRequestBody } = require('../../utils/sanitize');
+const { routeLogger } = require('../../utils/logger');
 
 const router = express.Router();
 
@@ -86,6 +87,19 @@ router.put(
       );
       await Promise.all(updatePromises);
 
+      routeLogger.info('Request status updated successfully', { 
+        userId: req.user.id, 
+        userEmail: req.user.email, 
+        requestId: id, 
+        newStatus: status, 
+        method, 
+        updateGroup, 
+        updatedCount: requestsToUpdate.length, 
+        isGroup: !!request.groupId, 
+        groupId: request.groupId, 
+        operation: 'updateRequestStatus' 
+      });
+
       res.json({
         success: true,
         message: `Request${requestsToUpdate.length > 1 ? 's' : ''} marked as ${status.toLowerCase()} successfully`,
@@ -100,7 +114,16 @@ router.put(
         },
       });
     } catch (error) {
-      console.error('Error updating request status:', error);
+      routeLogger.logError(error, { 
+        operation: 'updateRequestStatus', 
+        userId: req.user?.id, 
+        userEmail: req.user?.email, 
+        requestId: req.params?.id, 
+        requestedStatus: req.body?.status, 
+        method: req.body?.method, 
+        updateGroup: req.body?.updateGroup, 
+        endpoint: 'PUT /requests/:id/status' 
+      });
       res.status(500).json({
         success: false,
         error: 'Failed to update request status',

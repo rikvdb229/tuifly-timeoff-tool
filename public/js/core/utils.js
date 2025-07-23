@@ -95,7 +95,10 @@ async function loadSettings() {
           'scheduling@tuifly.be';}
     }
   } catch (error) {
-    console.error('Error loading settings:', error);
+    logger.logError(error, { 
+      operation: 'loadSettings',
+      userId: window.currentUserData?.id 
+    });
     showToast('Failed to load settings', 'error');
   } finally {
     if (settingsLoading) {settingsLoading.style.display = 'none';}
@@ -123,7 +126,10 @@ async function loadGmailStatus() {
       updateEmailPreferenceUI();
     }
   } catch (error) {
-    console.error('Error loading Gmail status:', error);
+    logger.logError(error, { 
+      operation: 'loadGmailStatus',
+      userId: window.currentUserData?.id 
+    });
   }
 }
 
@@ -185,7 +191,10 @@ function updateEmailPreferenceUI() {
  * @returns {void}
  */
 function selectEmailPreference(preference) {
-  console.log(`Selecting email preference: ${preference}`);
+  logger.logUserAction('selectEmailPreference', { 
+    preference: preference,
+    gmailConnected: gmailConnected 
+  });
 
   // If selecting automatic but Gmail not connected, show auth section
   if (preference === 'automatic' && !gmailConnected) {
@@ -243,7 +252,7 @@ async function updateEmailPreference(preference) {
 
       // Refresh calendar if function exists
       if (typeof loadExistingRequests === 'function') {
-        console.log('Refreshing calendar after email preference change...');
+        logger.info('Refreshing calendar after email preference change');
         await loadExistingRequests();
       }
     } else {
@@ -261,7 +270,11 @@ async function updateEmailPreference(preference) {
       }
     }
   } catch (error) {
-    console.error('Email preference update error:', error);
+    logger.logError(error, { 
+      operation: 'updateEmailPreference',
+      preference: preference,
+      userId: window.currentUserData?.id 
+    });
     showToast('Failed to update email preference', 'error');
 
     // Reset card selection to previous state
@@ -314,7 +327,7 @@ function loadEmailPreferences(data) {
 
 // Check authorization status manually
 window.checkGmailAuth = async function () {
-  console.log('Checking Gmail authorization status...');
+  logger.info('Checking Gmail authorization status');
   await loadGmailStatus();
 
   const status = gmailConnected ? 'Connected' : 'Not Connected';
@@ -370,7 +383,10 @@ async function connectGmail() {
     // Redirect to Gmail OAuth
     window.location.href = '/auth/google/gmail';
   } catch (error) {
-    console.error('Gmail connection error:', error);
+    logger.logError(error, { 
+      operation: 'connectGmail',
+      userId: window.currentUserData?.id 
+    });
     showToast('Failed to connect Gmail. Please try again.', 'error');
 
     const authorizeBtn = document.getElementById('authorizeGmailBtn');
@@ -417,7 +433,10 @@ async function disconnectGmail() {
       showToast(result.error || 'Failed to disconnect Gmail', 'error');
     }
   } catch (error) {
-    console.error('Gmail disconnection error:', error);
+    logger.logError(error, { 
+      operation: 'disconnectGmail',
+      userId: window.currentUserData?.id 
+    });
     showToast('Failed to disconnect Gmail. Please try again.', 'error');
   }
 }
@@ -478,7 +497,10 @@ document.addEventListener('DOMContentLoaded', function () {
           throw new Error(data.error || 'Failed to update profile');
         }
       } catch (error) {
-        console.error('Profile update error:', error);
+        logger.logError(error, { 
+          operation: 'updateProfile',
+          userId: window.currentUserData?.id 
+        });
         showToast('Failed to update profile', 'error');
       }
     });
@@ -587,7 +609,10 @@ async function deleteAccount() {
           throw new Error(data.error || 'Failed to delete account');
         }
       } catch (error) {
-        console.error('Account deletion error:', error);
+        logger.logError(error, { 
+          operation: 'deleteAccount',
+          userId: window.currentUserData?.id 
+        });
         showToast('Failed to delete account', 'error');
       }
     } else {

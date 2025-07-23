@@ -22,7 +22,10 @@ async function checkApprovalStatus() {
       }, 2000);
     }
   } catch (error) {
-    console.error('Error checking approval status:', error);
+    logger.logError(error, { 
+      operation: 'checkApprovalStatus',
+      userId: window.currentUserData?.id 
+    });
     alert('Error checking status. Please try again.');
   }
 }

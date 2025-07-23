@@ -174,7 +174,11 @@ class APIClient {
     }
 
     // Generic error
-    console.error(`API ${method} ${endpoint} failed:`, error);
+    logger.logError(error, { 
+      operation: 'apiRequest',
+      method: method,
+      endpoint: endpoint
+    });
     return new APIError('Request failed', 500, 'UNKNOWN_ERROR', {
       originalError: error.message,
     });

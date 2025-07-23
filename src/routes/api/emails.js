@@ -2,6 +2,7 @@
 const express = require('express');
 const { TimeOffRequest } = require('../../models');
 const GmailService = require('../../services/gmailService');
+const { routeLogger } = require('../../utils/logger');
 
 const router = express.Router();
 
@@ -49,7 +50,14 @@ router.post('/requests/:id/resend-email', async (req, res) => {
 
     // Attempt to send email
     try {
-      console.log(`Resending email for request ${id}...`);
+      routeLogger.info('Resending email for request', { 
+        requestId: id, 
+        userId: req.user.id, 
+        userEmail: req.user.email, 
+        isGroup: !!request.groupId, 
+        groupId: request.groupId, 
+        operation: 'resendEmail' 
+      });
       const emailResult = await new GmailService().sendEmail(
         req.user,
         requestsToResend
@@ -60,6 +68,18 @@ router.post('/requests/:id/resend-email', async (req, res) => {
         req.markEmailSent(emailResult.messageId, emailResult.threadId)
       );
       await Promise.all(updatePromises);
+
+      routeLogger.info('Email resent successfully', { 
+        requestId: id, 
+        userId: req.user.id, 
+        userEmail: req.user.email, 
+        isGroup: !!request.groupId, 
+        groupId: request.groupId, 
+        requestsCount: requestsToResend.length, 
+        messageId: emailResult.messageId, 
+        threadId: emailResult.threadId, 
+        operation: 'resendEmail' 
+      });
 
       res.json({
         success: true,
@@ -75,7 +95,15 @@ router.post('/requests/:id/resend-email', async (req, res) => {
         },
       });
     } catch (emailError) {
-      console.error('Email resend failed:', emailError);
+      routeLogger.logError(emailError, { 
+        operation: 'resendEmail', 
+        requestId: id, 
+        userId: req.user.id, 
+        userEmail: req.user.email, 
+        isGroup: !!request.groupId, 
+        groupId: request.groupId, 
+        requestsCount: requestsToResend.length 
+      });
 
       // Mark all requests as email failed
       const updatePromises = requestsToResend.map(req =>
@@ -95,7 +123,13 @@ router.post('/requests/:id/resend-email', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Error in resend email:', error);
+    routeLogger.logError(error, { 
+      operation: 'resendEmail', 
+      requestId: req.params.id, 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: '/requests/:id/resend-email' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to resend email',
@@ -135,7 +169,13 @@ router.get('/requests/:id/email-content', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error fetching email content:', error);
+    routeLogger.logError(error, { 
+      operation: 'fetchEmailContent', 
+      requestId: req.params.id, 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: '/requests/:id/email-content' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch email content',
@@ -192,6 +232,14 @@ router.post('/requests/:id/mark-email-sent', async (req, res) => {
         }
       }
 
+      routeLogger.info('Group email marked as sent', { 
+        groupId: request.groupId, 
+        userId: req.user.id, 
+        userEmail: req.user.email, 
+        updatedRequestsCount: updatedRequests.length, 
+        operation: 'markGroupEmailSent' 
+      });
+
       res.json({
         success: true,
         message: `Email marked as sent for group of ${updatedRequests.length} request(s)`,
@@ -207,6 +255,13 @@ router.post('/requests/:id/mark-email-sent', async (req, res) => {
       // Single request
       await request.markManualEmailSent();
 
+      routeLogger.info('Manual email marked as sent', { 
+        requestId: id, 
+        userId: req.user.id, 
+        userEmail: req.user.email, 
+        operation: 'markManualEmailSent' 
+      });
+
       res.json({
         success: true,
         message: 'Email marked as sent successfully',
@@ -219,7 +274,13 @@ router.post('/requests/:id/mark-email-sent', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Error marking email as sent:', error);
+    routeLogger.logError(error, { 
+      operation: 'markEmailSent', 
+      requestId: req.params.id, 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: '/requests/:id/mark-email-sent' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to mark email as sent',
@@ -255,7 +316,13 @@ router.get('/requests/:id/group-email-content', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error generating email content:', error);
+    routeLogger.logError(error, { 
+      operation: 'generateEmailContent', 
+      requestId: req.params.id, 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: '/requests/:id/group-email-content' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to generate email content',

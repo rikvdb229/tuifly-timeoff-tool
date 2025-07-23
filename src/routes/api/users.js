@@ -2,6 +2,7 @@
 const express = require('express');
 const { sanitizeRequestBody } = require('../../utils/sanitize');
 const { serviceContainer } = require('../../services');
+const { routeLogger } = require('../../utils/logger');
 
 const router = express.Router();
 
@@ -17,7 +18,12 @@ router.get('/user/email-preference', async (req, res) => {
       user: userService.getUserSafeObject(req.user),
     });
   } catch (error) {
-    console.error('Error fetching email preference:', error);
+    routeLogger.logError(error, { 
+      operation: 'fetchUserEmailPreference', 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: '/user/email-preference' 
+    });
     res.status(error.statusCode || 500).json({
       success: false,
       error: 'Failed to fetch email preference',
@@ -40,6 +46,14 @@ router.put(
         preference
       );
 
+      routeLogger.info('User email preference updated successfully', { 
+        userId: req.user.id, 
+        userEmail: req.user.email, 
+        newPreference: result.emailPreference, 
+        requiresGmailAuth: result.requiresGmailAuth, 
+        operation: 'updateUserEmailPreference' 
+      });
+
       res.json({
         success: true,
         message: result.message,
@@ -51,7 +65,13 @@ router.put(
         user: userService.getUserSafeObject(req.user),
       });
     } catch (error) {
-      console.error('Error updating email preference:', error);
+      routeLogger.logError(error, { 
+        operation: 'updateUserEmailPreference', 
+        userId: req.user?.id, 
+        userEmail: req.user?.email, 
+        requestedPreference: req.body?.preference, 
+        endpoint: 'PUT /user/email-preference' 
+      });
       res.status(error.statusCode || 500).json({
         success: false,
         error: 'Failed to update email preference',

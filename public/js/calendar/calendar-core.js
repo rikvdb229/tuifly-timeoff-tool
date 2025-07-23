@@ -181,7 +181,7 @@ class CalendarManager {
   generateCalendar() {
     const calendarGrid = document.getElementById('calendarGrid');
     if (!calendarGrid) {
-      console.error('Calendar container not found!');
+      logger.error('Calendar container not found');
       return;
     }
 

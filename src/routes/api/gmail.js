@@ -1,6 +1,7 @@
 // src/routes/api/gmail-new.js - Refactored Gmail integration endpoints using services
 const express = require('express');
 const { serviceContainer } = require('../../services');
+const { routeLogger } = require('../../utils/logger');
 
 const router = express.Router();
 
@@ -10,7 +11,14 @@ router.get('/gmail/status', async (req, res) => {
     const userService = serviceContainer.getService('userService');
     const status = await userService.checkGmailAuthorization(req.user);
 
-    console.log('📧 Gmail status for', req.user.email, ':', status);
+    routeLogger.info('Gmail status checked', { 
+      userId: req.user.id, 
+      userEmail: req.user.email, 
+      connected: status.connected, 
+      authValid: status.authValid, 
+      needsReauth: status.needsReauth, 
+      operation: 'checkGmailStatus' 
+    });
 
     res.json({
       success: true,
@@ -20,7 +28,12 @@ router.get('/gmail/status', async (req, res) => {
         : 'Gmail needs to be connected',
     });
   } catch (error) {
-    console.error('Error getting Gmail status:', error);
+    routeLogger.logError(error, { 
+      operation: 'checkGmailStatus', 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: '/gmail/status' 
+    });
     res.status(error.statusCode || 500).json({
       success: false,
       error: 'Failed to get Gmail status',

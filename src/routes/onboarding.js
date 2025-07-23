@@ -4,6 +4,7 @@ const { requireAuth } = require('../middleware/auth');
 const { User, updateUserOnboarding } = require('../models');
 const Joi = require('joi');
 const { sanitizeRequestBody } = require('../utils/sanitize');
+const { routeLogger } = require('../utils/logger');
 
 const router = express.Router();
 
@@ -78,7 +79,11 @@ router.get('/', requireAuth, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Onboarding page error:', error);
+    routeLogger.logError(error, { 
+      operation: 'loadOnboardingPage', 
+      userId: req.session?.userId, 
+      endpoint: '/onboarding' 
+    });
     res.status(500).render('layouts/base', {
       title: 'Error',
       body: '../pages/error',
@@ -101,7 +106,12 @@ router.post('/start-gmail-oauth', requireAuth, async (req, res) => {
       redirectUrl: '/auth/google/gmail',
     });
   } catch (error) {
-    console.error('Error starting Gmail OAuth:', error);
+    routeLogger.logError(error, { 
+      operation: 'startGmailOAuth', 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: '/onboarding/start-gmail-oauth' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to start Gmail authorization',
@@ -181,9 +191,15 @@ router.post(
 
       if (updatedUser.canUseApp()) {
         // User is admin or already approved - go to dashboard
-        console.log(
-          `✅ Onboarding complete - User ${updatedUser.email} can access app`
-        );
+        routeLogger.info('Onboarding completed - user can access app', { 
+          userId: updatedUser.id, 
+          userEmail: updatedUser.email, 
+          userName: updatedUser.name, 
+          userCode: updatedUser.code, 
+          emailPreference: updatedUser.emailPreference, 
+          isAdmin: updatedUser.isAdmin, 
+          operation: 'completeOnboarding' 
+        });
         res.json({
           success: true,
           message:
@@ -194,9 +210,14 @@ router.post(
         });
       } else {
         // User needs admin approval - go to waiting page
-        console.log(
-          `⏳ Onboarding complete - User ${updatedUser.email} needs admin approval`
-        );
+        routeLogger.info('Onboarding completed - user needs admin approval', { 
+          userId: updatedUser.id, 
+          userEmail: updatedUser.email, 
+          userName: updatedUser.name, 
+          userCode: updatedUser.code, 
+          emailPreference: updatedUser.emailPreference, 
+          operation: 'completeOnboarding' 
+        });
         res.json({
           success: true,
           message:
@@ -207,7 +228,16 @@ router.post(
         });
       }
     } catch (error) {
-      console.error('Onboarding completion error:', error);
+      routeLogger.logError(error, { 
+        operation: 'completeOnboarding', 
+        userId: req.session?.userId, 
+        requestData: { 
+          name: req.body?.name, 
+          code: req.body?.code, 
+          emailPreference: req.body?.emailPreference 
+        }, 
+        endpoint: '/onboarding/complete' 
+      });
       res.status(500).json({
         success: false,
         error: 'Failed to complete onboarding',
@@ -247,7 +277,12 @@ router.post(
         message: 'Code available',
       });
     } catch (error) {
-      console.error('Code check error:', error);
+      routeLogger.logError(error, { 
+        operation: 'checkCode', 
+        userId: req.session?.userId, 
+        code: req.body?.code, 
+        endpoint: '/onboarding/check-code' 
+      });
       res.status(500).json({
         available: false,
         message: 'Error checking code availability',
@@ -267,7 +302,11 @@ router.get('/gmail-status', requireAuth, async (req, res) => {
       emailPreference: user.emailPreference,
     });
   } catch (error) {
-    console.error('Error checking Gmail status:', error);
+    routeLogger.logError(error, { 
+      operation: 'checkGmailStatus', 
+      userId: req.session?.userId, 
+      endpoint: '/onboarding/gmail-status' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to check Gmail status',

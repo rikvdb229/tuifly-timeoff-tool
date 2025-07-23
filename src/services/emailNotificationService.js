@@ -1,5 +1,6 @@
 // src/services/emailNotificationService.js - Simple version with console logging
 const nodemailer = require('nodemailer');
+const { serviceLogger } = require('../utils/logger');
 
 class EmailNotificationService {
   constructor() {
@@ -32,24 +33,33 @@ class EmailNotificationService {
 
         // Verify connection
         await this.transporter.verify();
-        console.log(
-          `✅ Email service initialized with SMTP: ${process.env.SMTP_HOST}`
-        );
+        serviceLogger.info('Email service initialized with SMTP', {
+          smtpHost: process.env.SMTP_HOST,
+          operation: 'initialize',
+          service: 'emailNotificationService'
+        });
       } else {
         // No SMTP configured - use console logging
-        console.log(
-          '⚠️ No SMTP server configured - emails will be logged to console'
-        );
-        console.log(
-          '💡 To enable real emails, configure SMTP_* variables in .env'
-        );
+        serviceLogger.warn('No SMTP server configured - using mock email mode', {
+          operation: 'initialize',
+          service: 'emailNotificationService',
+          mockMode: true
+        });
         this.mockEmailMode = true;
       }
 
       this.initialized = true;
     } catch (error) {
-      console.error('❌ Failed to initialize email service:', error);
-      console.log('⚠️ Falling back to console logging mode');
+      serviceLogger.logError(error, {
+        operation: 'initialize',
+        service: 'emailNotificationService',
+        fallbackMode: 'console'
+      });
+      serviceLogger.warn('Falling back to console logging mode', {
+        operation: 'initialize',
+        service: 'emailNotificationService',
+        mockMode: true
+      });
       this.mockEmailMode = true;
       this.initialized = true;
     }
@@ -64,7 +74,11 @@ class EmailNotificationService {
 
       const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
       if (!adminEmail) {
-        console.log('📧 No admin notification email configured');
+        serviceLogger.warn('No admin notification email configured', {
+          operation: 'notifyAdminOfNewUser',
+          service: 'emailNotificationService',
+          newUserEmail: newUser.email
+        });
         return false;
       }
 
@@ -92,15 +106,15 @@ This is an automated notification from the TUIfly Time-Off Tool.
 
       // Console logging mode
       if (this.mockEmailMode) {
-        console.log(
-          '\n📧 ================== EMAIL NOTIFICATION =================='
-        );
-        console.log(`To: ${adminEmail}`);
-        console.log(`Subject: ${subject}`);
-        console.log(`Body:\n${textBody}`);
-        console.log(
-          '📧 ====================================================\n'
-        );
+        serviceLogger.info('Admin notification email - console mode', {
+          operation: 'notifyAdminOfNewUser',
+          service: 'emailNotificationService',
+          to: adminEmail,
+          subject: subject,
+          bodyLength: textBody.length,
+          newUserEmail: newUser.email,
+          mockMode: true
+        });
         return true;
       }
 
@@ -115,10 +129,20 @@ This is an automated notification from the TUIfly Time-Off Tool.
       };
 
       await this.transporter.sendMail(mailOptions);
-      console.log(`✅ Admin notification sent for new user: ${newUser.email}`);
+      serviceLogger.info('Admin notification sent successfully', {
+        operation: 'notifyAdminOfNewUser',
+        service: 'emailNotificationService',
+        to: adminEmail,
+        newUserEmail: newUser.email
+      });
       return true;
     } catch (error) {
-      console.error('❌ Failed to send admin notification:', error);
+      serviceLogger.logError(error, {
+        operation: 'notifyAdminOfNewUser',
+        service: 'emailNotificationService',
+        newUserEmail: newUser.email,
+        adminEmail: adminEmail
+      });
       return false;
     }
   }
@@ -154,13 +178,15 @@ This is an automated notification from the TUIfly Time-Off Tool.
 
       // Console logging mode
       if (this.mockEmailMode) {
-        console.log(
-          '\n📧 ================== APPROVAL EMAIL =================='
-        );
-        console.log(`To: ${user.email}`);
-        console.log(`Subject: ${subject}`);
-        console.log(`Body:\n${textBody}`);
-        console.log('📧 ================================================\n');
+        serviceLogger.info('User approval email - console mode', {
+          operation: 'notifyUserApproval',
+          service: 'emailNotificationService',
+          to: user.email,
+          subject: subject,
+          bodyLength: textBody.length,
+          approvedBy: approvedByAdmin.name || approvedByAdmin.email,
+          mockMode: true
+        });
         return true;
       }
 
@@ -175,10 +201,20 @@ This is an automated notification from the TUIfly Time-Off Tool.
       };
 
       await this.transporter.sendMail(mailOptions);
-      console.log(`✅ Approval notification sent to user: ${user.email}`);
+      serviceLogger.info('Approval notification sent successfully', {
+        operation: 'notifyUserApproval',
+        service: 'emailNotificationService',
+        to: user.email,
+        approvedBy: approvedByAdmin.name || approvedByAdmin.email
+      });
       return true;
     } catch (error) {
-      console.error('❌ Failed to send user approval notification:', error);
+      serviceLogger.logError(error, {
+        operation: 'notifyUserApproval',
+        service: 'emailNotificationService',
+        userEmail: user.email,
+        approvedBy: approvedByAdmin.name || approvedByAdmin.email
+      });
       return false;
     }
   }

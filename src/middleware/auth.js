@@ -1,6 +1,7 @@
 // src/middleware/auth.js - FINAL FIXED VERSION (REDIRECT TO ROUTE)
 const { User } = require('../models');
 const rateLimit = require('express-rate-limit');
+const { middlewareLogger } = require('../utils/logger');
 
 /**
  * Middleware to ensure user is authenticated
@@ -82,7 +83,12 @@ const requireOnboarding = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    console.error('Error in requireOnboarding middleware:', error);
+    middlewareLogger.logError(error, {
+      operation: 'requireOnboarding',
+      userId: req.session?.userId,
+      middleware: 'auth',
+      endpoint: req.originalUrl,
+    });
     res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -145,7 +151,12 @@ const loadUser = async (req, res, next) => {
         res.locals.isAuthenticated = true;
       }
     } catch (error) {
-      console.error('Error loading user:', error);
+      middlewareLogger.logError(error, {
+        operation: 'loadUser',
+        userId: req.session?.userId,
+        middleware: 'auth',
+        endpoint: req.originalUrl,
+      });
     }
   }
 
@@ -170,7 +181,12 @@ const updateLastLogin = async (req, res, next) => {
     try {
       await req.user.update({ lastLoginAt: new Date() });
     } catch (error) {
-      console.error('Error updating last login:', error);
+      middlewareLogger.logError(error, {
+        operation: 'updateLastLogin',
+        userId: req.user?.id,
+        middleware: 'auth',
+        endpoint: req.originalUrl,
+      });
     }
   }
   next();

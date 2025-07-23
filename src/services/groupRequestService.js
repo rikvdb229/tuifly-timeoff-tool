@@ -1,6 +1,7 @@
 // src/services/groupRequestService.js - Group request management service
 const { TimeOffRequest } = require('../models');
 const { v4: uuidv4 } = require('uuid');
+const { serviceLogger } = require('../utils/logger');
 
 class GroupRequestService {
   constructor(requestService, emailService) {
@@ -35,10 +36,15 @@ class GroupRequestService {
       throw error;
     }
 
-    console.log('🔍 Creating group request with data:', {
-      datesArray,
-      customMessage,
-      userPreference: user.emailPreference,
+    serviceLogger.info('Creating group request', {
+      operation: 'createGroupRequest',
+      service: 'groupRequestService',
+      userId: userId,
+      userEmail: user.email,
+      dateCount: datesArray.length,
+      requestTypes: datesArray.map(d => d.type),
+      hasCustomMessage: !!customMessage,
+      userPreference: user.emailPreference
     });
 
     // Generate group ID for all requests
@@ -60,14 +66,15 @@ class GroupRequestService {
     });
 
     const createdRequests = await Promise.all(requestPromises);
-    console.log(
-      '✅ Created requests:',
-      createdRequests.map(r => ({
-        id: r.id,
-        startDate: r.startDate,
-        type: r.type,
-      }))
-    );
+    serviceLogger.info('Group requests created successfully', {
+      operation: 'createGroupRequest',
+      service: 'groupRequestService',
+      userId: userId,
+      groupId: groupId,
+      requestCount: createdRequests.length,
+      requestIds: createdRequests.map(r => r.id),
+      requestTypes: createdRequests.map(r => r.type)
+    });
 
     // Handle email workflow
     const emailResponse = await this.emailService.handleEmailWorkflow(
@@ -222,10 +229,15 @@ class GroupRequestService {
       throw error;
     }
 
-    console.log('🔍 Creating manual group request with data:', {
-      datesArray,
-      customMessage,
-      userPreference: user.emailPreference,
+    serviceLogger.info('Creating manual group request', {
+      operation: 'createManualGroupRequest',
+      service: 'groupRequestService',
+      userId: userId,
+      userEmail: user.email,
+      dateCount: datesArray.length,
+      requestTypes: datesArray.map(d => d.type),
+      hasCustomMessage: !!customMessage,
+      userPreference: user.emailPreference
     });
 
     // Generate group ID for all requests
@@ -249,15 +261,16 @@ class GroupRequestService {
     });
 
     const createdRequests = await Promise.all(requestPromises);
-    console.log(
-      '✅ Created manual requests:',
-      createdRequests.map(r => ({
-        id: r.id,
-        startDate: r.startDate,
-        type: r.type,
-        manualEmailConfirmed: r.manualEmailConfirmed,
-      }))
-    );
+    serviceLogger.info('Manual group requests created successfully', {
+      operation: 'createManualGroupRequest',
+      service: 'groupRequestService',
+      userId: userId,
+      groupId: groupId,
+      requestCount: createdRequests.length,
+      requestIds: createdRequests.map(r => r.id),
+      requestTypes: createdRequests.map(r => r.type),
+      allEmailsConfirmed: createdRequests.every(r => r.manualEmailConfirmed)
+    });
 
     return {
       groupId,

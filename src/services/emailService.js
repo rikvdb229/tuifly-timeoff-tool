@@ -1,6 +1,7 @@
 // src/services/emailService.js - Email workflow management service
 const { TimeOffRequest } = require('../models');
 const GmailService = require('./gmailService');
+const { serviceLogger } = require('../utils/logger');
 
 class EmailService {
   constructor(gmailService, userService) {
@@ -66,7 +67,14 @@ class EmailService {
             : 'Email sent automatically',
       };
     } catch (emailError) {
-      console.error('❌ Automatic email send failed:', emailError);
+      serviceLogger.logError(emailError, {
+        operation: 'sendAutomaticEmail',
+        service: 'emailService',
+        userId: user.id,
+        userEmail: user.email,
+        requestCount: requests.length,
+        requestIds: requests.map(r => r.id)
+      });
 
       // Mark requests as email failed
       for (const request of requests) {
@@ -110,7 +118,14 @@ class EmailService {
             : 'Email content ready to copy.',
       };
     } catch (error) {
-      console.error('❌ Manual email preparation failed:', error);
+      serviceLogger.logError(error, {
+        operation: 'prepareManualEmail',
+        service: 'emailService',
+        userId: user.id,
+        userEmail: user.email,
+        requestCount: requests.length,
+        requestIds: requests.map(r => r.id)
+      });
       throw new Error(`Email content generation failed: ${error.message}`);
     }
   }

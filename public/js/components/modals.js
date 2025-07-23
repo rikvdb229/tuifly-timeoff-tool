@@ -61,7 +61,11 @@ window.updateRequestStatus = async function (
         );
       }
     } catch (error) {
-      console.error(`Error ${statusText}ing request:`, error);
+      logger.logError(error, { 
+        operation: `${statusText}Request`, 
+        requestId: requestId,
+        updateGroup: updateGroup 
+      });
       window.showToast(`Failed to ${statusText} request`, 'error');
     }
   }

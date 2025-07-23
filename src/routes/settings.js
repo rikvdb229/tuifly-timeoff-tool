@@ -4,6 +4,7 @@ const { requireAuth, requireOnboarding } = require('../middleware/auth');
 const { User, UserSetting } = require('../models');
 const { Op } = require('sequelize');
 const { sanitizeRequestBody } = require('../utils/sanitize');
+const { routeLogger } = require('../utils/logger');
 
 const router = express.Router();
 
@@ -77,7 +78,12 @@ router.get('/', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Settings page error:', error);
+    routeLogger.logError(error, { 
+      operation: 'loadSettingsPage', 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: '/settings' 
+    });
     res.status(500).render('layouts/base', {
       title: 'Error',
       body: '../pages/error',
@@ -113,7 +119,12 @@ router.get('/api', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Settings API error:', error);
+    routeLogger.logError(error, { 
+      operation: 'getSettingsAPI', 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: '/settings/api' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch settings',
@@ -135,7 +146,12 @@ router.get('/email-preference', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error fetching email preference:', error);
+    routeLogger.logError(error, { 
+      operation: 'fetchEmailPreference', 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: '/settings/email-preference' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch email preference',
@@ -163,6 +179,14 @@ router.put(
       const { preference } = req.body;
       await req.user.setEmailPreference(preference);
 
+      routeLogger.info('Email preference updated successfully', { 
+        userId: req.user.id, 
+        userEmail: req.user.email, 
+        newPreference: preference, 
+        previousPreference: req.user.emailPreference, 
+        operation: 'updateEmailPreference' 
+      });
+
       // If switching to automatic mode, user needs to grant Gmail permissions
       let requiresGmailAuth = false;
       if (preference === 'automatic' && !req.user.gmailScopeGranted) {
@@ -179,7 +203,13 @@ router.put(
         },
       });
     } catch (error) {
-      console.error('Error updating email preference:', error);
+      routeLogger.logError(error, { 
+        operation: 'updateEmailPreference', 
+        userId: req.user?.id, 
+        userEmail: req.user?.email, 
+        requestedPreference: req.body?.preference, 
+        endpoint: 'PUT /settings/email-preference' 
+      });
       res.status(500).json({
         success: false,
         error: 'Failed to update email preference',
@@ -226,13 +256,32 @@ router.put(
         signature: signature.trim(),
       });
 
+      routeLogger.info('Profile updated successfully', { 
+        userId: req.user.id, 
+        userEmail: req.user.email, 
+        updatedFields: { 
+          name: name.trim(), 
+          code: code.toUpperCase() 
+        }, 
+        operation: 'updateProfile' 
+      });
+
       res.json({
         success: true,
         message: 'Profile updated successfully',
         data: req.user.toSafeObject(),
       });
     } catch (error) {
-      console.error('Profile update error:', error);
+      routeLogger.logError(error, { 
+        operation: 'updateProfile', 
+        userId: req.user?.id, 
+        userEmail: req.user?.email, 
+        requestedData: { 
+          name: req.body?.name, 
+          code: req.body?.code 
+        }, 
+        endpoint: 'PUT /settings/profile' 
+      });
       res.status(500).json({
         success: false,
         error: 'Failed to update profile',
@@ -267,7 +316,12 @@ router.post('/connect-gmail', async (req, res) => {
       redirectUrl: '/auth/google/gmail',
     });
   } catch (error) {
-    console.error('Connect Gmail error:', error);
+    routeLogger.logError(error, { 
+      operation: 'connectGmail', 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: '/settings/connect-gmail' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to start Gmail authorization',
@@ -289,7 +343,11 @@ router.post('/disconnect-gmail', async (req, res) => {
       emailPreference: 'manual', // Force to manual when disconnecting
     });
 
-    console.log(`✅ Gmail disconnected for user: ${user.email}`);
+    routeLogger.info('Gmail disconnected successfully', { 
+      userId: user.id, 
+      userEmail: user.email, 
+      operation: 'disconnectGmail' 
+    });
 
     res.json({
       success: true,
@@ -298,7 +356,12 @@ router.post('/disconnect-gmail', async (req, res) => {
       user: user.toSafeObject(),
     });
   } catch (error) {
-    console.error('Disconnect Gmail error:', error);
+    routeLogger.logError(error, { 
+      operation: 'disconnectGmail', 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: '/settings/disconnect-gmail' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to disconnect Gmail',
@@ -333,7 +396,12 @@ router.get('/gmail-status', async (req, res) => {
       hasRefreshToken: !!user.gmailRefreshToken,
     });
   } catch (error) {
-    console.error('Gmail status error:', error);
+    routeLogger.logError(error, { 
+      operation: 'checkGmailStatus', 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: '/settings/gmail-status' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to check Gmail status',
@@ -372,9 +440,12 @@ router.post(
       // Update email preference
       await user.update({ emailPreference });
 
-      console.log(
-        `✅ Email preference changed: ${user.email} → ${emailPreference}`
-      );
+      routeLogger.info('Email preference changed successfully', { 
+        userId: user.id, 
+        userEmail: user.email, 
+        newPreference: emailPreference, 
+        operation: 'changeEmailPreference' 
+      });
 
       res.json({
         success: true,
@@ -382,7 +453,13 @@ router.post(
         emailPreference,
       });
     } catch (error) {
-      console.error('Email preference change error:', error);
+      routeLogger.logError(error, { 
+        operation: 'changeEmailPreference', 
+        userId: req.user?.id, 
+        userEmail: req.user?.email, 
+        requestedPreference: req.body?.emailPreference, 
+        endpoint: 'POST /settings/email-preference' 
+      });
       res.status(500).json({
         success: false,
         error: 'Failed to change email preference',

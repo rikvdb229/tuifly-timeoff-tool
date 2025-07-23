@@ -4,6 +4,7 @@ const { TimeOffRequest, User } = require('../../models');
 const GmailService = require('../../services/gmailService');
 const { sanitizeRequestBody } = require('../../utils/sanitize');
 const { v4: uuidv4 } = require('uuid');
+const { routeLogger } = require('../../utils/logger');
 
 const router = express.Router();
 
@@ -24,10 +25,13 @@ router.post(
         });
       }
 
-      console.log('🔍 Creating group request with data:', {
-        dates,
-        customMessage,
-        userPreference: req.user.emailPreference,
+      routeLogger.info('Creating group request', { 
+        userId: req.user.id, 
+        userEmail: req.user.email, 
+        datesCount: dates.length, 
+        hasCustomMessage: !!customMessage, 
+        userPreference: req.user.emailPreference, 
+        operation: 'createGroupRequest' 
       });
 
       // Generate group ID for all requests
@@ -51,14 +55,15 @@ router.post(
       });
 
       const createdRequests = await Promise.all(requestPromises);
-      console.log(
-        '✅ Created requests:',
-        createdRequests.map(r => ({
-          id: r.id,
-          startDate: r.startDate,
-          type: r.type,
-        }))
-      );
+      routeLogger.info('Group requests created successfully', { 
+        userId: req.user.id, 
+        userEmail: req.user.email, 
+        groupId, 
+        requestsCount: createdRequests.length, 
+        requestIds: createdRequests.map(r => r.id), 
+        types: createdRequests.map(r => r.type), 
+        operation: 'createGroupRequest' 
+      });
 
       const emailResponse = {
         sent: false,
@@ -80,10 +85,21 @@ router.post(
       } else if (req.user.emailPreference === 'automatic') {
         // Handle automatic mode
         try {
-          console.log('🔍 Attempting automatic email send...');
+          routeLogger.debug('Attempting automatic email send for group request', { 
+            userId: req.user.id, 
+            userEmail: req.user.email, 
+            groupId, 
+            requestsCount: createdRequests.length, 
+            operation: 'sendAutomaticGroupEmail' 
+          });
 
           if (GmailService.needsReauthorization(req.user)) {
-            console.log('❌ Gmail authorization needed');
+            routeLogger.warn('Gmail authorization needed for automatic email', { 
+              userId: req.user.id, 
+              userEmail: req.user.email, 
+              groupId, 
+              operation: 'sendAutomaticGroupEmail' 
+            });
             return res.status(400).json({
               success: false,
               error: 'Gmail authorization required',
@@ -94,30 +110,38 @@ router.post(
             });
           }
 
-          console.log('✅ Gmail authorization OK, using gmail service...');
+          routeLogger.debug('Gmail authorization OK, proceeding with email send', { 
+            userId: req.user.id, 
+            userEmail: req.user.email, 
+            groupId, 
+            operation: 'sendAutomaticGroupEmail' 
+          });
 
           // Ensure requests have all required fields loaded
           const requestsWithFullData = await Promise.all(
             createdRequests.map(req => TimeOffRequest.findByPk(req.id))
           );
 
-          console.log(
-            '🔍 Requests for email:',
-            requestsWithFullData.map(r => ({
-              id: r.id,
-              startDate: r.startDate,
-              endDate: r.endDate,
-              type: r.type,
-              flightNumber: r.flightNumber,
-              customMessage: r.customMessage,
-            }))
-          );
+          routeLogger.debug('Prepared requests for email', { 
+            userId: req.user.id, 
+            userEmail: req.user.email, 
+            groupId, 
+            requestsData: requestsWithFullData.map(r => ({ 
+              id: r.id, 
+              startDate: r.startDate, 
+              type: r.type, 
+              hasFlightNumber: !!r.flightNumber 
+            })), 
+            operation: 'sendAutomaticGroupEmail' 
+          });
 
-          console.log('🔍 User data for email:', {
-            code: req.user.code,
-            name: req.user.name,
-            email: req.user.email,
-            signature: req.user.signature ? 'Present' : 'Missing',
+          routeLogger.debug('User data for email generation', { 
+            userId: req.user.id, 
+            userCode: req.user.code, 
+            userName: req.user.name, 
+            userEmail: req.user.email, 
+            hasSignature: !!req.user.signature, 
+            operation: 'sendAutomaticGroupEmail' 
           });
 
           // Test email content generation first
@@ -126,25 +150,49 @@ router.post(
               req.user,
               requestsWithFullData
             );
-            console.log('✅ Email content generated:', {
-              subject: emailContent.subject,
-              to: emailContent.to,
-              bodyLength: emailContent.text?.length || 0,
-              bodyPreview: emailContent.text?.substring(0, 100) + '...',
+            routeLogger.debug('Email content generated successfully', { 
+              userId: req.user.id, 
+              userEmail: req.user.email, 
+              groupId, 
+              subject: emailContent.subject, 
+              to: emailContent.to, 
+              bodyLength: emailContent.text?.length || 0, 
+              operation: 'generateEmailContent' 
             });
           } catch (contentError) {
-            console.error('❌ Email content generation failed:', contentError);
+            routeLogger.logError(contentError, { 
+              operation: 'generateEmailContent', 
+              userId: req.user.id, 
+              userEmail: req.user.email, 
+              groupId, 
+              requestsCount: requestsWithFullData.length 
+            });
             throw new Error(
               `Email content generation failed: ${contentError.message}`
             );
           }
 
-          console.log('🔍 Sending email...');
+          routeLogger.debug('Sending group email', { 
+            userId: req.user.id, 
+            userEmail: req.user.email, 
+            groupId, 
+            requestsCount: requestsWithFullData.length, 
+            operation: 'sendAutomaticGroupEmail' 
+          });
           const emailResult = await new GmailService().sendEmail(
             req.user,
             requestsWithFullData
           );
-          console.log('✅ Email sent successfully:', emailResult);
+          routeLogger.info('Group email sent successfully', { 
+            userId: req.user.id, 
+            userEmail: req.user.email, 
+            groupId, 
+            requestsCount: requestsWithFullData.length, 
+            messageId: emailResult.messageId, 
+            threadId: emailResult.threadId, 
+            to: emailResult.to, 
+            operation: 'sendAutomaticGroupEmail' 
+          });
 
           // Mark all requests as email sent
           for (const request of createdRequests) {
@@ -158,10 +206,13 @@ router.post(
           emailResponse.messageId = emailResult.messageId;
           emailResponse.message = `Group request created successfully with ${createdRequests.length} date(s) and email sent automatically`;
         } catch (emailError) {
-          console.error('❌ Email send failed with full details:', {
-            message: emailError.message,
-            stack: emailError.stack,
-            code: emailError.code,
+          routeLogger.logError(emailError, { 
+            operation: 'sendAutomaticGroupEmail', 
+            userId: req.user.id, 
+            userEmail: req.user.email, 
+            groupId, 
+            requestsCount: createdRequests.length, 
+            emailService: 'gmail' 
           });
 
           // Mark all requests as email failed
@@ -189,7 +240,13 @@ router.post(
         },
       });
     } catch (error) {
-      console.error('❌ Group request creation failed:', error);
+      routeLogger.logError(error, { 
+        operation: 'createGroupRequest', 
+        userId: req.user?.id, 
+        userEmail: req.user?.email, 
+        datesCount: req.body?.dates?.length, 
+        endpoint: '/requests/group' 
+      });
       res.status(500).json({
         success: false,
         error: 'Failed to create group request',
@@ -220,7 +277,13 @@ router.get('/requests/group/:groupId', async (req, res) => {
       count: requests.length,
     });
   } catch (error) {
-    console.error('Error fetching group requests:', error);
+    routeLogger.logError(error, { 
+      operation: 'fetchGroupRequests', 
+      groupId: req.params.groupId, 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: '/requests/group/:groupId' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch group requests',
@@ -280,6 +343,15 @@ router.delete('/requests/:id/delete-group', async (req, res) => {
     const deletePromises = groupRequests.map(req => req.destroy());
     await Promise.all(deletePromises);
 
+    routeLogger.info('Group request deleted successfully', { 
+      userId: req.user.id, 
+      userEmail: req.user.email, 
+      groupId: request.groupId, 
+      deletedCount: groupRequests.length, 
+      deletedRequestIds: groupRequests.map(req => req.id), 
+      operation: 'deleteGroupRequest' 
+    });
+
     res.json({
       success: true,
       message: `Group request deleted successfully`,
@@ -290,7 +362,13 @@ router.delete('/requests/:id/delete-group', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error deleting group request:', error);
+    routeLogger.logError(error, { 
+      operation: 'deleteGroupRequest', 
+      requestId: req.params.id, 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: '/requests/:id/delete-group' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to delete group request',
@@ -325,10 +403,13 @@ router.post(
         });
       }
 
-      console.log('🔍 Creating manual group request with data:', {
-        dates,
-        customMessage,
-        userPreference: req.user.emailPreference,
+      routeLogger.info('Creating manual group request', { 
+        userId: req.user.id, 
+        userEmail: req.user.email, 
+        datesCount: dates.length, 
+        hasCustomMessage: !!customMessage, 
+        userPreference: req.user.emailPreference, 
+        operation: 'createManualGroupRequest' 
       });
 
       // Generate group ID for all requests
@@ -354,15 +435,15 @@ router.post(
       });
 
       const createdRequests = await Promise.all(requestPromises);
-      console.log(
-        '✅ Created manual requests:',
-        createdRequests.map(r => ({
-          id: r.id,
-          startDate: r.startDate,
-          type: r.type,
-          manualEmailConfirmed: r.manualEmailConfirmed,
-        }))
-      );
+      routeLogger.info('Manual group requests created successfully', { 
+        userId: req.user.id, 
+        userEmail: req.user.email, 
+        groupId, 
+        requestsCount: createdRequests.length, 
+        requestIds: createdRequests.map(r => r.id), 
+        allConfirmed: createdRequests.every(r => r.manualEmailConfirmed), 
+        operation: 'createManualGroupRequest' 
+      });
 
       res.status(201).json({
         success: true,
@@ -374,7 +455,13 @@ router.post(
         },
       });
     } catch (error) {
-      console.error('Error creating manual group request:', error);
+      routeLogger.logError(error, { 
+        operation: 'createManualGroupRequest', 
+        userId: req.user?.id, 
+        userEmail: req.user?.email, 
+        datesCount: req.body?.dates?.length, 
+        endpoint: '/requests/group-manual' 
+      });
       res.status(500).json({
         success: false,
         error: 'Failed to create manual group request',
@@ -437,7 +524,13 @@ router.get('/requests/:id/group-details', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error getting group details:', error);
+    routeLogger.logError(error, { 
+      operation: 'getGroupDetails', 
+      requestId: req.params.id, 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: '/requests/:id/group-details' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to get group details',

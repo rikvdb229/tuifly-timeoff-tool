@@ -2,6 +2,7 @@
 
 const { google } = require('googleapis');
 const nodemailer = require('nodemailer');
+const { serviceLogger } = require('../utils/logger');
 
 class GmailService {
   constructor() {
@@ -172,7 +173,15 @@ class GmailService {
         subject: emailContent.subject,
       };
     } catch (error) {
-      console.error('Gmail send error:', error);
+      serviceLogger.logError(error, {
+        operation: 'sendEmail',
+        service: 'gmailService',
+        userId: user.id,
+        userEmail: user.email,
+        requestCount: requests.length,
+        requestIds: requests.map(r => r.id),
+        errorCode: error.code
+      });
 
       // Handle specific error types
       if (error.code === 401) {
@@ -252,7 +261,14 @@ class GmailService {
         totalMessages: messages.length,
       };
     } catch (error) {
-      console.error('Gmail reply check error:', error);
+      serviceLogger.logError(error, {
+        operation: 'checkForReplies',
+        service: 'gmailService',
+        userId: user.id,
+        userEmail: user.email,
+        threadId: gmailThreadId,
+        lastCheckTime: lastCheckTime
+      });
       throw new Error(`Failed to check for replies: ${error.message}`);
     }
   }
@@ -333,7 +349,14 @@ class GmailService {
         this.oauth2Client.setCredentials(credentials);
       }
     } catch (error) {
-      console.error('Token refresh error:', error);
+      serviceLogger.logError(error, {
+        operation: 'refreshTokenIfNeeded',
+        service: 'gmailService',
+        userId: user.id,
+        userEmail: user.email,
+        tokenExpiry: user.gmailTokenExpiry,
+        hasRefreshToken: !!user.gmailRefreshToken
+      });
       throw new Error('Failed to refresh Gmail token. Please re-authorize.');
     }
   }

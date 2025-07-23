@@ -667,14 +667,20 @@ function openInMailClient(requestId) {
   const body = encodeURIComponent(emailContent.body);
   const mailtoLink = `mailto:${to}?subject=${subject}&body=${body}`;
 
-  console.log('Opening mailto link for request:', requestId);
+  logger.logUserAction('openMailtoLink', { 
+    requestId: requestId,
+    approverEmail: approverEmail 
+  });
 
   // Try to open the mailto link
   try {
     window.location.href = mailtoLink;
     window.showToast('Opening in your default mail client...', 'success');
   } catch (error) {
-    console.error('Error opening mail client:', error);
+    logger.logError(error, { 
+      operation: 'openInMailClient',
+      requestId: requestId 
+    });
     window.showToast(
       'Could not open mail client. Please copy the content manually.',
       'error'

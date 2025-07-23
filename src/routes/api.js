@@ -48,6 +48,7 @@ const usersRoutes = require('./api/users');
 const gmailRoutes = require('./api/gmail');
 const emailsRoutes = require('./api/emails');
 const statusRoutes = require('./api/status');
+const clientLogsRoutes = require('./api/client-logs');
 
 router.use('/', requestsRoutes);
 router.use('/', groupRequestsRoutes);
@@ -55,5 +56,6 @@ router.use('/', usersRoutes);
 router.use('/', gmailRoutes);
 router.use('/', emailsRoutes);
 router.use('/', statusRoutes);
+router.use('/logs', clientLogsRoutes);
 
 module.exports = router;

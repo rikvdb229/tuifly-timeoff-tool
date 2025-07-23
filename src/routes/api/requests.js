@@ -4,6 +4,7 @@ const { TimeOffRequest, User } = require('../../models');
 const GmailService = require('../../services/gmailService');
 const { sanitizeRequestBody } = require('../../utils/sanitize');
 const { createRequestSchema } = require('./validators');
+const { routeLogger } = require('../../utils/logger');
 
 const router = express.Router();
 
@@ -57,7 +58,17 @@ router.get('/requests', async (req, res) => {
       user: req.user.toSafeObject(),
     });
   } catch (error) {
-    console.error('Error fetching requests:', error);
+    routeLogger.logError(error, { 
+      operation: 'fetchRequests', 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      queryParams: { 
+        status: req.query?.status, 
+        limit: req.query?.limit, 
+        offset: req.query?.offset 
+      }, 
+      endpoint: '/requests' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch requests',
@@ -77,7 +88,12 @@ router.get('/requests/stats', async (req, res) => {
       user: req.user.toSafeObject(),
     });
   } catch (error) {
-    console.error('Error fetching stats:', error);
+    routeLogger.logError(error, { 
+      operation: 'fetchRequestStats', 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      endpoint: '/requests/stats' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch statistics',
@@ -111,7 +127,17 @@ router.get('/requests/conflicts', async (req, res) => {
       hasConflicts: conflicts.length > 0,
     });
   } catch (error) {
-    console.error('Error checking conflicts:', error);
+    routeLogger.logError(error, { 
+      operation: 'checkConflicts', 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      queryParams: { 
+        startDate: req.query?.startDate, 
+        endDate: req.query?.endDate, 
+        excludeGroupId: req.query?.excludeGroupId 
+      }, 
+      endpoint: '/requests/conflicts' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to check conflicts',
@@ -151,6 +177,19 @@ router.post(
         customMessage: customMessage || null,
       });
 
+      routeLogger.info('Request created successfully', { 
+        userId: req.user.id, 
+        userEmail: req.user.email, 
+        requestId: request.id, 
+        type: request.type, 
+        startDate: request.startDate, 
+        endDate: request.endDate, 
+        hasFlightNumber: !!request.flightNumber, 
+        hasCustomMessage: !!request.customMessage, 
+        emailPreference: req.user.emailPreference, 
+        operation: 'createRequest' 
+      });
+
       // Get the user's email preference
       const emailPreference = req.user.emailPreference;
       let emailResponse = {};
@@ -168,12 +207,31 @@ router.post(
             emailResult.threadId
           );
 
+          routeLogger.info('Automatic email sent successfully', { 
+            userId: req.user.id, 
+            userEmail: req.user.email, 
+            requestId: request.id, 
+            messageId: emailResult.messageId, 
+            threadId: emailResult.threadId, 
+            to: emailResult.to, 
+            operation: 'sendAutomaticEmail' 
+          });
+
           emailResponse = {
             emailStatus: { sent: true, messageId: emailResult.messageId },
             message: 'Request created and email sent automatically',
           };
         } catch (emailError) {
-          console.error('Gmail send failed:', emailError);
+          routeLogger.logError(emailError, { 
+            operation: 'sendAutomaticEmail', 
+            userId: req.user.id, 
+            userEmail: req.user.email, 
+            requestId: request.id, 
+            requestType: request.type, 
+            startDate: request.startDate, 
+            endDate: request.endDate, 
+            emailService: 'gmail' 
+          });
           emailResponse = {
             emailStatus: { sent: false, error: emailError.message },
             message: 'Request created but email failed to send',
@@ -205,7 +263,17 @@ router.post(
         ...emailResponse,
       });
     } catch (error) {
-      console.error('Error creating request:', error);
+      routeLogger.logError(error, { 
+        operation: 'createRequest', 
+        userId: req.user?.id, 
+        userEmail: req.user?.email, 
+        requestData: { 
+          startDate: req.body?.startDate, 
+          endDate: req.body?.endDate, 
+          type: req.body?.type 
+        }, 
+        endpoint: 'POST /requests' 
+      });
       res.status(500).json({
         success: false,
         error: 'Failed to create request',
@@ -236,7 +304,13 @@ router.get('/requests/:id', async (req, res) => {
       data: request,
     });
   } catch (error) {
-    console.error('Error fetching request:', error);
+    routeLogger.logError(error, { 
+      operation: 'fetchSingleRequest', 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      requestId: req.params?.id, 
+      endpoint: '/requests/:id' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch request',
@@ -290,13 +364,33 @@ router.put(
 
       await request.update(updates);
 
+      routeLogger.info('Request updated successfully', { 
+        userId: req.user.id, 
+        userEmail: req.user.email, 
+        requestId, 
+        updatedFields: Object.keys(updates), 
+        operation: 'updateRequest' 
+      });
+
       res.json({
         success: true,
         data: request,
         message: 'Time-off request updated successfully',
       });
     } catch (error) {
-      console.error('Error updating request:', error);
+      routeLogger.logError(error, { 
+        operation: 'updateRequest', 
+        userId: req.user?.id, 
+        userEmail: req.user?.email, 
+        requestId: req.params?.id, 
+        updateData: { 
+          startDate: req.body?.startDate, 
+          endDate: req.body?.endDate, 
+          type: req.body?.type, 
+          status: req.body?.status 
+        }, 
+        endpoint: 'PUT /requests/:id' 
+      });
       res.status(500).json({
         success: false,
         error: 'Failed to update request',
@@ -342,13 +436,29 @@ router.delete('/requests/:id', async (req, res) => {
     // Delete the request
     await request.destroy();
 
+    routeLogger.info('Request deleted successfully', { 
+      userId: req.user.id, 
+      userEmail: req.user.email, 
+      requestId, 
+      requestType: request.type, 
+      startDate: request.startDate, 
+      endDate: request.endDate, 
+      operation: 'deleteRequest' 
+    });
+
     res.json({
       success: true,
       message: 'Request deleted successfully',
       data: { id: requestId },
     });
   } catch (error) {
-    console.error('Error deleting request:', error);
+    routeLogger.logError(error, { 
+      operation: 'deleteRequest', 
+      userId: req.user?.id, 
+      userEmail: req.user?.email, 
+      requestId: req.params?.id, 
+      endpoint: 'DELETE /requests/:id' 
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to delete request',
