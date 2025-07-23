@@ -64,7 +64,7 @@ global.testUtils = {
 // Set up test environment variables
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-jwt-secret';
-process.env.TOKEN_ENCRYPTION_KEY = 'test-key-32-chars-for-aes-256-enc';
+process.env.TOKEN_ENCRYPTION_KEY = 'test-key-32-chars-for-aes-256-xx';
 process.env.GOOGLE_CLIENT_ID = 'test-google-client-id';
 process.env.GOOGLE_CLIENT_SECRET = 'test-google-client-secret';
 process.env.TUIFLY_APPROVER_EMAIL = 'test-approver@tuifly.com';
