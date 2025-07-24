@@ -16,7 +16,7 @@ async function loadExistingRequests() {
       window.existingRequests = data.data;
       updateStatistics(data.data);
       if (window.calendar) {
-        window.calendar.generateCalendar();
+        await window.calendar.generateCalendar();
       }
       initializeTooltips();
     }

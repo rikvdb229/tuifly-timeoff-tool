@@ -51,6 +51,11 @@ router.get('/dashboard', (req, res) => {
   res.redirect('/');
 });
 
+// Roster deadlines page
+router.get('/roster-deadlines', (req, res) => {
+  res.sendFile('roster-deadlines.html', { root: './public/html' });
+});
+
 // API documentation page (protected)
 router.get('/api-docs', (req, res) => {
   res.json({

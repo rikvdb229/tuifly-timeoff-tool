@@ -81,6 +81,12 @@ function defineUser(sequelize) {
         defaultValue: false,
         comment: 'Whether user has admin privileges',
       },
+      role: {
+        type: DataTypes.ENUM('user', 'admin', 'superadmin'),
+        defaultValue: 'user',
+        allowNull: false,
+        comment: 'User role for granular permission control',
+      },
       adminApproved: {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
@@ -144,11 +150,6 @@ function defineUser(sequelize) {
         {
           unique: true,
           fields: ['code'],
-          where: {
-            code: {
-              [sequelize.Sequelize.Op.ne]: null,
-            },
-          },
         },
         {
           fields: ['isAdmin'],
@@ -179,6 +180,39 @@ function defineUser(sequelize) {
   User.prototype.canUseApp = function () {
     // User can use app if they are admin or have been approved by admin
     return this.isAdmin || this.adminApproved;
+  };
+
+  // NEW ROLE-BASED PERMISSION METHODS
+  User.prototype.hasRole = function (role) {
+    return this.role === role;
+  };
+
+  User.prototype.isUser = function () {
+    return this.role === 'user';
+  };
+
+  User.prototype.isRoleAdmin = function () {
+    return this.role === 'admin';
+  };
+
+  User.prototype.isSuperAdmin = function () {
+    return this.role === 'superadmin';
+  };
+
+  User.prototype.canManageUsers = function () {
+    return this.role === 'admin' || this.role === 'superadmin';
+  };
+
+  User.prototype.canManageRosters = function () {
+    return this.role === 'admin' || this.role === 'superadmin';
+  };
+
+  User.prototype.canManageSettings = function () {
+    return this.role === 'superadmin';
+  };
+
+  User.prototype.canApproveRequests = function () {
+    return this.role === 'admin' || this.role === 'superadmin';
   };
 
   User.prototype.needsAdminApproval = function () {
@@ -299,6 +333,7 @@ function defineUser(sequelize) {
       createdAt: user.createdAt,
       lastLoginAt: user.lastLoginAt,
       isAdmin: user.isAdmin,
+      role: user.role,
       adminApproved: user.adminApproved,
       canUseApp: this.canUseApp(),
       needsAdminApproval: this.needsAdminApproval(),
@@ -324,10 +359,11 @@ function defineUser(sequelize) {
   };
 
   User.getOnboardedUsers = async function () {
+    const { Op } = require('sequelize');
     return await this.findAll({
       where: {
         onboardedAt: {
-          [sequelize.Sequelize.Op.ne]: null,
+          [Op.ne]: null,
         },
       },
       order: [['createdAt', 'DESC']],
@@ -343,20 +379,22 @@ function defineUser(sequelize) {
   };
 
   User.getPendingApprovals = async function () {
+    const { Op } = require('sequelize');
     return await this.findAll({
       where: {
         isAdmin: false,
         adminApproved: false,
-        onboardedAt: { [sequelize.Sequelize.Op.ne]: null }, // Only show onboarded users
+        onboardedAt: { [Op.ne]: null }, // Only show onboarded users
       },
       order: [['createdAt', 'ASC']],
     });
   };
 
   User.getApprovedUsers = async function () {
+    const { Op } = require('sequelize');
     return await this.findAll({
       where: {
-        [sequelize.Sequelize.Op.or]: [
+        [Op.or]: [
           { isAdmin: true },
           { adminApproved: true },
         ],

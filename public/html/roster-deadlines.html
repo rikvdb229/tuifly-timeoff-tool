@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roster Deadlines - TUIfly Time-Off Tool</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link href="/css/variables.css" rel="stylesheet">
+    <link href="/css/global.css" rel="stylesheet">
+    
+    <style>
+        .deadline-card {
+            transition: all 0.2s ease;
+            border-left: 4px solid var(--tuifly-blue);
+            margin-bottom: 1rem;
+        }
+        
+        .deadline-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .deadline-passed {
+            opacity: 0.7;
+            border-left-color: #dc3545;
+        }
+        
+        .deadline-upcoming {
+            border-left-color: #28a745;
+        }
+        
+        .deadline-soon {
+            border-left-color: #ffc107;
+        }
+        
+        .days-remaining {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        
+        .roster-period {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--tuifly-blue);
+        }
+        
+        .deadline-date {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        
+        .info-box {
+            background-color: #e3f2fd;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .timeline-container {
+            position: relative;
+            padding-left: 30px;
+        }
+        
+        .timeline-line {
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #dee2e6;
+        }
+        
+        .timeline-dot {
+            position: absolute;
+            left: 5px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #fff;
+            border: 2px solid #dee2e6;
+        }
+        
+        .timeline-dot.active {
+            background-color: var(--tuifly-blue);
+            border-color: var(--tuifly-blue);
+        }
+        
+        .timeline-dot.passed {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+        
+        .timeline-dot.upcoming {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="/">
+                <i class="bi bi-airplane"></i>
+                TUIfly Time-Off Tool
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">
+                            <i class="bi bi-calendar3"></i> Calendar
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/roster-deadlines">
+                            <i class="bi bi-clock-history"></i> Roster Deadlines
+                        </a>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle"></i>
+                            <span id="navUserName">Loading...</span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/settings">
+                                <i class="bi bi-gear"></i> Settings
+                            </a></li>
+                            <li id="adminMenuItem" style="display: none;">
+                                <hr class="dropdown-divider">
+                                <li><a class="dropdown-item" href="/admin">
+                                    <i class="bi bi-shield-lock"></i> Admin Panel
+                                </a></li>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/auth/logout">
+                                <i class="bi bi-box-arrow-right"></i> Logout
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Page Header -->
+        <div class="row">
+            <div class="col-12">
+                <h1 class="h3 mb-4">
+                    <i class="bi bi-clock-history text-primary"></i>
+                    Roster Request Deadlines
+                </h1>
+                
+                <!-- Info Box -->
+                <div class="info-box">
+                    <h5 class="mb-3">
+                        <i class="bi bi-info-circle"></i>
+                        How Roster Deadlines Work
+                    </h5>
+                    <ul class="mb-0">
+                        <li>Time-off requests must be submitted before the deadline for each roster period</li>
+                        <li>Rosters are typically published 4-6 weeks after the request deadline</li>
+                        <li>You can request time off up to 6 months in advance</li>
+                        <li>Deadline times are at 23:59 on the specified date</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Options -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="btn-group" role="group">
+                    <input type="radio" class="btn-check" name="filterOptions" id="filterAll" autocomplete="off" checked>
+                    <label class="btn btn-outline-primary" for="filterAll">All Rosters</label>
+                    
+                    <input type="radio" class="btn-check" name="filterOptions" id="filterUpcoming" autocomplete="off">
+                    <label class="btn btn-outline-primary" for="filterUpcoming">Upcoming Only</label>
+                    
+                    <input type="radio" class="btn-check" name="filterOptions" id="filterPassed" autocomplete="off">
+                    <label class="btn btn-outline-primary" for="filterPassed">Passed Only</label>
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="timelineView" checked>
+                    <label class="form-check-label" for="timelineView">
+                        Timeline View
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deadlines Container -->
+        <div id="deadlinesContainer" class="timeline-container">
+            <div class="timeline-line"></div>
+            <div id="loadingSpinner" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Loading roster deadlines...</p>
+            </div>
+            
+            <div id="deadlinesList" style="display: none;">
+                <!-- Deadlines will be populated here -->
+            </div>
+            
+            <div id="emptyState" class="text-center py-5" style="display: none;">
+                <i class="bi bi-calendar-x fa-3x text-gray-300"></i>
+                <h5 class="mt-3 text-gray-600">No Roster Deadlines Found</h5>
+                <p class="text-muted">Please check back later.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/core/utils.js"></script>
+    <script src="/js/pages/roster-deadlines.js"></script>
+</body>
+
+</html>

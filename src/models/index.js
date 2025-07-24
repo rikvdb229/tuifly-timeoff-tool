@@ -5,12 +5,16 @@ const defineUser = require('./User');
 const defineTimeOffRequest = require('./TimeOffRequest');
 const defineEmailTemplate = require('./EmailTemplate');
 const defineUserSetting = require('./UserSetting');
+const defineRosterSchedule = require('./RosterSchedule');
+const defineAppSetting = require('./AppSetting');
 
 // Initialize models
 const User = defineUser(sequelize);
 const TimeOffRequest = defineTimeOffRequest(sequelize);
 const EmailTemplate = defineEmailTemplate(sequelize);
 const UserSetting = defineUserSetting(sequelize);
+const RosterSchedule = defineRosterSchedule(sequelize);
+const AppSetting = defineAppSetting(sequelize);
 
 // Define associations
 User.hasMany(TimeOffRequest, { foreignKey: 'userId', onDelete: 'CASCADE' });
@@ -38,6 +42,7 @@ async function initializeDatabase() {
     logger.info('✅ Database synchronized');
 
     await seedGlobalData();
+    await AppSetting.ensureDefaults();
     logger.info('✅ Database initialization complete');
   } catch (error) {
     logger.error('❌ Database initialization failed:', error);
@@ -290,6 +295,8 @@ module.exports = {
   TimeOffRequest,
   EmailTemplate,
   UserSetting,
+  RosterSchedule,
+  AppSetting,
   initializeDatabase,
   createUser,
   getUserByGoogleId,

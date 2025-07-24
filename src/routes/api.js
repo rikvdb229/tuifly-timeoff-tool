@@ -37,6 +37,12 @@ router.get('/', (req, res) => {
       'GET /api/requests/:id/group-details': 'Get group details',
       'PUT /api/requests/:id/status': 'Update request status manually',
       'DELETE /api/requests/:id/delete-group': 'Delete entire group',
+      'GET /api/roster-deadlines': 'Get all roster deadlines (user view)',
+      'GET /api/admin/roster-deadline/:date': 'Get roster deadline for specific date',
+      'GET /api/admin/rosters': 'Get all roster schedules (admin)',
+      'POST /api/admin/rosters': 'Create new roster schedule (admin)',
+      'PUT /api/admin/rosters/:id': 'Update roster schedule (admin)',
+      'DELETE /api/admin/rosters/:id': 'Delete roster schedule (admin)',
     },
   });
 });
@@ -49,6 +55,8 @@ const gmailRoutes = require('./api/gmail');
 const emailsRoutes = require('./api/emails');
 const statusRoutes = require('./api/status');
 const clientLogsRoutes = require('./api/client-logs');
+const adminRoutes = require('./api/admin');
+const rosterRoutes = require('./api/roster');
 
 router.use('/', requestsRoutes);
 router.use('/', groupRequestsRoutes);
@@ -57,5 +65,7 @@ router.use('/', gmailRoutes);
 router.use('/', emailsRoutes);
 router.use('/', statusRoutes);
 router.use('/logs', clientLogsRoutes);
+router.use('/admin', adminRoutes);
+router.use('/', rosterRoutes);
 
 module.exports = router;

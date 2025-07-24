@@ -9,7 +9,7 @@ const CONFIG = {
     document.querySelector('meta[name="min-advance-days"]')?.content || 60
   ),
   MAX_ADVANCE_DAYS: parseInt(
-    document.querySelector('meta[name="max-advance-days"]')?.content || 120
+    document.querySelector('meta[name="max-advance-days"]')?.content || 180 // 6 months
   ),
   MAX_DAYS_PER_REQUEST: parseInt(
     document.querySelector('meta[name="max-days-per-request"]')?.content || 4
@@ -60,23 +60,48 @@ function validateConsecutiveDates(dates) {
 class CalendarManager {
   constructor() {
     this.today = new Date();
+    this.rosterDeadlines = new Map(); // Cache for roster deadlines
+    
+    // Initial fallback values (will be updated from roster schedules)
     this.minDate = this.addDays(this.today, CONFIG.MIN_ADVANCE_DAYS);
     this.maxDate = this.addDays(this.today, CONFIG.MAX_ADVANCE_DAYS);
 
     // Allow viewing past requests - start from 6 months before today
     this.viewMinDate = this.addDays(this.today, -180);
-    // Allow viewing 1 month after request period
-    this.viewMaxDate = this.addDays(this.maxDate, 30);
+    // Allow viewing through December 2025
+    this.viewMaxDate = new Date(2025, 11, 31); // December 31, 2025
 
-    // Start with middle month (October) in the center position
-    const middleDate = new Date(
-      (this.minDate.getTime() + this.maxDate.getTime()) / 2
-    );
-    this.currentViewStart = new Date(
-      middleDate.getFullYear(),
-      middleDate.getMonth() - 1, // Subtract 1 to show October as middle month
-      1
-    );
+    // Find the first month that has selectable days
+    // Start from current month and go forward until we find selectable dates
+    let firstSelectableMonth = new Date(this.today.getFullYear(), this.today.getMonth(), 1);
+    let foundSelectable = false;
+    
+    // Check up to 12 months ahead
+    for (let i = 0; i < 12; i++) {
+      const monthStart = new Date(firstSelectableMonth);
+      monthStart.setMonth(monthStart.getMonth() + i);
+      
+      // Check if any day in this month is selectable
+      const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
+      for (let day = new Date(monthStart); day <= monthEnd; day.setDate(day.getDate() + 1)) {
+        if (day >= this.minDate && day <= this.viewMaxDate) {
+          foundSelectable = true;
+          firstSelectableMonth = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1);
+          break;
+        }
+      }
+      if (foundSelectable) break;
+    }
+
+    // Start one month before the first selectable month to show context
+    this.currentViewStart = new Date(firstSelectableMonth);
+    this.currentViewStart.setMonth(this.currentViewStart.getMonth() - 1);
+    
+    // Ensure we don't go before viewMinDate
+    if (this.currentViewStart < this.viewMinDate) {
+      this.currentViewStart = new Date(this.viewMinDate.getFullYear(), this.viewMinDate.getMonth(), 1);
+    }
+    
     this.monthsToShow = 3;
   }
 
@@ -84,6 +109,45 @@ class CalendarManager {
     const result = new Date(date);
     result.setDate(result.getDate() + days);
     return result;
+  }
+
+  // Fetch roster deadline for a specific date
+  async fetchRosterDeadline(dateStr) {
+    try {
+      // Check cache first
+      if (this.rosterDeadlines.has(dateStr)) {
+        return this.rosterDeadlines.get(dateStr);
+      }
+
+      const response = await fetch(`/api/admin/roster-deadline/${dateStr}`);
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        this.rosterDeadlines.set(dateStr, result.data);
+        return result.data;
+      }
+
+      // No roster schedule found for this date
+      return null;
+    } catch (error) {
+      logger.error(`Error fetching deadline for ${dateStr}:`, error);
+      return null;
+    }
+  }
+
+  // Check if a date is available for requests based on roster deadlines
+  async isDateAvailableForRoster(date) {
+    const dateStr = this.formatDate(date);
+    const deadline = await this.fetchRosterDeadline(dateStr);
+    
+    if (!deadline) {
+      // Fall back to traditional advance days logic
+      return this.isDateAvailable(date);
+    }
+
+    // Check if today is before the request deadline
+    const today = new Date().toISOString().split('T')[0];
+    return today <= deadline.deadline;
   }
 
   getMonthsToDisplay() {
@@ -122,18 +186,18 @@ class CalendarManager {
     return lastDisplayedMonth < viewMaxMonth;
   }
 
-  navigatePrevious() {
+  async navigatePrevious() {
     if (this.canNavigatePrevious()) {
       this.currentViewStart.setMonth(this.currentViewStart.getMonth() - 1);
-      this.generateCalendar();
+      await this.generateCalendar();
       this.updateNavigationButtons();
     }
   }
 
-  navigateNext() {
+  async navigateNext() {
     if (this.canNavigateNext()) {
       this.currentViewStart.setMonth(this.currentViewStart.getMonth() + 1);
-      this.generateCalendar();
+      await this.generateCalendar();
       this.updateNavigationButtons();
     }
   }
@@ -178,7 +242,7 @@ class CalendarManager {
     return utcDate.toISOString().split('T')[0];
   }
 
-  generateCalendar() {
+  async generateCalendar() {
     const calendarGrid = document.getElementById('calendarGrid');
     if (!calendarGrid) {
       logger.error('Calendar container not found');
@@ -189,16 +253,25 @@ class CalendarManager {
 
     const months = this.getMonthsToDisplay();
 
-    months.forEach(monthStart => {
-      const monthContainer = this.createMonthContainer(monthStart);
-      calendarGrid.appendChild(monthContainer);
-    });
+    // Create all month containers asynchronously
+    const monthPromises = months.map(monthStart => 
+      this.createMonthContainer(monthStart)
+    );
+
+    try {
+      const monthContainers = await Promise.all(monthPromises);
+      monthContainers.forEach(monthContainer => 
+        calendarGrid.appendChild(monthContainer)
+      );
+    } catch (error) {
+      logger.error('Error generating calendar:', error);
+    }
 
     this.updateNavigationButtons();
     this.updateDateSelection();
   }
 
-  createMonthContainer(monthStart) {
+  async createMonthContainer(monthStart) {
     const monthContainer = document.createElement('div');
     monthContainer.className = 'month-container';
 
@@ -234,17 +307,20 @@ class CalendarManager {
     dayOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     startDate.setDate(startDate.getDate() - dayOfWeek);
 
+    // Create all day cells asynchronously
+    const dayCellPromises = [];
     for (let i = 0; i < 42; i++) {
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + i);
       const isCurrentMonth = currentDate.getMonth() === monthStart.getMonth();
-      const dayCell = this.createDayCell(
-        currentDate,
-        monthStart,
-        isCurrentMonth
+      dayCellPromises.push(
+        this.createDayCell(currentDate, monthStart, isCurrentMonth)
       );
-      daysGrid.appendChild(dayCell);
     }
+
+    // Wait for all day cells to be created
+    const dayCells = await Promise.all(dayCellPromises);
+    dayCells.forEach(dayCell => daysGrid.appendChild(dayCell));
 
     monthContainer.appendChild(monthHeader);
     monthContainer.appendChild(weekdayHeader);
@@ -253,7 +329,7 @@ class CalendarManager {
     return monthContainer;
   }
 
-  createDayCell(date, monthStart, shouldShowDate) {
+  async createDayCell(date, monthStart, shouldShowDate) {
     const dayCell = document.createElement('div');
     dayCell.className = 'day-cell';
     dayCell.dataset.date = this.formatDate(date);
@@ -271,7 +347,7 @@ class CalendarManager {
 
     // Determine cell state
     const isCurrentMonth = date.getMonth() === monthStart.getMonth();
-    const isAvailable = this.isDateAvailable(date);
+    const isAvailable = await this.isDateAvailableForRoster(date);
     const isWeekend = this.isWeekend(date);
 
     if (!isCurrentMonth) {
@@ -284,8 +360,17 @@ class CalendarManager {
 
     if (!isAvailable) {
       dayCell.classList.add('unavailable');
+      // Add deadline information if available
+      const dateStr = this.formatDate(date);
+      const deadline = await this.fetchRosterDeadline(dateStr);
+      if (deadline) {
+        dayCell.setAttribute('data-bs-toggle', 'tooltip');
+        dayCell.setAttribute('data-bs-placement', 'top');
+        dayCell.setAttribute('title', 
+          `Request deadline: ${new Date(deadline.deadline).toLocaleDateString()}`);
+      }
     } else {
-      dayCell.addEventListener('click', () => this.handleDateClick(date));
+      dayCell.addEventListener('click', async () => await this.handleDateClick(date));
     }
 
     // Check for existing requests
@@ -362,8 +447,9 @@ class CalendarManager {
     );
   }
 
-  handleDateClick(date) {
-    if (!this.isDateAvailable(date)) {return;}
+  async handleDateClick(date) {
+    const isAvailable = await this.isDateAvailableForRoster(date);
+    if (!isAvailable) {return;}
 
     const dateStr = this.formatDate(date);
     const existingRequest = this.getExistingRequest(date);

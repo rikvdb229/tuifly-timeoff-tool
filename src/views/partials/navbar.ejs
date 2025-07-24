@@ -22,6 +22,12 @@
             Calendar
           </a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/roster-deadlines">
+            <i class="bi bi-clock-history me-1"></i>
+            Roster Deadlines
+          </a>
+        </li>
       </ul>
 
       <!-- Right side - User menu -->
@@ -76,8 +82,14 @@
               <% if (locals.user.isAdmin) { %>
                 <li>
                   <a class="dropdown-item" href="/admin/users">
-                    <i class="bi bi-shield-check me-2 text-warning"></i>
-                    Admin Panel
+                    <i class="bi bi-people me-2 text-warning"></i>
+                    User Management
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="/admin/roster">
+                    <i class="bi bi-calendar-date me-2 text-warning"></i>
+                    Roster Management
                   </a>
                 </li>
               <% } %>

@@ -489,18 +489,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const nextBtn = document.getElementById('nextMonthBtn');
 
     if (prevBtn && !prevBtn.hasAttribute('data-listener-added')) {
-      prevBtn.addEventListener('click', () => {
+      prevBtn.addEventListener('click', async () => {
         if (window.calendar) {
-          window.calendar.navigatePrevious();
+          await window.calendar.navigatePrevious();
         }
       });
       prevBtn.setAttribute('data-listener-added', 'true');
     }
 
     if (nextBtn && !nextBtn.hasAttribute('data-listener-added')) {
-      nextBtn.addEventListener('click', () => {
+      nextBtn.addEventListener('click', async () => {
         if (window.calendar) {
-          window.calendar.navigateNext();
+          await window.calendar.navigateNext();
         }
       });
       nextBtn.setAttribute('data-listener-added', 'true');

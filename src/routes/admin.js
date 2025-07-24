@@ -27,6 +27,11 @@ router.use(requireAuth);
 router.use(requireOnboarding);
 router.use(requireAdmin);
 
+// Admin roster management page
+router.get('/roster', (req, res) => {
+  res.sendFile('admin-roster.html', { root: './public/html' });
+});
+
 // Admin dashboard - user management
 router.get('/users', async (req, res) => {
   try {
