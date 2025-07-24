@@ -22,7 +22,8 @@
       "Bash(npm test:*)",
       "Bash(grep:*)",
       "Bash(npm run test:coverage:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npm start)"
     ],
     "deny": []
   }

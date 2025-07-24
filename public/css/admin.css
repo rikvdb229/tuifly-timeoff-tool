@@ -1,0 +1,174 @@
+/* Admin Panel Styles */
+
+/* Admin page specific styles */
+.admin-page {
+  background-color: #f8f9fa;
+}
+
+/* Admin cards */
+.admin-card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease-in-out;
+}
+
+.admin-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Admin navigation */
+.admin-nav {
+  background: linear-gradient(135deg, var(--tuifly-blue) 0%, #0056b3 100%);
+}
+
+/* User table styles */
+.table-responsive {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table th {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+  font-weight: 600;
+  color: #495057;
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(0, 123, 255, 0.05);
+}
+
+/* Badge styles */
+.badge {
+  font-size: 0.75rem;
+  padding: 0.375rem 0.75rem;
+}
+
+/* Button group styles */
+.btn-group-sm > .btn {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+}
+
+/* Pending approvals warning */
+.border-warning {
+  border-left: 4px solid #ffc107 !important;
+}
+
+/* Loading states */
+.loading {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid var(--tuifly-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Modal enhancements */
+.modal-header {
+  border-bottom: 1px solid #dee2e6;
+  background-color: #f8f9fa;
+}
+
+.modal-footer {
+  border-top: 1px solid #dee2e6;
+  background-color: #f8f9fa;
+}
+
+/* Alert styles */
+.alert {
+  border-radius: 8px;
+  border: none;
+}
+
+.alert-info {
+  background-color: #e3f2fd;
+  color: #0d47a1;
+}
+
+.alert-warning {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.alert-success {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.alert-danger {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+/* Form controls */
+.form-control:focus {
+  border-color: var(--tuifly-blue);
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.form-select:focus {
+  border-color: var(--tuifly-blue);
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Roster management styles */
+.roster-table .table th,
+.roster-table .table td {
+  vertical-align: middle;
+}
+
+.deadline-badge {
+  font-size: 0.7rem;
+  padding: 0.25rem 0.5rem;
+}
+
+/* Statistics cards for admin dashboard */
+.admin-stats-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border: 1px solid #e9ecef;
+}
+
+.admin-stats-card .card-body {
+  padding: 1.5rem;
+}
+
+.admin-stats-number {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--tuifly-blue);
+}
+
+.admin-stats-label {
+  color: #6c757d;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .btn-group {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .btn-group .btn {
+    border-radius: 0.375rem !important;
+    margin-bottom: 0.25rem;
+  }
+  
+  .table-responsive {
+    font-size: 0.875rem;
+  }
+}

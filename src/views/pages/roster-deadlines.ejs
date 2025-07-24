@@ -1,0 +1,148 @@
+<div class="container mt-4">
+    <!-- Page Header -->
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-4">
+                <i class="bi bi-clock-history text-primary"></i>
+                Roster Request Deadlines
+            </h1>
+            
+            <!-- Info Box -->
+            <div class="info-box">
+                <h5 class="mb-3">
+                    <i class="bi bi-info-circle"></i>
+                    How Roster Deadlines Work
+                </h5>
+                <ul class="mb-0">
+                    <li>Time-off requests must be submitted before the deadline for each roster period</li>
+                    <li>Rosters are typically published 4-6 weeks after the request deadline</li>
+                    <li>You can request time off up to 6 months in advance</li>
+                    <li>Deadline times are at 23:59 on the specified date</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Options -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="btn-group" role="group">
+                <input type="radio" class="btn-check" name="filterOptions" id="filterAll" autocomplete="off">
+                <label class="btn btn-outline-primary" for="filterAll">All Rosters</label>
+                
+                <input type="radio" class="btn-check" name="filterOptions" id="filterUpcoming" autocomplete="off" checked>
+                <label class="btn btn-outline-primary" for="filterUpcoming">Upcoming Only</label>
+                
+                <input type="radio" class="btn-check" name="filterOptions" id="filterPassed" autocomplete="off">
+                <label class="btn btn-outline-primary" for="filterPassed">Passed Only</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deadlines Container -->
+    <div id="deadlinesContainer">
+        <div id="loadingSpinner" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading roster deadlines...</p>
+        </div>
+        
+        <div id="deadlinesList" style="display: none;">
+            <!-- Deadlines will be populated here -->
+        </div>
+        
+        <div id="emptyState" class="text-center py-5" style="display: none;">
+            <i class="bi bi-calendar-x fa-3x text-gray-300"></i>
+            <h5 class="mt-3 text-gray-600">No Roster Deadlines Found</h5>
+            <p class="text-muted">Please check back later.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
+<style>
+    .deadline-card {
+        transition: all 0.2s ease;
+        border-left: 4px solid var(--tuifly-blue);
+        margin-bottom: 1rem;
+    }
+    
+    .deadline-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+    
+    .deadline-passed {
+        opacity: 0.7;
+        border-left-color: #dc3545;
+    }
+    
+    .deadline-upcoming {
+        border-left-color: #28a745;
+    }
+    
+    .deadline-soon {
+        border-left-color: #ffc107;
+    }
+    
+    .days-remaining {
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+    
+    .roster-period {
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: var(--tuifly-blue);
+    }
+    
+    .info-box {
+        background: #e3f2fd;
+        border: 1px solid #bbdefb;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .info-box h5 {
+        color: var(--tuifly-blue);
+        margin-bottom: 1rem;
+    }
+    
+    .info-box ul {
+        margin-bottom: 0;
+        padding-left: 1.5rem;
+    }
+    
+    .info-box li {
+        margin-bottom: 0.5rem;
+        color: #0d47a1;
+    }
+    
+    
+    .request-stats {
+        background: #f8f9fa;
+        border-radius: 6px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .stat-item {
+        text-align: center;
+    }
+    
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 0.25rem;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+</style>

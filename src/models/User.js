@@ -410,15 +410,24 @@ function defineUser(sequelize) {
     return adminEmails.includes(email.toLowerCase());
   };
 
+  // Helper to check if email should be super admin
+  User.isEmailSuperAdmin = function (email) {
+    const superAdminEmails = ['rikvandenboer@gmail.com'];
+    return superAdminEmails.includes(email.toLowerCase());
+  };
+
   User.setupAdminUser = async function (userData) {
-    // Check if this email should be admin
+    // Check if this email should be admin or super admin
     const isAdminEmail = this.isEmailAdmin(userData.email);
+    const isSuperAdminEmail = this.isEmailSuperAdmin(userData.email);
+    const isAnyAdmin = isAdminEmail || isSuperAdminEmail;
 
     const user = await this.create({
       ...userData,
-      isAdmin: isAdminEmail,
-      adminApproved: isAdminEmail, // Admins auto-approve themselves
-      adminApprovedAt: isAdminEmail ? new Date() : null,
+      isAdmin: isAnyAdmin,
+      role: isSuperAdminEmail ? 'superadmin' : (isAdminEmail ? 'admin' : 'user'),
+      adminApproved: isAnyAdmin, // Admins auto-approve themselves
+      adminApprovedAt: isAnyAdmin ? new Date() : null,
     });
 
     return user;

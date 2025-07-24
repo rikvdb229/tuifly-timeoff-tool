@@ -61,6 +61,7 @@ class CalendarManager {
   constructor() {
     this.today = new Date();
     this.rosterDeadlines = new Map(); // Cache for roster deadlines
+    this.isInitialized = false; // Track initialization state
     
     // For roster-based system, we use a wide range and let roster deadlines control availability
     this.minDate = new Date(this.today); // Allow checking from today
@@ -80,26 +81,22 @@ class CalendarManager {
     // Find the first month with selectable days
     let firstSelectableMonth = await this.findFirstSelectableMonth();
 
-    // Start WITH the first selectable month (it will be the leftmost/first displayed)
+    // Start WITH the first selectable month (it will be the leftmost/first displayed)  
     this.currentViewStart = new Date(firstSelectableMonth);
-    console.log('Calendar Debug - Setting currentViewStart to:', this.currentViewStart.toDateString().substring(4, 7), this.currentViewStart.getFullYear());
     
     // Ensure we don't go before viewMinDate
-    console.log('Calendar Debug - viewMinDate:', this.viewMinDate.toDateString());
-    console.log('Calendar Debug - currentViewStart before constraint:', this.currentViewStart.toDateString());
     if (this.currentViewStart < this.viewMinDate) {
-      console.log('Calendar Debug - Applying viewMinDate constraint');
       this.currentViewStart = new Date(this.viewMinDate.getFullYear(), this.viewMinDate.getMonth(), 1);
     }
     
     // Adjust viewMaxDate to allow 6 months of navigation from the first selectable month
     this.viewMaxDate = this.addDays(firstSelectableMonth, CONFIG.MAX_ADVANCE_DAYS);
-    console.log('Calendar Debug - Adjusted viewMaxDate to:', this.viewMaxDate.toDateString());
-    
-    console.log('Calendar Debug - Final currentViewStart:', this.currentViewStart.toDateString());
     
     // Generate the initial calendar
     await this.generateCalendar();
+    
+    // Mark as initialized to prevent duplicate generations
+    this.isInitialized = true;
   }
 
   addDays(date, days) {
@@ -120,13 +117,13 @@ class CalendarManager {
       // Check if this month has any selectable days
       const hasSelectableDays = await this.monthHasSelectableDays(monthToCheck);
       if (hasSelectableDays) {
-        console.log('Calendar Debug - Found first selectable month:', monthToCheck.toDateString().substring(4, 7), monthToCheck.getFullYear());
+        logger.debug('Found first selectable month:', monthToCheck.toDateString().substring(4, 7), monthToCheck.getFullYear());
         return monthToCheck;
       }
     }
     
     // Fallback to current month if no selectable days found
-    console.log('Calendar Debug - No selectable days found, using current month');
+    logger.debug('No selectable days found, using current month');
     return currentMonth;
   }
 
@@ -591,13 +588,8 @@ class CalendarManager {
   }
 }
 
-// Initialize calendar
+// Create calendar instance but don't auto-initialize
 const calendar = new CalendarManager();
-
-// Initialize calendar with async setup
-(async () => {
-  await calendar.initialize();
-})();
 
 // Make global for other modules
 window.calendar = calendar;

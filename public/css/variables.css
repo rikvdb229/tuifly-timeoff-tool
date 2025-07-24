@@ -1,0 +1,15 @@
+/* TUIfly Time-Off Tool - CSS Variables */
+
+:root {
+  --tuifly-blue: #007bff;
+  --tuifly-yellow: #ffc107;
+  --pending-color: #fff3cd;
+  --approved-color: #d1edff;
+  --denied-color: #f8d7da;
+  --selected-color: #e3f2fd;
+  --unavailable-color: #f8f9fa;
+  
+  /* Bootstrap color overrides */
+  --bs-primary: var(--tuifly-blue);
+  --bs-warning: var(--tuifly-yellow);
+}

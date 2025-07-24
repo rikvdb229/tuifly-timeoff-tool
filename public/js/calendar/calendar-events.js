@@ -35,7 +35,7 @@ async function loadUserDataAndSettings() {
 }
 
 // Copy functionality with event delegation
-document.addEventListener('DOMContentLoaded', function () {
+function initializeCopyHandlers() {
   logger.debug('Setting up copy button handlers');
 
   // Single event listener for all copy buttons using event delegation
@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', function () {
       button.className = originalClass;
     }, 2000);
   }
-});
+}
 
 // Date type and flight number update functions
 window.updateDateType = function (index, newType) {
@@ -458,103 +458,12 @@ function populateModalDates() {
   });
 }
 
-// Event listeners initialization
-document.addEventListener('DOMContentLoaded', async () => {
-  logger.debug('Calendar events module initialized');
+// Calendar events module - no longer auto-initializes
+// Initialization is handled by calendar-init.js
 
-  await loadUserDataAndSettings();
-
-  // Load email preferences
-  try {
-    const response = await fetch('/settings/email-preference');
-    const data = await response.json();
-    if (data.success && typeof window.loadEmailPreferences === 'function') {
-      window.loadEmailPreferences(data.data);
-    }
-  } catch {
-    logger.debug('Could not load email preferences for header badge');
-  }
-
-  // Wait for other modules to load
-  setTimeout(() => {
-    // Create request button
-    const createBtn = document.getElementById('createRequestBtn');
-    if (createBtn && !createBtn.hasAttribute('data-listener-added')) {
-      createBtn.addEventListener('click', openGroupRequestModal);
-      createBtn.setAttribute('data-listener-added', 'true');
-    }
-
-    // Navigation buttons
-    const prevBtn = document.getElementById('prevMonthBtn');
-    const nextBtn = document.getElementById('nextMonthBtn');
-
-    if (prevBtn && !prevBtn.hasAttribute('data-listener-added')) {
-      prevBtn.addEventListener('click', async () => {
-        if (window.calendar) {
-          await window.calendar.navigatePrevious();
-        }
-      });
-      prevBtn.setAttribute('data-listener-added', 'true');
-    }
-
-    if (nextBtn && !nextBtn.hasAttribute('data-listener-added')) {
-      nextBtn.addEventListener('click', async () => {
-        if (window.calendar) {
-          await window.calendar.navigateNext();
-        }
-      });
-      nextBtn.setAttribute('data-listener-added', 'true');
-    }
-
-    // Settings button
-    const settingsBtn = document.getElementById('settingsBtn');
-    if (settingsBtn && !settingsBtn.hasAttribute('data-listener-added')) {
-      settingsBtn.addEventListener('click', () => {
-        if (window.openSettingsModal) {
-          window.openSettingsModal();
-        }
-      });
-      settingsBtn.setAttribute('data-listener-added', 'true');
-    }
-  }, 100);
-
-  // Submit group request listener
-  document.addEventListener('click', e => {
-    if (e.target.id === 'submitGroupRequest') {
-      e.preventDefault();
-      if (window.submitGroupRequest) {
-        window.submitGroupRequest();
-      }
-    }
-  });
-
-  // Modal cleanup listener
-  document.addEventListener('hidden.bs.modal', e => {
-    if (e.target.id === 'groupRequestModal') {
-      document.getElementById('groupRequestForm')?.reset();
-      const customMessage = document.getElementById('customMessage');
-      if (customMessage) {customMessage.value = '';}
-      window.isSubmitting = false;
-    }
-  });
-
-  // Dynamic preview update listeners
-  const fieldsToWatch = [
-    'startDate',
-    'endDate',
-    'type',
-    'flightNumber',
-    'customMessage',
-  ];
-  fieldsToWatch.forEach(fieldId => {
-    const field = document.getElementById(fieldId);
-    if (field) {
-      field.addEventListener('change', window.updateRequestPreview);
-      field.addEventListener('input', window.updateRequestPreview);
-    }
-  });
-});
+// Event listeners now handled by calendar-init.js
 
 // Make functions available globally
 window.openGroupRequestModal = openGroupRequestModal;
 window.loadUserDataAndSettings = loadUserDataAndSettings;
+window.initializeCopyHandlers = initializeCopyHandlers;

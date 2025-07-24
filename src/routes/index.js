@@ -28,6 +28,7 @@ router.get('/', (req, res) => {
       '../calendar/calendar-events',
       '../calendar/calendar-requests',
       '../calendar/calendar-ui',
+      '../calendar/calendar-init',
     ],
     metaTags: metaTags,
     user: req.user.toSafeObject(),
@@ -52,8 +53,15 @@ router.get('/dashboard', (req, res) => {
 });
 
 // Roster deadlines page
-router.get('/roster-deadlines', (req, res) => {
-  res.sendFile('roster-deadlines.html', { root: './public/html' });
+router.get('/roster-deadlines', requireAuth, requireOnboarding, (req, res) => {
+  const templateData = {
+    title: 'Roster Deadlines',
+    body: '../pages/roster-deadlines',
+    additionalJS: ['roster-deadlines'],
+    user: req.user.toSafeObject(),
+  };
+
+  res.render('layouts/base', templateData);
 });
 
 // API documentation page (protected)

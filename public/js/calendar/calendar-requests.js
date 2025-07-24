@@ -15,7 +15,8 @@ async function loadExistingRequests() {
     if (data.success) {
       window.existingRequests = data.data;
       updateStatistics(data.data);
-      if (window.calendar) {
+      // Only regenerate calendar if it's already been initialized
+      if (window.calendar && window.calendar.isInitialized) {
         await window.calendar.generateCalendar();
       }
       initializeTooltips();
@@ -775,11 +776,8 @@ function getStatusColor(status) {
   return colors[status] || 'secondary';
 }
 
-// Initialize on DOM load
-document.addEventListener('DOMContentLoaded', async () => {
-  logger.debug('Calendar requests module initialized');
-  await loadExistingRequests();
-});
+// Calendar requests module - no longer auto-initializes
+// Initialization is handled by calendar-init.js
 
 // Make functions available globally
 window.loadExistingRequests = loadExistingRequests;

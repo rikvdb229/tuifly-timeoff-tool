@@ -1,0 +1,94 @@
+/* TUIfly Time-Off Tool - Global Styles */
+
+/* Import base styles */
+@import url('/css/variables.css');
+
+/* CSS Reset */
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #f8f9fa;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Utility Classes */
+.loading {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid var(--tuifly-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Navbar Styles */
+.navbar {
+  background: linear-gradient(135deg, var(--tuifly-blue) 0%, #0056b3 100%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.navbar-nav .nav-link {
+  transition: color 0.3s ease;
+  font-weight: 500;
+}
+
+.navbar-nav .nav-link:hover {
+  color: var(--tuifly-yellow) !important;
+}
+
+/* Cards */
+.card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Form enhancements */
+.form-control:focus {
+  border-color: var(--tuifly-blue);
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.btn-primary {
+  background-color: var(--tuifly-blue);
+  border-color: var(--tuifly-blue);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: #0056b3;
+  border-color: #0056b3;
+}
+
+/* Main content */
+main {
+  padding-top: 20px;
+  min-height: calc(100vh - 80px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .navbar-brand span {
+    display: none;
+  }
+}

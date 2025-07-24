@@ -6,7 +6,7 @@
 let rosterSchedules = [];
 let currentUser = null;
 let currentFilter = 'upcoming'; // Default to upcoming rosters
-let isTimelineView = true;
+// Timeline view removed
 
 // DOM Elements
 const loadingSpinner = document.getElementById('loadingSpinner');
@@ -17,7 +17,6 @@ const deadlinesContainer = document.getElementById('deadlinesContainer');
 // Initialize page
 document.addEventListener('DOMContentLoaded', async function() {
   try {
-    await loadUserData();
     await loadRosterDeadlines();
     initializeEventListeners();
     
@@ -28,31 +27,8 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
 });
 
-// Load current user data
-async function loadUserData() {
-  try {
-    const response = await fetch('/auth/status');
-    const result = await response.json();
-    
-    if (result.authenticated) {
-      currentUser = result.user;
-      document.getElementById('navUserName').textContent = currentUser.name || currentUser.email;
-      
-      // Show admin menu if user is admin
-      if (currentUser.isAdmin) {
-        const adminMenuItem = document.getElementById('adminMenuItem');
-        if (adminMenuItem) {
-          adminMenuItem.style.display = 'block';
-        }
-      }
-    } else {
-      window.location.href = '/auth/login';
-    }
-  } catch (error) {
-    logger.error('Failed to load user data:', error);
-    window.location.href = '/auth/login';
-  }
-}
+// Get current user from global template data (provided by base layout)
+// currentUser is already defined at the top
 
 // Load roster deadlines
 async function loadRosterDeadlines() {
@@ -140,14 +116,6 @@ function createDeadlineCard(schedule, index) {
   const card = document.createElement('div');
   card.className = `card deadline-card ${isPassed ? 'deadline-passed' : isWithinWeek ? 'deadline-soon' : 'deadline-upcoming'}`;
   
-  // Add timeline dot if in timeline view
-  if (isTimelineView) {
-    const dot = document.createElement('div');
-    dot.className = `timeline-dot ${isPassed ? 'passed' : isWithinWeek ? 'active' : 'upcoming'}`;
-    dot.style.top = `${index * 150 + 30}px`; // Adjust position based on card index
-    card.appendChild(dot);
-  }
-  
   const statusBadge = isPassed 
     ? '<span class="badge bg-danger">Deadline Passed</span>'
     : isWithinWeek 
@@ -199,6 +167,29 @@ function createDeadlineCard(schedule, index) {
         </div>
       </div>
       
+      ${schedule.requestStats ? `
+        <div class="request-stats">
+          <div class="row">
+            <div class="col-3 stat-item">
+              <div class="stat-number text-primary">${schedule.requestStats.requested}</div>
+              <div class="stat-label">Requested Days</div>
+            </div>
+            <div class="col-3 stat-item">
+              <div class="stat-number text-success">${schedule.requestStats.approved}</div>
+              <div class="stat-label">Approved Days</div>
+            </div>
+            <div class="col-3 stat-item">
+              <div class="stat-number text-danger">${schedule.requestStats.denied}</div>
+              <div class="stat-label">Denied Days</div>
+            </div>
+            <div class="col-3 stat-item">
+              <div class="stat-number text-warning">${schedule.requestStats.pending}</div>
+              <div class="stat-label">Pending Days</div>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+      
       ${schedule.description ? `
         <div class="mt-2">
           <small class="text-muted">
@@ -231,12 +222,7 @@ function initializeEventListeners() {
     renderDeadlines();
   });
   
-  // Timeline view toggle
-  document.getElementById('timelineView').addEventListener('change', (e) => {
-    isTimelineView = e.target.checked;
-    deadlinesContainer.classList.toggle('timeline-container', isTimelineView);
-    renderDeadlines();
-  });
+  // Timeline view removed - no longer needed
 }
 
 // Format date for display

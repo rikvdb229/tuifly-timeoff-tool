@@ -13,10 +13,22 @@ const router = express.Router();
 
 // Admin-only middleware
 const requireAdmin = async (req, res, next) => {
-  if (!req.user || !req.user.isAdmin) {
+  if (!req.user || (!req.user.isAdmin && req.user.role !== 'admin' && req.user.role !== 'superadmin')) {
+    return res.status(403).render('pages/error', {
+      title: 'Access Denied',
+      message: 'Admin access required',
+      statusCode: 403
+    });
+  }
+  next();
+};
+
+// Super Admin-only middleware
+const requireSuperAdmin = async (req, res, next) => {
+  if (!req.user || !req.user.isSuperAdmin()) {
     return res.status(403).json({
       success: false,
-      error: 'Admin access required',
+      error: 'Super Admin access required',
     });
   }
   next();
@@ -27,13 +39,324 @@ router.use(requireAuth);
 router.use(requireOnboarding);
 router.use(requireAdmin);
 
-// Admin roster management page
-router.get('/roster', (req, res) => {
-  res.sendFile('admin-roster.html', { root: './public/html' });
+// Main Admin Panel (unified entry point)
+router.get('/panel', (req, res) => {
+  res.render('pages/admin-panel', {
+    title: 'Admin Panel',
+    user: req.user
+  });
 });
 
-// Admin dashboard - user management
-router.get('/users', async (req, res) => {
+// Redirect old routes to new panel
+router.get('/roster', (req, res) => {
+  res.redirect('/admin/panel');
+});
+
+router.get('/users', (req, res) => {
+  res.redirect('/admin/panel');
+});
+
+// API Routes for Admin Panel
+
+// Get all users
+router.get('/api/users', async (req, res) => {
+  try {
+    const users = await getAllUsers();
+    res.json({
+      success: true,
+      data: users
+    });
+  } catch (error) {
+    routeLogger.logError(error, { operation: 'fetchUsers', endpoint: '/admin/api/users' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch users'
+    });
+  }
+});
+
+// Get pending approvals
+router.get('/api/pending-approvals', async (req, res) => {
+  try {
+    console.log('DEBUG: Fetching pending approvals...');
+    const pendingUsers = await getPendingApprovals();
+    console.log('DEBUG: Found pending users:', pendingUsers.length);
+    
+    // Also check all users to see what's in the database
+    const allUsers = await getAllUsers();
+    const unapprovedUsers = allUsers.filter(user => !user.adminApproved);
+    console.log('DEBUG: All users count:', allUsers.length);
+    console.log('DEBUG: All users details:', allUsers.map(u => ({
+      id: u.id,
+      email: u.email,
+      isAdmin: u.isAdmin,
+      adminApproved: u.adminApproved,
+      onboardedAt: u.onboardedAt ? u.onboardedAt.toISOString() : null
+    })));
+    console.log('DEBUG: Unapproved users count:', unapprovedUsers.length);
+    console.log('DEBUG: Unapproved users details:', unapprovedUsers.map(u => ({
+      id: u.id,
+      email: u.email,
+      isAdmin: u.isAdmin,
+      adminApproved: u.adminApproved,
+      onboardedAt: u.onboardedAt ? u.onboardedAt.toISOString() : null
+    })));
+    
+    res.json({
+      success: true,
+      data: pendingUsers
+    });
+  } catch (error) {
+    routeLogger.logError(error, { operation: 'fetchPendingApprovals', endpoint: '/admin/api/pending-approvals' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch pending approvals'
+    });
+  }
+});
+
+// Approve user
+router.post('/api/users/:id/approve', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await approveUser(req.user.id, id);
+    res.json({
+      success: true,
+      message: 'User approved successfully'
+    });
+  } catch (error) {
+    routeLogger.logError(error, { operation: 'approveUser', endpoint: '/admin/api/users/:id/approve' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to approve user'
+    });
+  }
+});
+
+// Update user role (Super Admin only for some roles)
+router.put('/api/users/:id/role', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+    
+    // Only super admins can create other super admins
+    if (role === 'superadmin' && !req.user.isSuperAdmin()) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only Super Admins can create other Super Admins'
+      });
+    }
+    
+    // Update user role based on the role parameter
+    const { User } = require('../models');
+    const user = await User.findByPk(id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+    
+    switch (role) {
+      case 'user':
+        user.isAdmin = false;
+        user.role = 'user';
+        break;
+      case 'admin':
+        user.isAdmin = true;
+        user.role = 'admin';
+        break;
+      case 'superadmin':
+        user.isAdmin = true;
+        user.role = 'superadmin';
+        break;
+      default:
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid role specified'
+        });
+    }
+    
+    await user.save();
+    
+    res.json({
+      success: true,
+      message: 'User role updated successfully'
+    });
+  } catch (error) {
+    routeLogger.logError(error, { operation: 'updateUserRole', endpoint: '/admin/api/users/:id/role' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update user role'
+    });
+  }
+});
+
+// Delete user
+router.delete('/api/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { User } = require('../models');
+    
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+    
+    // Prevent deleting yourself
+    if (user.id === req.user.id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot delete your own account'
+      });
+    }
+    
+    await user.destroy();
+    
+    res.json({
+      success: true,
+      message: 'User deleted successfully'
+    });
+  } catch (error) {
+    routeLogger.logError(error, { operation: 'deleteUser', endpoint: '/admin/api/users/:id' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete user'
+    });
+  }
+});
+
+// Roster management endpoints (Super Admin only)
+router.get('/api/rosters', requireSuperAdmin, async (req, res) => {
+  try {
+    const { RosterSchedule } = require('../models');
+    const rosters = await RosterSchedule.findAll({
+      order: [['startPeriod', 'DESC']] // Sort from new to old
+    });
+    
+    // Add deadline status flags
+    const today = new Date().toISOString().split('T')[0];
+    const rostersWithFlags = rosters.map(roster => {
+      const rosterData = roster.toJSON();
+      rosterData.deadlineStatus = rosterData.latestRequestDate < today ? 'passed' : 'upcoming';
+      return rosterData;
+    });
+    
+    res.json({
+      success: true,
+      data: rostersWithFlags
+    });
+  } catch (error) {
+    routeLogger.logError(error, { operation: 'fetchRosters', endpoint: '/admin/api/rosters' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch rosters'
+    });
+  }
+});
+
+router.post('/api/rosters', requireSuperAdmin, async (req, res) => {
+  try {
+    const { RosterSchedule } = require('../models');
+    const roster = await RosterSchedule.create(req.body);
+    
+    res.json({
+      success: true,
+      data: roster,
+      message: 'Roster schedule created successfully'
+    });
+  } catch (error) {
+    routeLogger.logError(error, { operation: 'createRoster', endpoint: '/admin/api/rosters' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create roster schedule'
+    });
+  }
+});
+
+router.put('/api/rosters/:id', requireSuperAdmin, async (req, res) => {
+  try {
+    const { RosterSchedule } = require('../models');
+    const roster = await RosterSchedule.findByPk(req.params.id);
+    
+    if (!roster) {
+      return res.status(404).json({
+        success: false,
+        error: 'Roster schedule not found'
+      });
+    }
+    
+    await roster.update(req.body);
+    
+    res.json({
+      success: true,
+      data: roster,
+      message: 'Roster schedule updated successfully'
+    });
+  } catch (error) {
+    routeLogger.logError(error, { operation: 'updateRoster', endpoint: '/admin/api/rosters/:id' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update roster schedule'
+    });
+  }
+});
+
+router.delete('/api/rosters/:id', requireSuperAdmin, async (req, res) => {
+  try {
+    const { RosterSchedule } = require('../models');
+    const roster = await RosterSchedule.findByPk(req.params.id);
+    
+    if (!roster) {
+      return res.status(404).json({
+        success: false,
+        error: 'Roster schedule not found'
+      });
+    }
+    
+    await roster.destroy();
+    
+    res.json({
+      success: true,
+      message: 'Roster schedule deleted successfully'
+    });
+  } catch (error) {
+    routeLogger.logError(error, { operation: 'deleteRoster', endpoint: '/admin/api/rosters/:id' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete roster schedule'
+    });
+  }
+});
+
+// System settings endpoints (Super Admin only)
+router.get('/api/settings', requireSuperAdmin, (req, res) => {
+  // Return current system settings
+  res.json({
+    success: true,
+    data: {
+      maxAdvanceDays: process.env.MAX_ADVANCE_DAYS || 180,
+      maxDaysPerRequest: process.env.MAX_DAYS_PER_REQUEST || 4,
+      approverEmail: process.env.TUIFLY_APPROVER_EMAIL || process.env.APPROVER_EMAIL || 'scheduling@tuifly.com'
+    }
+  });
+});
+
+router.put('/api/settings', requireSuperAdmin, (req, res) => {
+  // In a real implementation, you'd save these to a database or environment
+  // For now, just return success
+  res.json({
+    success: true,
+    message: 'Settings updated successfully'
+  });
+});
+
+// Legacy HTML response for backward compatibility
+router.get('/users-legacy', async (req, res) => {
   try {
     const [allUsers, pendingUsers] = await Promise.all([
       getAllUsers(),

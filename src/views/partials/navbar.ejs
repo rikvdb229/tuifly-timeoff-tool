@@ -63,7 +63,9 @@
                   <% if (locals.user.code) { %>
                     <br><small class="text-muted">Code: <%= locals.user.code %></small>
                   <% } %>
-                  <% if (locals.user.isAdmin) { %>
+                  <% if (locals.user.isSuperAdmin && locals.user.isSuperAdmin()) { %>
+                    <br><small class="text-danger"><i class="bi bi-shield-fill"></i> Super Admin</small>
+                  <% } else if (locals.user.isAdmin) { %>
                     <br><small class="text-warning"><i class="bi bi-shield-check"></i> Admin</small>
                   <% } %>
                 </h6>
@@ -78,18 +80,12 @@
                 </a>
               </li>
               
-              <!-- 🚨 NEW: Admin Panel Link (only for admins) -->
+              <!-- Admin Panel Link (only for admins) -->
               <% if (locals.user.isAdmin) { %>
                 <li>
-                  <a class="dropdown-item" href="/admin/users">
-                    <i class="bi bi-people me-2 text-warning"></i>
-                    User Management
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item" href="/admin/roster">
-                    <i class="bi bi-calendar-date me-2 text-warning"></i>
-                    Roster Management
+                  <a class="dropdown-item" href="/admin/panel">
+                    <i class="bi bi-shield-check me-2 text-warning"></i>
+                    Admin Panel
                   </a>
                 </li>
               <% } %>
