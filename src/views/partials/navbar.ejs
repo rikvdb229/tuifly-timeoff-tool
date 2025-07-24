@@ -63,8 +63,8 @@
                   <% if (locals.user.code) { %>
                     <br><small class="text-muted">Code: <%= locals.user.code %></small>
                   <% } %>
-                  <% if (locals.user.isSuperAdmin && locals.user.isSuperAdmin()) { %>
-                    <br><small class="text-danger"><i class="bi bi-shield-fill"></i> Super Admin</small>
+                  <% if (locals.user.role === 'superadmin') { %>
+                    <br><small class="text-danger"><i class="bi bi-shield-check"></i> Super Admin</small>
                   <% } else if (locals.user.isAdmin) { %>
                     <br><small class="text-warning"><i class="bi bi-shield-check"></i> Admin</small>
                   <% } %>

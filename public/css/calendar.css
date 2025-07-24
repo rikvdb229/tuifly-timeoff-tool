@@ -52,11 +52,13 @@
 .days-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  border-collapse: collapse;
 }
 
 /* Day cells */
 .day-cell {
   aspect-ratio: 1;
+  background-color: white;
   border: 1px solid #e9ecef;
   cursor: pointer;
   display: flex;
@@ -66,11 +68,16 @@
   position: relative;
   transition: all 0.2s ease;
   min-height: 45px;
+  box-sizing: border-box;
+  margin: -1px 0 0 -1px;
 }
 
-.day-cell:hover:not(.unavailable) {
-  background-color: #e3f2fd;
-  transform: scale(1.05);
+.day-cell:hover:not(.unavailable):not(.selected) {
+  background-color: #f0f7ff;
+}
+
+.day-cell.selected:hover {
+  background-color: #0056b3 !important;
 }
 
 .day-number {
@@ -81,7 +88,7 @@
 
 /* Day states */
 .day-cell.unavailable {
-  background-color: #e9ecef !important;
+  background-color: var(--unavailable-color) !important;
   color: #6c757d;
   cursor: not-allowed;
   position: relative;
@@ -91,14 +98,14 @@
   color: #adb5bd;
 }
 
-.day-cell.weekend:not(.unavailable):not(.other-month) {
-  background-color: #f1f8ff !important;
+.day-cell.weekend:not(.unavailable):not(.other-month):not(.selected) {
+  background-color: var(--weekend-color) !important;
 }
 
 .day-cell.selected {
-  background-color: var(--selected-color) !important;
-  border: 2px solid var(--tuifly-blue) !important;
-  transform: scale(1.05);
+  background-color: var(--tuifly-blue) !important;
+  color: white !important;
+  font-weight: bold !important;
 }
 
 .day-cell.conflict {
