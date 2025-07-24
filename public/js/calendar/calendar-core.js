@@ -76,10 +76,16 @@ class CalendarManager {
     let firstSelectableMonth = new Date(this.today.getFullYear(), this.today.getMonth(), 1);
     let foundSelectable = false;
     
+    console.log('Calendar Debug - Today:', this.today.toDateString());
+    console.log('Calendar Debug - minDate:', this.minDate.toDateString());
+    console.log('Calendar Debug - maxDate:', this.maxDate.toDateString());
+    
     // Check up to 12 months ahead
     for (let i = 0; i < 12; i++) {
       const monthStart = new Date(firstSelectableMonth);
       monthStart.setMonth(monthStart.getMonth() + i);
+      
+      console.log(`Calendar Debug - Checking month ${i}:`, monthStart.toDateString().substring(4, 7), monthStart.getFullYear());
       
       // Check if any day in this month is selectable
       const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
@@ -87,6 +93,7 @@ class CalendarManager {
         if (day >= this.minDate && day <= this.maxDate) {
           foundSelectable = true;
           firstSelectableMonth = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1);
+          console.log('Calendar Debug - Found first selectable month:', firstSelectableMonth.toDateString().substring(4, 7), firstSelectableMonth.getFullYear());
           break;
         }
       }
@@ -95,12 +102,17 @@ class CalendarManager {
 
     // Start WITH the first selectable month (it will be the leftmost/first displayed)
     this.currentViewStart = new Date(firstSelectableMonth);
+    console.log('Calendar Debug - Setting currentViewStart to:', this.currentViewStart.toDateString().substring(4, 7), this.currentViewStart.getFullYear());
     
     // Ensure we don't go before viewMinDate
+    console.log('Calendar Debug - viewMinDate:', this.viewMinDate.toDateString());
+    console.log('Calendar Debug - currentViewStart before constraint:', this.currentViewStart.toDateString());
     if (this.currentViewStart < this.viewMinDate) {
+      console.log('Calendar Debug - Applying viewMinDate constraint');
       this.currentViewStart = new Date(this.viewMinDate.getFullYear(), this.viewMinDate.getMonth(), 1);
     }
     
+    console.log('Calendar Debug - Final currentViewStart:', this.currentViewStart.toDateString());
     this.monthsToShow = 3;
   }
 
