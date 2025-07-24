@@ -77,35 +77,8 @@ class CalendarManager {
   }
 
   async initialize() {
-    // Find the first month that has selectable days
-    // Start from current month and go forward until we find selectable dates
-    let firstSelectableMonth = new Date(this.today.getFullYear(), this.today.getMonth(), 1);
-    let foundSelectable = false;
-    
-    console.log('Calendar Debug - Today:', this.today.toDateString());
-    console.log('Calendar Debug - minDate:', this.minDate.toDateString());
-    console.log('Calendar Debug - maxDate:', this.maxDate.toDateString());
-    
-    // Check up to 12 months ahead
-    for (let i = 0; i < 12; i++) {
-      const monthStart = new Date(firstSelectableMonth);
-      monthStart.setMonth(monthStart.getMonth() + i);
-      
-      console.log(`Calendar Debug - Checking month ${i}:`, monthStart.toDateString().substring(4, 7), monthStart.getFullYear());
-      
-      // Check if any day in this month is selectable based on roster deadlines
-      const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
-      for (let day = new Date(monthStart); day <= monthEnd; day.setDate(day.getDate() + 1)) {
-        // Use roster-based availability check instead of simple date range
-        if (await this.isDateAvailableForRoster(day)) {
-          foundSelectable = true;
-          firstSelectableMonth = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1);
-          console.log('Calendar Debug - Found first selectable month:', firstSelectableMonth.toDateString().substring(4, 7), firstSelectableMonth.getFullYear());
-          break;
-        }
-      }
-      if (foundSelectable) break;
-    }
+    // Find the first month with selectable days
+    let firstSelectableMonth = await this.findFirstSelectableMonth();
 
     // Start WITH the first selectable month (it will be the leftmost/first displayed)
     this.currentViewStart = new Date(firstSelectableMonth);
@@ -119,6 +92,10 @@ class CalendarManager {
       this.currentViewStart = new Date(this.viewMinDate.getFullYear(), this.viewMinDate.getMonth(), 1);
     }
     
+    // Adjust viewMaxDate to allow 6 months of navigation from the first selectable month
+    this.viewMaxDate = this.addDays(firstSelectableMonth, CONFIG.MAX_ADVANCE_DAYS);
+    console.log('Calendar Debug - Adjusted viewMaxDate to:', this.viewMaxDate.toDateString());
+    
     console.log('Calendar Debug - Final currentViewStart:', this.currentViewStart.toDateString());
     
     // Generate the initial calendar
@@ -131,46 +108,78 @@ class CalendarManager {
     return result;
   }
 
-  // Fetch roster deadline for a specific date
-  async fetchRosterDeadline(dateStr) {
-    try {
-      // Check cache first
-      if (this.rosterDeadlines.has(dateStr)) {
-        return this.rosterDeadlines.get(dateStr);
+  // Find the first month that has any selectable days
+  async findFirstSelectableMonth() {
+    // Start from current month and check up to 12 months ahead
+    const currentMonth = new Date(this.today.getFullYear(), this.today.getMonth(), 1);
+    
+    for (let i = 0; i < 12; i++) {
+      const monthToCheck = new Date(currentMonth);
+      monthToCheck.setMonth(currentMonth.getMonth() + i);
+      
+      // Check if this month has any selectable days
+      const hasSelectableDays = await this.monthHasSelectableDays(monthToCheck);
+      if (hasSelectableDays) {
+        console.log('Calendar Debug - Found first selectable month:', monthToCheck.toDateString().substring(4, 7), monthToCheck.getFullYear());
+        return monthToCheck;
       }
+    }
+    
+    // Fallback to current month if no selectable days found
+    console.log('Calendar Debug - No selectable days found, using current month');
+    return currentMonth;
+  }
 
+  // Check if a month has any selectable days
+  async monthHasSelectableDays(monthStart) {
+    const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
+    
+    // Check a few days in the month (not all 30+ days for efficiency)
+    const samplesToCheck = Math.min(10, monthEnd.getDate());
+    
+    for (let day = 1; day <= samplesToCheck; day++) {
+      const dateToCheck = new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
+      const isAvailable = await this.isDateAvailableForRoster(dateToCheck);
+      if (isAvailable) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  // Check if a date is available for requests based on roster deadlines (using cached data)
+  async isDateAvailableForRoster(date) {
+    const dateStr = this.formatDate(date);
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Quick check: if date is in the past, it's not available
+    if (dateStr < today) {
+      return false;
+    }
+    
+    // Check cache first
+    if (this.rosterDeadlines.has(dateStr)) {
+      const schedule = this.rosterDeadlines.get(dateStr);
+      return today <= schedule.deadline;
+    }
+    
+    // Fetch from existing working API
+    try {
       const response = await fetch(`/api/admin/roster-deadline/${dateStr}`);
       const result = await response.json();
 
       if (result.success && result.data) {
+        // Cache the result
         this.rosterDeadlines.set(dateStr, result.data);
-        return result.data;
+        return today <= result.data.deadline;
       }
-
-      // No roster schedule found for this date
-      return null;
+      
+      return false;
     } catch (error) {
-      logger.error(`Error fetching deadline for ${dateStr}:`, error);
-      return null;
-    }
-  }
-
-  // Check if a date is available for requests based on roster deadlines
-  async isDateAvailableForRoster(date) {
-    const dateStr = this.formatDate(date);
-    const deadline = await this.fetchRosterDeadline(dateStr);
-    
-    if (!deadline) {
-      // No roster schedule found for this date - not available
-      console.log(`Calendar Debug - No roster schedule found for ${dateStr}, marking as unavailable`);
+      console.error(`Error fetching deadline for ${dateStr}:`, error);
       return false;
     }
-
-    // Check if today is before the request deadline
-    const today = new Date().toISOString().split('T')[0];
-    const isAvailable = today <= deadline.deadline;
-    console.log(`Calendar Debug - Date ${dateStr}: deadline=${deadline.deadline}, today=${today}, available=${isAvailable}`);
-    return isAvailable;
   }
 
   getMonthsToDisplay() {
@@ -276,19 +285,10 @@ class CalendarManager {
 
     const months = this.getMonthsToDisplay();
 
-    // Create all month containers asynchronously
-    const monthPromises = months.map(monthStart => 
-      this.createMonthContainer(monthStart)
-    );
-
-    try {
-      const monthContainers = await Promise.all(monthPromises);
-      monthContainers.forEach(monthContainer => 
-        calendarGrid.appendChild(monthContainer)
-      );
-    } catch (error) {
-      logger.error('Error generating calendar:', error);
-    }
+    // Create all month containers with caching
+    const monthPromises = months.map(monthStart => this.createMonthContainer(monthStart));
+    const monthContainers = await Promise.all(monthPromises);
+    monthContainers.forEach(monthContainer => calendarGrid.appendChild(monthContainer));
 
     this.updateNavigationButtons();
     this.updateDateSelection();
@@ -330,18 +330,15 @@ class CalendarManager {
     dayOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     startDate.setDate(startDate.getDate() - dayOfWeek);
 
-    // Create all day cells asynchronously
+    // Create all day cells with caching for efficiency
     const dayCellPromises = [];
     for (let i = 0; i < 42; i++) {
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + i);
       const isCurrentMonth = currentDate.getMonth() === monthStart.getMonth();
-      dayCellPromises.push(
-        this.createDayCell(currentDate, monthStart, isCurrentMonth)
-      );
+      dayCellPromises.push(this.createDayCell(currentDate, monthStart, isCurrentMonth));
     }
 
-    // Wait for all day cells to be created
     const dayCells = await Promise.all(dayCellPromises);
     dayCells.forEach(dayCell => daysGrid.appendChild(dayCell));
 
@@ -383,14 +380,14 @@ class CalendarManager {
 
     if (!isAvailable) {
       dayCell.classList.add('unavailable');
-      // Add deadline information if available
+      // Add deadline information if available from cached data
       const dateStr = this.formatDate(date);
-      const deadline = await this.fetchRosterDeadline(dateStr);
-      if (deadline) {
+      const schedule = this.rosterDeadlines.get(dateStr);
+      if (schedule) {
         dayCell.setAttribute('data-bs-toggle', 'tooltip');
         dayCell.setAttribute('data-bs-placement', 'top');
         dayCell.setAttribute('title', 
-          `Request deadline: ${new Date(deadline.deadline).toLocaleDateString()}`);
+          `Request deadline: ${new Date(schedule.deadline).toLocaleDateString()}`);
       }
     } else {
       dayCell.addEventListener('click', async () => await this.handleDateClick(date));
