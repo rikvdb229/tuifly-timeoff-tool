@@ -5,7 +5,7 @@
 
 let rosterSchedules = [];
 let currentUser = null;
-let currentFilter = 'all';
+let currentFilter = 'upcoming'; // Default to upcoming rosters
 let isTimelineView = true;
 
 // DOM Elements

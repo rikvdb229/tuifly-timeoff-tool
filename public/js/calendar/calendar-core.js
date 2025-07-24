@@ -93,9 +93,8 @@ class CalendarManager {
       if (foundSelectable) break;
     }
 
-    // Start one month before the first selectable month to show context
+    // Start WITH the first selectable month (it will be the leftmost/first displayed)
     this.currentViewStart = new Date(firstSelectableMonth);
-    this.currentViewStart.setMonth(this.currentViewStart.getMonth() - 1);
     
     // Ensure we don't go before viewMinDate
     if (this.currentViewStart < this.viewMinDate) {
