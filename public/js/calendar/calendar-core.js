@@ -68,8 +68,8 @@ class CalendarManager {
 
     // Allow viewing past requests - start from 6 months before today
     this.viewMinDate = this.addDays(this.today, -180);
-    // Allow viewing through December 2025
-    this.viewMaxDate = new Date(2025, 11, 31); // December 31, 2025
+    // Allow viewing 6 months in advance from today
+    this.viewMaxDate = this.addDays(this.today, CONFIG.MAX_ADVANCE_DAYS);
 
     // Find the first month that has selectable days
     // Start from current month and go forward until we find selectable dates
@@ -84,7 +84,7 @@ class CalendarManager {
       // Check if any day in this month is selectable
       const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
       for (let day = new Date(monthStart); day <= monthEnd; day.setDate(day.getDate() + 1)) {
-        if (day >= this.minDate && day <= this.viewMaxDate) {
+        if (day >= this.minDate && day <= this.maxDate) {
           foundSelectable = true;
           firstSelectableMonth = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1);
           break;
