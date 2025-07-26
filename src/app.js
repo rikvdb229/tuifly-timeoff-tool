@@ -170,7 +170,7 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     uptime: process.uptime(),
-    version: '2.0.0',
+    version: '0.1.0',
     features: ['multi-user', 'oauth', 'redis-sessions', 'postgresql'],
     database: 'connected',
     redis: redisClient.isReady ? 'connected' : 'disconnected',

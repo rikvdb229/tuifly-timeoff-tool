@@ -8,13 +8,19 @@ const {
 const { logger } = require('./utils/logger');
 
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || 'localhost';
+// In Docker, we need to bind to 0.0.0.0 to accept external connections
+const BIND_HOST = process.env.NODE_ENV === 'production' || process.env.DOCKER_ENV ? '0.0.0.0' : (process.env.HOST || 'localhost');
+// For display purposes, use HOST or APP_URL
+const DISPLAY_HOST = process.env.HOST || 'localhost';
+const APP_URL = process.env.APP_URL || `http://${DISPLAY_HOST}:${PORT}`;
 
 // Initialize database and start server
 async function startServer() {
   try {
-    logger.info('🚀 Starting TUIfly Time-Off Tool v2.0...');
+    logger.info('🚀 Starting TUIfly Time-Off Tool v0.1.0...');
     logger.info('📊 Multi-User System with PostgreSQL + Redis');
+    logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    logger.info(`🔌 Binding to: ${BIND_HOST}:${PORT}`);
 
     // Initialize Redis first
     logger.info('🔴 Initializing Redis...');
@@ -31,13 +37,13 @@ async function startServer() {
     logger.info('🐘 Initializing PostgreSQL...');
     await initializeDatabase();
 
-    // Start the server
-    const server = app.listen(PORT, HOST, () => {
-      logger.info('🎉 TUIfly Time-Off Tool v2.0 is ready!');
-      logger.info('📱 Application URL: http://' + HOST + ':' + PORT);
-      logger.info('🔐 Login Page: http://' + HOST + ':' + PORT + '/auth/login');
-      logger.info('🔗 API Documentation: http://' + HOST + ':' + PORT + '/api');
-      logger.info('📊 Health Check: http://' + HOST + ':' + PORT + '/health');
+    // Start the server - bind to 0.0.0.0 in production/Docker
+    const server = app.listen(PORT, BIND_HOST, () => {
+      logger.info('🎉 TUIfly Time-Off Tool v0.1.0 is ready!');
+      logger.info(`📱 Application URL: ${APP_URL}`);
+      logger.info(`🔐 Login Page: ${APP_URL}/auth/login`);
+      logger.info(`🔗 API Documentation: ${APP_URL}/api`);
+      logger.info(`📊 Health Check: ${APP_URL}/health`);
       logger.info('🗄️  Database: PostgreSQL');
       logger.info('🔴 Session Store: Redis');
       logger.info('🔒 Authentication: Google OAuth 2.0');
@@ -50,6 +56,20 @@ async function startServer() {
       logger.info('   • Data isolation between users');
       logger.info('   • Redis-based session management');
       logger.info('🔧 Press Ctrl+C to stop the server');
+    });
+
+    // Add error handler for server
+    server.on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        logger.error(`❌ Port ${PORT} is already in use`);
+        logger.info('💡 Try: lsof -i :3000 or netstat -tlnp | grep 3000');
+      } else if (error.code === 'EACCES') {
+        logger.error(`❌ Permission denied to bind to port ${PORT}`);
+        logger.info('💡 Use a port number > 1024 or run with appropriate permissions');
+      } else {
+        logger.error('❌ Server error:', error);
+      }
+      process.exit(1);
     });
 
     // Graceful shutdown handling

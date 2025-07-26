@@ -86,7 +86,7 @@ class EmailNotificationService {
         });
         return false;
       }
-      const appUrl = process.env.HOST || 'http://localhost:3000';
+      const appUrl = process.env.APP_URL || process.env.HOST || 'http://localhost:3000';
       const approvalUrl = `${appUrl}/admin/users`;
       const subject = 'TUIfly Time-Off Tool - New User Needs Approval';
 
@@ -159,7 +159,7 @@ This is an automated notification from the TUIfly Time-Off Tool.
         await this.initialize();
       }
 
-      const appUrl = `${process.env.HOST || 'http://localhost:3000'}`;
+      const appUrl = process.env.APP_URL || process.env.HOST || 'http://localhost:3000';
       const subject = 'TUIfly Time-Off Tool - Access Approved!';
 
       const textBody = `

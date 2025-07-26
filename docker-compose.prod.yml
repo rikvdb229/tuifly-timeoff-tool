@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: tuifly-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tuifly_prod
+      POSTGRES_USER: tuifly_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-SecurePassword123!}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - tuifly-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tuifly_user -d tuifly_prod"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: tuifly-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - tuifly-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # TUIfly Application
+  app:
+    build: .
+    container_name: tuifly-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env.production
+    environment:
+      # Ensure Docker environment is set
+      DOCKER_ENV: "true"
+      NODE_ENV: "production"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - tuifly-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+networks:
+  tuifly-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
