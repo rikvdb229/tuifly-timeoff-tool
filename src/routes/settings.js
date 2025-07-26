@@ -72,7 +72,7 @@ router.get('/', async (req, res) => {
       additionalJS: ['settings'],
       globalSettings: {
         MIN_ADVANCE_DAYS: process.env.MIN_ADVANCE_DAYS || 60,
-        MAX_ADVANCE_DAYS: process.env.MAX_ADVANCE_DAYS || 120,
+        // MAX_ADVANCE_DAYS removed - now dynamically calculated as first selectable day + configurable months
         MAX_DAYS_PER_REQUEST: process.env.MAX_DAYS_PER_REQUEST || 4,
         TUIFLY_APPROVER_EMAIL: process.env.TUIFLY_APPROVER_EMAIL,
       },
@@ -112,7 +112,7 @@ router.get('/api', async (req, res) => {
             !!req.user.gmailRefreshToken),
         globalSettings: {
           MIN_ADVANCE_DAYS: process.env.MIN_ADVANCE_DAYS || 60,
-          MAX_ADVANCE_DAYS: process.env.MAX_ADVANCE_DAYS || 120,
+          // MAX_ADVANCE_DAYS removed - now dynamically calculated as first selectable day + configurable months
           MAX_DAYS_PER_REQUEST: process.env.MAX_DAYS_PER_REQUEST || 4,
           TUIFLY_APPROVER_EMAIL: process.env.TUIFLY_APPROVER_EMAIL,
         },

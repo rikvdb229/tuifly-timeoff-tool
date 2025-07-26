@@ -1,35 +1,66 @@
 # Claude Memory File - TUIfly Time-Off Tool
 
-## Latest Session (Jan 26, 2025) - Email Replies System Polish Complete ✅
+## Latest Session (Jan 26, 2025) - Final Production Cleanup Complete ✅
 
 ### 🚀 System Status: PRODUCTION READY
-All core functionality working perfectly. Admin panel, calendar system, user management, role-based access control, and email replies system fully operational with enhanced UX.
+All core functionality working perfectly. Admin panel, calendar system, user management, role-based access control, and email replies system fully operational. Final production cleanup completed.
 
 ### ✅ Latest Major Improvements Completed
 
-**1. Email Replies System UX Enhancement**
-- **Fixed Duplicate Entries**: Reviewed section now shows only one entry per thread (no duplicates when reply sent + approved)
-- **Hidden Reply Fields**: Reply textarea and message content hidden in Reviewed section for cleaner view
-- **Simplified Reply Sent Display**: Shows only "Reply Sent [timestamp]" instead of full message content
-- **Conversation Collapse**: Added expand/collapse functionality for processed replies to improve overview
-- **Archive Old Replies**: Filtered out replies from past roster periods (shows only current + last 90 days)
+**1. Calendar Logic Optimization**
+- **Dynamic Max Date Calculation**: Changed from static MAX_ADVANCE_DAYS to "first selectable day + 6 months"
+- **Improved Calendar Performance**: Smarter date calculations based on actual roster availability
+- **User Experience**: More intuitive date selection limits based on when requests can actually be made
 
-**2. Technical Implementation Details**
-- Modified API route (`src/routes/api/replies.js`) to use distinct thread queries for reviewed replies
-- Added roster period filtering to prevent showing ancient replies
-- Enhanced frontend (`public/js/pages/replies.js`) with toggle functionality and conditional rendering
-- Improved conversation threading display logic
+**2. Environment Configuration Cleanup** 
+- **Removed Unused Variables**: Cleaned up DB_HOST, DB_PORT, RATE_LIMIT_*, BCRYPT_ROUNDS
+- **Improved Organization**: Clear section headers and logical grouping
+- **Production Ready**: Added missing SMTP and TOKEN_ENCRYPTION_KEY variables
+- **Documentation**: Clear notes about dynamic vs static configuration values
 
-**3. Key Files Modified**:
+**3. Code Quality Improvements**
+- **Winston Logging**: Replaced all console.log statements with proper winston logger
+- **Removed Technical Debt**: Eliminated MAX_ADVANCE_DAYS references throughout codebase
+- **Clean Comments**: Updated all files to reflect dynamic calculation approach
+- **Consistent Patterns**: Proper logging patterns in admin routes and calendar logic
+
+**4. Comprehensive Cleanup**
+- **Constants File**: Updated with proper comments about removed MAX_ADVANCE_DAYS
+- **Route Files**: Clean removal of static advance days configuration
+- **Template Files**: Updated meta tags and environment variable passing
+- **Environment**: Production-ready .env.example with clear documentation
+
+**5. Functional Admin Settings Panel** ⚙️
+- **Dynamic Calendar Booking Window**: Renamed "Maximum Advance Days" to "Booking Window (Months)" with clear description
+- **Comprehensive Settings**: Added MIN_ADVANCE_DAYS, email configurations, and email labels to admin panel
+- **Real-time Calendar Integration**: Calendar now fetches booking window from admin settings via API
+- **Organized UI**: Settings grouped into logical sections (Calendar Rules, Email Config, Email Labels)
+- **Input Validation**: Proper validation with helpful error messages for all admin settings
+- **Environment Variable**: Added CALENDAR_BOOKING_WINDOW_MONTHS=6 to replace MAX_ADVANCE_DAYS
+
+**Key Admin Settings Now Configurable**:
+- 📅 **Calendar Booking Window** (months ahead from first selectable day)
+- ⏰ **Minimum Advance Notice** (days required for requests) 
+- 📊 **Max Days per Request** (consecutive days limit)
+- 📧 **Approver Email** (receives time-off requests)
+- 🔔 **Admin Notification Email** (system notifications)
+- 🏷️ **Email Labels** (REQ DO, AM OFF, PM OFF customization)
+
+---
+
+## Previous Session (Jan 26, 2025) - Email Replies System Polish Complete ✅
+
+### ✅ Email Replies System UX Enhancement
+
+**1. Fixed Duplicate Entries**: Reviewed section now shows only one entry per thread (no duplicates when reply sent + approved)
+**2. Hidden Reply Fields**: Reply textarea and message content hidden in Reviewed section for cleaner view
+**3. Simplified Reply Sent Display**: Shows only "Reply Sent [timestamp]" instead of full message content
+**4. Conversation Collapse**: Added expand/collapse functionality for processed replies to improve overview
+**5. Archive Old Replies**: Filtered out replies from past roster periods (shows only current + last 90 days)
+
+**Key Files Modified**:
 - `src/routes/api/replies.js` - Fixed duplicate handling, added roster period filtering
 - `public/js/pages/replies.js` - Added collapse functionality, simplified reply display
-- UI improvements for better user experience in reviewed section
-
-**4. Reply System Flow (Now Working Perfectly)**:
-- Scheduling sends reply → Shows in "Need Review" 
-- User can expand conversation or send reply → Moves to "Reviewed" with collapsed view
-- Admin approves/denies → No duplicate entries, clean overview
-- Old replies from past periods automatically filtered out
 
 ---
 

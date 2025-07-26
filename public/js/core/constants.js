@@ -72,7 +72,7 @@ const REQUEST_PRIORITY = {
 // ===================================================================
 const BUSINESS_RULES = {
   MIN_ADVANCE_DAYS: 60,
-  MAX_ADVANCE_DAYS: 120,
+  // MAX_ADVANCE_DAYS removed - now dynamically calculated as first selectable day + 6 months
   MAX_DAYS_PER_REQUEST: 4,
   MAX_CONSECUTIVE_REQUESTS: 2,
   MIN_PILOT_CODE_LENGTH: 3,
@@ -194,7 +194,7 @@ const STORAGE_KEYS = {
 // ===================================================================
 const APP = {
   NAME: 'TUIfly Time-Off Tool',
-  VERSION: '2.0.0',
+  VERSION: '0.1.0',
   SUPPORT_EMAIL: 'scheduling@tuifly.be',
   MAX_FILE_UPLOAD_MB: 5,
   ALLOWED_FILE_TYPES: ['.pdf', '.doc', '.docx', '.jpg', '.png'],

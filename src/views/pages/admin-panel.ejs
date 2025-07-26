@@ -134,23 +134,73 @@
                     </div>
                     <div class="card-body">
                         <form id="systemSettingsForm">
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="maxAdvanceDays" class="form-label">Maximum Advance Days</label>
-                                    <input type="number" class="form-control" id="maxAdvanceDays" min="1" max="365">
-                                    <div class="form-text">Maximum days in advance users can request time off</div>
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="bi bi-calendar-range me-2"></i>Calendar & Booking Rules</h6>
                                 </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="maxDaysPerRequest" class="form-label">Maximum Consecutive Days per Request</label>
-                                    <input type="number" class="form-control" id="maxDaysPerRequest" min="1" max="30">
-                                    <div class="form-text">Maximum consecutive days per single request</div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4 mb-3">
+                                            <label for="calendarBookingWindowMonths" class="form-label">Booking Window (Months)</label>
+                                            <input type="number" class="form-control" id="calendarBookingWindowMonths" min="1" max="12" step="1">
+                                            <div class="form-text">How many months ahead from first selectable day users can book</div>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label for="minAdvanceDays" class="form-label">Minimum Advance Notice (Days)</label>
+                                            <input type="number" class="form-control" id="minAdvanceDays" min="1" max="365">
+                                            <div class="form-text">Minimum days notice required for requests</div>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label for="maxDaysPerRequest" class="form-label">Max Days per Request</label>
+                                            <input type="number" class="form-control" id="maxDaysPerRequest" min="1" max="30">
+                                            <div class="form-text">Maximum consecutive days per single request</div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="row">
-                                <div class="col-md-12 mb-3">
-                                    <label for="approverEmail" class="form-label">Approver Email</label>
-                                    <input type="email" class="form-control" id="approverEmail">
-                                    <div class="form-text">Email address for request approvals</div>
+                            
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="bi bi-envelope me-2"></i>Email Configuration</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="approverEmail" class="form-label">Approver Email</label>
+                                            <input type="email" class="form-control" id="approverEmail">
+                                            <div class="form-text">Email address that receives time-off requests</div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="adminNotificationEmail" class="form-label">Admin Notification Email</label>
+                                            <input type="email" class="form-control" id="adminNotificationEmail">
+                                            <div class="form-text">Email for system notifications and new user approvals</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="bi bi-tags me-2"></i>Email Labels</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4 mb-3">
+                                            <label for="emailReqDoLabel" class="form-label">Day Off Label</label>
+                                            <input type="text" class="form-control" id="emailReqDoLabel" placeholder="REQ DO">
+                                            <div class="form-text">Label for full day off requests</div>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label for="emailAmOffLabel" class="form-label">AM Off Label</label>
+                                            <input type="text" class="form-control" id="emailAmOffLabel" placeholder="AM OFF">
+                                            <div class="form-text">Label for morning off requests</div>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label for="emailPmOffLabel" class="form-label">PM Off Label</label>
+                                            <input type="text" class="form-control" id="emailPmOffLabel" placeholder="PM OFF">
+                                            <div class="form-text">Label for afternoon off requests</div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <button type="submit" class="btn btn-primary">

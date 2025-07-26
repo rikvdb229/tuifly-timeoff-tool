@@ -14,7 +14,7 @@ router.get('/', (req, res) => {
   // Meta tags for calendar configuration
   const metaTags = `
     <meta name="min-advance-days" content="${process.env.MIN_ADVANCE_DAYS || 60}">
-    <meta name="max-advance-days" content="${process.env.MAX_ADVANCE_DAYS || 120}">
+    <!-- max-advance-days removed - now dynamically calculated as first selectable day + 6 months -->
     <meta name="max-days-per-request" content="${process.env.MAX_DAYS_PER_REQUEST || 4}">
   `;
 
@@ -38,7 +38,7 @@ router.get('/', (req, res) => {
       TUIFLY_APPROVER_EMAIL:
         process.env.TUIFLY_APPROVER_EMAIL || 'scheduling@tuifly.be',
       MIN_ADVANCE_DAYS: parseInt(process.env.MIN_ADVANCE_DAYS || '60'),
-      MAX_ADVANCE_DAYS: parseInt(process.env.MAX_ADVANCE_DAYS || '120'),
+      // MAX_ADVANCE_DAYS removed - now dynamically calculated as first selectable day + 6 months
       MAX_DAYS_PER_REQUEST: parseInt(process.env.MAX_DAYS_PER_REQUEST || '4'),
       EMPLOYEE_CODE: req.user.code || process.env.EMPLOYEE_CODE || 'XXX',
       EMPLOYEE_NAME: req.user.name || process.env.EMPLOYEE_NAME || 'User',
@@ -110,7 +110,7 @@ router.get('/api-docs', (req, res) => {
       approverEmail:
         process.env.TUIFLY_APPROVER_EMAIL || 'scheduling@tuifly.be',
       minAdvanceDays: parseInt(process.env.MIN_ADVANCE_DAYS || '60'),
-      maxAdvanceDays: parseInt(process.env.MAX_ADVANCE_DAYS || '120'),
+      // maxAdvanceDays removed - now dynamically calculated as first selectable day + 6 months
     },
   });
 });

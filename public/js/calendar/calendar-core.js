@@ -8,9 +8,7 @@ const CONFIG = {
   MIN_ADVANCE_DAYS: parseInt(
     document.querySelector('meta[name="min-advance-days"]')?.content || 60
   ),
-  MAX_ADVANCE_DAYS: parseInt(
-    document.querySelector('meta[name="max-advance-days"]')?.content || 180 // 6 months
-  ),
+  // MAX_ADVANCE_DAYS removed - now using dynamic calculation (first selectable day + 6 months)
   MAX_DAYS_PER_REQUEST: parseInt(
     document.querySelector('meta[name="max-days-per-request"]')?.content || 4
   ),
@@ -65,12 +63,12 @@ class CalendarManager {
     
     // For roster-based system, we use a wide range and let roster deadlines control availability
     this.minDate = new Date(this.today); // Allow checking from today
-    this.maxDate = this.addDays(this.today, CONFIG.MAX_ADVANCE_DAYS); // 6 months ahead
+    this.maxDate = this.addDays(this.today, 180); // Will be updated in initialize() to first selectable day + 6 months
 
     // Allow viewing past requests - start from 6 months before today
     this.viewMinDate = this.addDays(this.today, -180);
-    // Allow viewing 6 months in advance from today
-    this.viewMaxDate = this.addDays(this.today, CONFIG.MAX_ADVANCE_DAYS);
+    // Allow viewing 6 months in advance from today (will be updated in initialize())
+    this.viewMaxDate = this.addDays(this.today, 180);
 
     // Default to current month - will be updated in initialize()
     this.currentViewStart = new Date(this.today.getFullYear(), this.today.getMonth(), 1);
@@ -84,8 +82,12 @@ class CalendarManager {
     // Find the first selectable day in that month
     const firstSelectableDay = await this.findFirstSelectableDay(firstSelectableMonth);
     
-    // Update maxDate to be first selectable day + 6 months (approximately 180 days)
-    this.maxDate = this.addDays(firstSelectableDay, 180);
+    // Get booking window from admin settings (default 6 months)
+    const bookingWindowMonths = await this.getBookingWindowMonths();
+    const daysInWindow = bookingWindowMonths * 30; // Approximate days per month
+    
+    // Update maxDate to be first selectable day + configured booking window
+    this.maxDate = this.addDays(firstSelectableDay, daysInWindow);
 
     // Start WITH the first selectable month (it will be the leftmost/first displayed)  
     this.currentViewStart = new Date(firstSelectableMonth);
@@ -131,6 +133,23 @@ class CalendarManager {
     // Fallback to current month if no selectable days found
     logger.debug('No selectable days found, using current month');
     return currentMonth;
+  }
+
+  // Get booking window months from admin settings
+  async getBookingWindowMonths() {
+    try {
+      const response = await fetch('/admin/api/settings');
+      const result = await response.json();
+      
+      if (result.success && result.data.calendarBookingWindowMonths) {
+        return parseInt(result.data.calendarBookingWindowMonths);
+      }
+    } catch (error) {
+      logger.debug('Could not fetch booking window from admin settings, using default:', error);
+    }
+    
+    // Default to 6 months if admin settings not accessible
+    return 6;
   }
 
   // Find the first selectable day in a given month

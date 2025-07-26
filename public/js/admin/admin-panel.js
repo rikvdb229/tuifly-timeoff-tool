@@ -413,9 +413,20 @@ class AdminPanel {
 
             if (result.success) {
                 const settings = result.data;
-                document.getElementById('maxAdvanceDays').value = settings.maxAdvanceDays || 180;
+                
+                // Calendar & Booking Rules
+                document.getElementById('calendarBookingWindowMonths').value = settings.calendarBookingWindowMonths || 6;
+                document.getElementById('minAdvanceDays').value = settings.minAdvanceDays || 60;
                 document.getElementById('maxDaysPerRequest').value = settings.maxDaysPerRequest || 4;
+                
+                // Email Configuration
                 document.getElementById('approverEmail').value = settings.approverEmail || '';
+                document.getElementById('adminNotificationEmail').value = settings.adminNotificationEmail || '';
+                
+                // Email Labels
+                document.getElementById('emailReqDoLabel').value = settings.emailReqDoLabel || 'REQ DO';
+                document.getElementById('emailAmOffLabel').value = settings.emailAmOffLabel || 'AM OFF';
+                document.getElementById('emailPmOffLabel').value = settings.emailPmOffLabel || 'PM OFF';
             }
         } catch (error) {
             logger.error('Error loading system settings:', error);
@@ -425,9 +436,19 @@ class AdminPanel {
     async saveSystemSettings() {
         try {
             const settings = {
-                maxAdvanceDays: parseInt(document.getElementById('maxAdvanceDays').value),
+                // Calendar & Booking Rules
+                calendarBookingWindowMonths: parseInt(document.getElementById('calendarBookingWindowMonths').value),
+                minAdvanceDays: parseInt(document.getElementById('minAdvanceDays').value),
                 maxDaysPerRequest: parseInt(document.getElementById('maxDaysPerRequest').value),
-                approverEmail: document.getElementById('approverEmail').value
+                
+                // Email Configuration
+                approverEmail: document.getElementById('approverEmail').value,
+                adminNotificationEmail: document.getElementById('adminNotificationEmail').value,
+                
+                // Email Labels
+                emailReqDoLabel: document.getElementById('emailReqDoLabel').value,
+                emailAmOffLabel: document.getElementById('emailAmOffLabel').value,
+                emailPmOffLabel: document.getElementById('emailPmOffLabel').value
             };
 
             const response = await fetch('/admin/api/settings', {

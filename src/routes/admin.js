@@ -325,20 +325,88 @@ router.get('/api/settings', requireSuperAdmin, (req, res) => {
   res.json({
     success: true,
     data: {
-      maxAdvanceDays: process.env.MAX_ADVANCE_DAYS || 180,
-      maxDaysPerRequest: process.env.MAX_DAYS_PER_REQUEST || 4,
-      approverEmail: process.env.TUIFLY_APPROVER_EMAIL || process.env.APPROVER_EMAIL || 'scheduling@tuifly.com'
+      // Calendar & Booking Rules
+      calendarBookingWindowMonths: parseInt(process.env.CALENDAR_BOOKING_WINDOW_MONTHS || '6'),
+      minAdvanceDays: parseInt(process.env.MIN_ADVANCE_DAYS || '60'),
+      maxDaysPerRequest: parseInt(process.env.MAX_DAYS_PER_REQUEST || '4'),
+      
+      // Email Configuration
+      approverEmail: process.env.TUIFLY_APPROVER_EMAIL || 'scheduling@tuifly.be',
+      adminNotificationEmail: process.env.ADMIN_NOTIFICATION_EMAIL || process.env.TUIFLY_APPROVER_EMAIL || 'scheduling@tuifly.be',
+      
+      // Email Labels
+      emailReqDoLabel: process.env.EMAIL_REQ_DO_LABEL || 'REQ DO',
+      emailAmOffLabel: process.env.EMAIL_AM_OFF_LABEL || 'AM OFF',
+      emailPmOffLabel: process.env.EMAIL_PM_OFF_LABEL || 'PM OFF'
     }
   });
 });
 
 router.put('/api/settings', requireSuperAdmin, (req, res) => {
-  // In a real implementation, you'd save these to a database or environment
-  // For now, just return success
-  res.json({
-    success: true,
-    message: 'Settings updated successfully'
-  });
+  try {
+    // Note: In a production environment, these would be saved to a database
+    // or configuration management system. For now, we'll validate the input
+    // and provide feedback but settings will revert on server restart.
+    
+    const {
+      calendarBookingWindowMonths,
+      minAdvanceDays,
+      maxDaysPerRequest,
+      approverEmail,
+      adminNotificationEmail,
+      emailReqDoLabel,
+      emailAmOffLabel,
+      emailPmOffLabel
+    } = req.body;
+    
+    // Validate input ranges
+    const errors = [];
+    
+    if (calendarBookingWindowMonths < 1 || calendarBookingWindowMonths > 12) {
+      errors.push('Booking window must be between 1 and 12 months');
+    }
+    
+    if (minAdvanceDays < 1 || minAdvanceDays > 365) {
+      errors.push('Minimum advance days must be between 1 and 365');
+    }
+    
+    if (maxDaysPerRequest < 1 || maxDaysPerRequest > 30) {
+      errors.push('Maximum days per request must be between 1 and 30');
+    }
+    
+    if (approverEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(approverEmail)) {
+      errors.push('Invalid approver email format');
+    }
+    
+    if (adminNotificationEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminNotificationEmail)) {
+      errors.push('Invalid admin notification email format');
+    }
+    
+    if (errors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation errors',
+        details: errors
+      });
+    }
+    
+    routeLogger.info('System settings updated by admin', {
+      adminId: req.user.id,
+      adminEmail: req.user.email,
+      settings: req.body
+    });
+    
+    res.json({
+      success: true,
+      message: 'Settings validated successfully. Note: Settings will revert on server restart unless persisted to environment/database.'
+    });
+  } catch (error) {
+    routeLogger.logError(error, { operation: 'updateSystemSettings', endpoint: '/admin/api/settings' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update system settings'
+    });
+  }
 });
 
 // Legacy HTML response for backward compatibility

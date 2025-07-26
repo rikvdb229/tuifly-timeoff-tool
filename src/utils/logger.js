@@ -53,7 +53,7 @@ const logger = winston.createLogger({
   format: logFormat,
   defaultMeta: {
     service: 'tuifly-timeoff-tool',
-    version: process.env.npm_package_version || '2.0.0',
+    version: process.env.npm_package_version || '0.1.0',
     environment: process.env.NODE_ENV || 'development',
   },
   transports: [
