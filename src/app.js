@@ -42,7 +42,7 @@ app.use(
         connectSrc: [
           "'self'",
           'https://accounts.google.com',
-          'http://localhost:3000',
+          'https://off-time.duckdns.org',
         ],
         frameSrc: ["'self'", 'https://accounts.google.com'],
         baseUri: ["'self'"],
@@ -58,7 +58,7 @@ app.use(
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: process.env.CORS_ORIGIN || 'https://off-time.duckdns.org',
     credentials: true,
   })
 );
