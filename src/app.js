@@ -39,13 +39,18 @@ app.use(
           'https:',
           'https://lh3.googleusercontent.com',
         ],
-        // ADD THIS LINE - Allow fetch requests to your own domain
         connectSrc: [
           "'self'",
           'https://accounts.google.com',
           'http://localhost:3000',
         ],
         frameSrc: ["'self'", 'https://accounts.google.com'],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'self'"],
+        objectSrc: ["'none'"],
+        // Remove upgrade-insecure-requests for HTTP development
+        upgradeInsecureRequests: null,
       },
     },
   })
@@ -62,20 +67,23 @@ app.use(
 const requestLogger = createLogger({ component: 'http' });
 
 // Morgan with Winston integration
-const morganFormat = process.env.NODE_ENV === 'production' 
-  ? 'combined' 
-  : ':method :url :status :res[content-length] - :response-time ms';
+const morganFormat =
+  process.env.NODE_ENV === 'production'
+    ? 'combined'
+    : ':method :url :status :res[content-length] - :response-time ms';
 
-app.use(morgan(morganFormat, {
-  stream: {
-    write: message => logger.info(message.trim(), { component: 'morgan' })
-  }
-}));
+app.use(
+  morgan(morganFormat, {
+    stream: {
+      write: message => logger.info(message.trim(), { component: 'morgan' }),
+    },
+  })
+);
 
 // Custom request logging middleware
 app.use((req, res, next) => {
   const startTime = Date.now();
-  
+
   // Log the request
   requestLogger.info('HTTP request started', {
     method: req.method,
@@ -88,11 +96,11 @@ app.use((req, res, next) => {
 
   // Override res.end to capture response time and status
   const originalEnd = res.end;
-  res.end = function(...args) {
+  res.end = function (...args) {
     const responseTime = Date.now() - startTime;
-    
+
     requestLogger.logRequest(req, res, responseTime);
-    
+
     originalEnd.apply(this, args);
   };
 
@@ -188,7 +196,7 @@ try {
     error: err.message,
     stack: err.stack,
     component: 'app',
-    operation: 'routeInitialization'
+    operation: 'routeInitialization',
   });
 }
 
@@ -216,7 +224,7 @@ app.use((req, res) => {
 // Global error handler
 app.use((err, req, res, _next) => {
   const appLogger = createLogger({ component: 'errorHandler' });
-  
+
   appLogger.logError(err, {
     operation: 'globalErrorHandler',
     method: req.method,
@@ -225,7 +233,7 @@ app.use((err, req, res, _next) => {
     ip: req.ip,
     userId: req.session?.userId,
     sessionId: req.sessionID,
-    status: err.status || 500
+    status: err.status || 500,
   });
 
   const statusCode = err.status || 500;
