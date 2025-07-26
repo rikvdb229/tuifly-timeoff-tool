@@ -17,15 +17,27 @@
       <!-- Left side navigation -->
       <ul class="navbar-nav me-auto">
         <li class="nav-item">
-          <a class="nav-link" href="/">
+          <a class="nav-link <%= (typeof currentPage !== 'undefined' && currentPage === 'calendar') ? 'text-white' : '' %>" href="/">
             <i class="bi bi-calendar-week me-1"></i>
             Calendar
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="/roster-deadlines">
+          <a class="nav-link <%= (typeof currentPage !== 'undefined' && currentPage === 'roster-deadlines') ? 'text-white' : '' %>" href="/roster-deadlines">
             <i class="bi bi-clock-history me-1"></i>
             Roster Deadlines
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link <%= (typeof currentPage !== 'undefined' && currentPage === 'replies') ? 'text-white' : '' %>" href="/replies">
+            <i class="bi bi-reply-all me-1"></i>
+            Replies
+            <span
+              id="repliesBadge"
+              class="badge bg-danger rounded-pill ms-1"
+              style="display: none;"
+              >0</span
+            >
           </a>
         </li>
       </ul>
@@ -33,6 +45,21 @@
       <!-- Right side - User menu -->
       <ul class="navbar-nav ms-auto">
         <% if (locals.isAuthenticated && locals.user) { %>
+          <!-- Check Replies Button -->
+          <li class="nav-item me-2 d-flex align-items-center">
+            <button
+              id="checkRepliesBtn"
+              class="btn btn-outline-light btn-sm"
+              onclick="checkForReplies()"
+              title="Check for new email replies"
+              data-bs-toggle="tooltip"
+            >
+              <i class="bi bi-envelope-check me-1"></i>
+              <span id="checkRepliesText" class="d-none d-md-inline">Check Replies</span>
+              <i id="checkRepliesError" class="bi bi-exclamation-triangle-fill text-warning ms-1" style="display: none;"></i>
+            </button>
+          </li>
+          
           <!-- User dropdown -->
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle d-flex align-items-center" 

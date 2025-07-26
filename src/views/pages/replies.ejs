@@ -1,0 +1,130 @@
+<div class="container mt-4">
+  <!-- Page Header -->
+  <div class="row">
+    <div class="col-12">
+      <h1 class="h3 mb-4">
+        <i class="bi bi-reply-all text-primary"></i>
+        Email Replies
+      </h1>
+
+    </div>
+  </div>
+
+  <!-- Filter Options (Radio Buttons like roster-deadlines) -->
+  <div class="row mb-4">
+    <div class="col-md-12">
+      <div class="btn-group" role="group">
+        <input
+          type="radio"
+          class="btn-check"
+          name="filterOptions"
+          id="filterNeedReview"
+          autocomplete="off"
+          checked
+        />
+        <label class="btn btn-outline-primary" for="filterNeedReview">
+          <i class="bi bi-exclamation-circle me-1"></i>
+          Need Review
+        </label>
+
+        <input
+          type="radio"
+          class="btn-check"
+          name="filterOptions"
+          id="filterReviewed"
+          autocomplete="off"
+        />
+        <label class="btn btn-outline-primary" for="filterReviewed">
+          <i class="bi bi-check-circle me-1"></i>
+          Reviewed
+        </label>
+
+        <input
+          type="radio"
+          class="btn-check"
+          name="filterOptions"
+          id="filterAll"
+          autocomplete="off"
+        />
+        <label class="btn btn-outline-primary" for="filterAll">
+          <i class="bi bi-list me-1"></i>
+          All
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Replies Container -->
+  <div id="repliesContainer">
+    <div id="loadingSpinner" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-2 text-muted">Loading replies...</p>
+    </div>
+
+    <div id="repliesList" style="display: none;">
+      <!-- Replies will be populated here -->
+    </div>
+
+    <div id="emptyState" class="text-center py-5" style="display: none;">
+      <i class="bi bi-inbox display-1 text-muted"></i>
+      <h5 class="mt-3 text-muted">No Replies Found</h5>
+      <p class="text-muted">
+        <span id="emptyStateMessage"
+          >Use the "Check for Replies" button to scan for new responses.</span
+        >
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Reply Modal for sending responses -->
+<div class="modal fade" id="replyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-reply me-2"></i>
+          Send Reply
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="replyMessage" class="form-label">Your Response:</label>
+          <textarea
+            class="form-control"
+            id="replyMessage"
+            rows="8"
+            placeholder="Type your response here..."
+          ></textarea>
+        </div>
+        <div class="alert alert-info small">
+          <i class="bi bi-info-circle me-1"></i>
+          This will be sent as a reply to maintain the email conversation
+          thread.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-primary" onclick="sendReply()">
+          <i class="bi bi-send me-1"></i>
+          Send Reply
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div
+  class="toast-container position-fixed bottom-0 end-0 p-3"
+  id="toastContainer"
+></div>

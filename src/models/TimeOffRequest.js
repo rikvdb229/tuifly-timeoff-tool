@@ -158,6 +158,25 @@ function defineTimeOffRequest(sequelize) {
         allowNull: true,
         comment: 'When the status was last updated',
       },
+      // NEW REPLY TRACKING FIELDS
+      needsReview: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        field: 'needs_review',
+        comment: 'Whether request needs manual review from replies',
+      },
+      replyCount: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+        field: 'reply_count',
+        comment: 'Number of replies received for this request',
+      },
+      lastReplyAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: 'last_reply_at',
+        comment: 'Timestamp of most recent reply',
+      },
     },
     {
       tableName: 'time_off_requests',
@@ -177,6 +196,13 @@ function defineTimeOffRequest(sequelize) {
         },
         {
           fields: ['gmailThreadId'],
+        },
+        {
+          fields: ['needs_review', 'userId'],
+        },
+        {
+          fields: ['reply_count'],
+          where: { reply_count: { [Op.gt]: 0 } },
         },
       ],
       validate: {
@@ -286,7 +312,7 @@ function defineTimeOffRequest(sequelize) {
     const updates = {
       replyReceived: new Date(),
       replyContent,
-      lastReplyCheck: new Date(),
+      // Don't update lastReplyCheck here - let the checking service handle it
     };
 
     if (autoStatus && ['APPROVED', 'DENIED'].includes(autoStatus)) {

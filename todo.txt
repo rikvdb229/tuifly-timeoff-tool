@@ -1,134 +1,42 @@
-Implement a dynamic roster schedule management system for the TUIfly Time-Off application that allows admins to configure request deadlines based on actual TUIfly roster publication dates. Build upon the existing refactored codebase structure.
+Continue
 
-CURRENT CODEBASE CONTEXT:
-- Models: User, TimeOffRequest, EmailTemplate, UserSetting (with associations)
-- Frontend: Modular JavaScript (calendar-core.js, calendar-events.js, calendar-requests.js, calendar-ui.js)
-- Admin: Basic user approval system in /admin/users
-- API: Standardized ApiResponse utility, Winston logging
-- CSS: Extracted and organized with variables
-- Auth: requireAuth, requireOnboarding, requireAdmin middleware
 
-REQUIREMENTS:
+Reviewed are not showing
+All also not
 
-1. **Create RosterSchedule Model:**
-   - Add `src/models/RosterSchedule.js` using existing model patterns
-   - Fields: id, publicationDate, latestRequestDate, startPeriod, endPeriod, isActive, createdAt, updatedAt
-   - Include in `src/models/index.js` with sync in initializeDatabase()
-   - Add associations if needed
+The button Submit Decinions should be called. Update request
 
-2. **Create AppSetting Model (if not exists):**
-   - Add `src/models/AppSetting.js` for global configuration
-   - Fields: id, key, value, type, description, createdAt, updatedAt
-   - Default settings:
-     * MAX_ADVANCE_MONTHS: 6 (instead of current 4 months)
-     * FALLBACK_MIN_ADVANCE_DAYS: 60
-     * FALLBACK_MAX_ADVANCE_DAYS: 180
-   - Include in model index and database sync
+Below all this should be a reply container where we can reply to the email.
 
-3. **Extend Admin Routes:**
-   - Update `src/routes/admin.js` to include:
-     * GET `/admin/roster-schedule` - Roster management page
-     * GET `/admin/settings` - App settings page
-   - Use existing requireAdmin middleware pattern
-   - Follow existing HTML template pattern (like current admin user interface)
+ How Reply Management Works
+Use "Check for Replies" button in the navigation to scan for new email responses
+Review replies and approve/deny requests based on manager feedback
+Replies marked as "processed" will update your request status automatically
+You can reply back to managers if you have automatic email enabled
 
-4. **Add API Endpoints to src/routes/api.js:**
-   - Group under `/api/admin/` prefix:
-     * GET `/api/admin/roster-schedule` - Get all roster periods
-     * POST `/api/admin/roster-schedule` - Add new period
-     * PUT `/api/admin/roster-schedule/:id` - Update period
-     * DELETE `/api/admin/roster-schedule/:id` - Delete period  
-     * POST `/api/admin/roster-schedule/upload-csv` - Bulk CSV import
-     * GET `/api/admin/settings` - Get app settings
-     * PUT `/api/admin/settings` - Update settings
-   - Add user-facing endpoint:
-     * GET `/api/calendar/request-deadline/:date` - Get deadline for date
-   - Use existing ApiResponse format and Winston logging
+This should not be shown, maybe later in a help file but it takes up a lot of space.
 
-5. **Create Admin Interface Templates:**
-   - `src/views/pages/admin-roster-schedule.ejs` with:
-     * Bootstrap 5 styling (match existing admin interface)
-     * Table showing roster periods with edit/delete actions
-     * Modal form for add/edit roster periods
-     * CSV upload functionality with file input
-     * Visual timeline showing upcoming deadlines
-     * Settings panel for MAX_ADVANCE_MONTHS configuration
-   - Follow existing admin template patterns from admin.js
+In manual mode the replies section and check for replies should not be shown. (is the case now)
+When now in manual mode and clicking check for replies says checked 0 requests (while request were created), so the logic is sound.
 
-6. **Update Calendar Validation Logic:**
-   - Modify `public/js/calendar/calendar-core.js`:
-     * Replace hardcoded CONFIG.MIN_ADVANCE_DAYS/MAX_ADVANCE_DAYS with dynamic lookup
-     * Add function `getRequestDeadlineForDate(targetDate)` that queries roster API
-     * Update `isDateAvailable(date)` to use roster-based validation
-     * Fallback to AppSetting defaults if no roster period found
-   - Update `public/js/calendar/calendar-events.js`:
-     * Enhance date selection validation to show roster deadline info
-     * Update error messages to show specific request deadlines
+When approving a group request remove the are you sure, we have grown up users, they should be sure and afterwards are going to close the modal theirself.
 
-7. **Visual Calendar Enhancements:**
-   - Update `public/js/calendar/calendar-ui.js`:
-     * Add visual markers for request deadline dates
-     * Different styling for dates with known vs fallback deadlines
-     * Tooltip showing "Request deadline: [date]" for each period
-     * Gray out dates that are past their request deadline
-   - Update CSS to support new roster deadline styling
+Same in the replies if a user does a bulk action no confirm.
 
-8. **CSV Import System:**
-   - Support format: "Publication Date,Latest Request Date,Start Period,End Period"
-   - Include server-side CSV parsing with validation
-   - Preview table before confirming import
-   - Handle duplicate/overlapping date ranges with user prompts
-   - Use existing notification system for feedback
+When doing bulk approval, pending or denial the button of the bulk actions does not get updated. For edit modal and replies modal.
 
-9. **Frontend JavaScript for Admin:**
-   - Create `public/js/pages/admin-roster.js`:
-     * Modal management for add/edit forms
-     * CSV file upload with progress feedback
-     * Table sorting and filtering
-     * AJAX calls using existing patterns
-   - Follow existing JavaScript modular structure
+ Original message at the bottom is not useful as the user see the email message.
 
-10. **Database Seeding:**
-    - Create `scripts/seedRosterSchedule.js` with provided TUIfly data
-    - Populate with 2024-2025 roster schedule from the provided table
-    - Use existing database connection patterns
-    - Include in package.json as script
+Still only shows the number with replies when replies is open. (the number of replies we have to reply to)
+If I click update replies button it gets highlighted
 
-11. **Validation & Error Handling:**
-    - Prevent overlapping roster periods
-    - Ensure logical date sequence (request < publication < start < end)
-    - Use existing Winston logging for errors
-    - Return standardized ApiResponse formats
-    - Show user-friendly error messages using existing notification system
+The Check for new email repliesbutton is not vertically aligned with the user settings button.
 
-12. **Integration with Existing Systems:**
-    - Maintain compatibility with current TimeOffRequest validation
-    - Extend existing calendar date selection logic (don't replace)
-    - Use existing user authentication and admin permissions
-    - Follow existing API response patterns and error handling
-    - Integrate with current Bootstrap 5 modal and notification systems
+There is not active highlighting on the current tab. Calendar/Roster Deadlines/Replies (just make the text colour white)
 
-TECHNICAL REQUIREMENTS:
-- Use existing Sequelize model patterns and database connection
-- Follow existing route organization (middleware, error handling, logging)
-- Maintain Bootstrap 5 styling consistency with current admin interface
-- Use existing modal patterns and notification system
-- Implement proper JSDoc documentation (as done in current codebase)
-- Ensure mobile responsive design (Bootstrap 5 classes)
-- Use existing ApiResponse utility for standardized responses
-- Follow current Winston logging patterns
+In the request modal flight number should always get TB prefix without user being able to change it. (and this way it always passes validation, but we keep validation no matter what)
 
-ADMIN PERMISSIONS:
-- Use existing requireAdmin middleware
-- Only admin users can access roster management
-- Include audit logging for roster changes using existing Winston setup
-- Show who made changes and when in roster management interface
+In the calendar legend the Request status is shown as  Request Status with a circle make it the same as the actualy request a rectangle keep the colour
+bugs
 
-USER EXPERIENCE IMPROVEMENTS:
-- When user selects dates, immediately show applicable request deadline
-- Clear error messages: "Request deadline for this period was [date]"
-- Suggest next available request window if current selection invalid
-- Loading states during roster data fetching
-- Success/error toasts using existing notification system
-
-The system should integrate seamlessly with the current codebase while providing TUIfly with professional roster management capabilities that eliminate the need for annual code changes.
+localhost/:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received

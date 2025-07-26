@@ -57,6 +57,7 @@ const statusRoutes = require('./api/status');
 const clientLogsRoutes = require('./api/client-logs');
 const adminRoutes = require('./api/admin');
 const rosterRoutes = require('./api/roster');
+const repliesRoutes = require('./api/replies');
 
 router.use('/', requestsRoutes);
 router.use('/', groupRequestsRoutes);
@@ -67,5 +68,6 @@ router.use('/', statusRoutes);
 router.use('/logs', clientLogsRoutes);
 router.use('/admin', adminRoutes);
 router.use('/', rosterRoutes);
+router.use('/', repliesRoutes);
 
 module.exports = router;

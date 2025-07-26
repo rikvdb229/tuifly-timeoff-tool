@@ -792,6 +792,216 @@ function confirmDeleteAccount() {
   deleteAccount();
 }
 
+/**
+ * Check for replies functionality
+ * Manually triggers reply checking for the current user
+ */
+window.checkForReplies = async function () {
+  const checkRepliesBtn = document.getElementById('checkRepliesBtn');
+  const checkRepliesText = document.getElementById('checkRepliesText');
+  const checkRepliesError = document.getElementById('checkRepliesError');
+
+  try {
+    // Show loading state
+    if (checkRepliesBtn) {
+      checkRepliesBtn.disabled = true;
+      checkRepliesBtn.querySelector('i').setAttribute('class', 'spinner-border spinner-border-sm me-1');
+    }
+    if (checkRepliesText) {
+      checkRepliesText.textContent = 'Checking...';
+    }
+
+    // Hide previous errors
+    if (checkRepliesError) {
+      checkRepliesError.style.display = 'none';
+    }
+
+    const response = await fetch('/api/check-replies', { method: 'POST' });
+    const result = await response.json();
+
+    if (result.success) {
+      // Show success modal
+      showRepliesFoundModal(result.data);
+
+      // Update symbols immediately for affected requests
+      if (result.data.updatedRequests.length > 0) {
+        updateRequestSymbols(result.data.updatedRequests);
+      }
+
+      // Update badge counter
+      if (typeof updateBadgeCounter === 'function') {
+        await updateBadgeCounter();
+      }
+
+      // Refresh calendar after 1 second (following existing pattern)
+      setTimeout(() => {
+        if (typeof loadExistingRequests === 'function') {
+          loadExistingRequests();
+        }
+      }, 1000);
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    // Show persistent error icon with tooltip
+    if (checkRepliesError) {
+      checkRepliesError.style.display = 'inline';
+      checkRepliesError.title = `Error checking replies: ${error.message}`;
+
+      // Initialize tooltip if not already done
+      if (window.bootstrap && bootstrap.Tooltip) {
+        new bootstrap.Tooltip(checkRepliesError);
+      }
+    }
+
+    console.error('Reply check failed:', error);
+
+    // Only show toast for non-network errors to avoid spam
+    if (!error.message.includes('fetch')) {
+      showToast('Failed to check for replies', 'error');
+    }
+  } finally {
+    // Reset button
+    if (checkRepliesBtn) {
+      checkRepliesBtn.disabled = false;
+      checkRepliesBtn.querySelector('i').setAttribute('class', 'bi bi-envelope-check me-1');
+    }
+    if (checkRepliesText) {
+      checkRepliesText.textContent = 'Check Replies';
+    }
+  }
+};
+
+/**
+ * Show modal with reply check results
+ */
+function showRepliesFoundModal(data) {
+  const { newRepliesCount, totalChecked } = data;
+
+  let message;
+  if (newRepliesCount === 0) {
+    message = `Checked ${totalChecked} requests. No new replies found.`;
+  } else {
+    message = `Found ${newRepliesCount} new repl${newRepliesCount === 1 ? 'y' : 'ies'}! Check the Replies page to review.`;
+  }
+
+  // Create and show modal
+  const modalHtml = `
+    <div class="modal fade" id="repliesCheckModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title">
+              <i class="bi bi-envelope-check me-2"></i>
+              Reply Check Complete
+            </h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body text-center">
+            <div class="mb-3">
+              ${
+                newRepliesCount > 0
+                  ? `<i class="bi bi-check-circle-fill text-success display-4"></i>`
+                  : `<i class="bi bi-info-circle-fill text-info display-4"></i>`
+              }
+            </div>
+            <p class="mb-0">${message}</p>
+          </div>
+          <div class="modal-footer">
+            ${
+              newRepliesCount > 0
+                ? `<a href="/replies" class="btn btn-primary">
+                <i class="bi bi-reply-all me-1"></i>
+                View Replies
+              </a>`
+                : ''
+            }
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Remove existing modal if present
+  const existingModal = document.getElementById('repliesCheckModal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+
+  // Add modal to page
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+  // Show modal
+  const modal = new bootstrap.Modal(
+    document.getElementById('repliesCheckModal')
+  );
+  modal.show();
+
+  // Remove modal from DOM when hidden
+  document
+    .getElementById('repliesCheckModal')
+    .addEventListener('hidden.bs.modal', function () {
+      this.remove();
+    });
+}
+
+/**
+ * Update request symbols in calendar (✅ → 📧 → removed)
+ */
+function updateRequestSymbols(updatedRequests) {
+  if (!updatedRequests || updatedRequests.length === 0) return;
+
+  updatedRequests.forEach(request => {
+    // Find request elements in calendar
+    const requestElements = document.querySelectorAll(
+      `[data-request-id="${request.id}"]`
+    );
+
+    requestElements.forEach(element => {
+      const symbolElement = element.querySelector('.email-status-symbol');
+      if (symbolElement) {
+        if (request.needsReview) {
+          // Change to needs review symbol
+          symbolElement.innerHTML = '📧';
+          symbolElement.title = 'Reply received - needs review';
+        } else {
+          // Remove symbol (processed)
+          symbolElement.innerHTML = '';
+          symbolElement.title = '';
+        }
+      }
+    });
+  });
+}
+
+/**
+ * Update the replies badge counter in navbar
+ * Works on all pages to show number of replies needing review
+ */
+async function updateBadgeCounter() {
+  try {
+    const response = await fetch('/api/replies/count');
+    const result = await response.json();
+
+    if (result.success) {
+      const badge = document.getElementById('repliesBadge');
+      if (badge) {
+        if (result.data.count > 0) {
+          badge.textContent = result.data.count;
+          badge.style.display = 'inline';
+        } else {
+          badge.style.display = 'none';
+        }
+      }
+    }
+  } catch (error) {
+    logger.logError(error, { 
+      operation: 'updateBadgeCounter'
+    });
+  }
+}
+
 // Make functions globally available
 window.logout = logout;
 window.openSettingsModal = openSettingsModal;
@@ -810,6 +1020,7 @@ window.formatDate = formatDate;
 window.formatDateTime = formatDateTime;
 window.resetSettings = resetSettings;
 window.confirmDeleteAccount = confirmDeleteAccount;
+window.updateBadgeCounter = updateBadgeCounter;
 
 // ===================================================================
 // ACCESSIBILITY FIXES
@@ -825,6 +1036,11 @@ document.addEventListener('DOMContentLoaded', function () {
       focusedElement.blur();
     }
   });
+  
+  // Update replies badge counter on every page load
+  if (typeof updateBadgeCounter === 'function') {
+    updateBadgeCounter();
+  }
 });
 
 // Export for module usage if needed

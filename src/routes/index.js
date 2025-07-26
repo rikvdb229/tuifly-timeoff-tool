@@ -32,6 +32,7 @@ router.get('/', (req, res) => {
     ],
     metaTags: metaTags,
     user: req.user.toSafeObject(),
+    currentPage: 'calendar',
     // Environment variables for templates
     env: {
       TUIFLY_APPROVER_EMAIL:
@@ -59,6 +60,20 @@ router.get('/roster-deadlines', requireAuth, requireOnboarding, (req, res) => {
     body: '../pages/roster-deadlines',
     additionalJS: ['roster-deadlines'],
     user: req.user.toSafeObject(),
+    currentPage: 'roster-deadlines',
+  };
+
+  res.render('layouts/base', templateData);
+});
+
+// Email replies page
+router.get('/replies', requireAuth, requireOnboarding, (req, res) => {
+  const templateData = {
+    title: 'Email Replies',
+    body: '../pages/replies',
+    additionalJS: ['replies'],
+    user: req.user.toSafeObject(),
+    currentPage: 'replies',
   };
 
   res.render('layouts/base', templateData);

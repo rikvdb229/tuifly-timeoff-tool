@@ -181,21 +181,9 @@ window.bulkUpdateStatus = async function (newStatus) {
   logger.logUserAction('bulkUpdateStatus', { newStatus: newStatus });
 
   const statusText = newStatus.toLowerCase();
-  const confirmMessage = `Are you sure you want to mark ALL dates as ${statusText}?`;
 
-  // Use appropriate dialog type
-  let dialogType = 'warning';
-  if (newStatus === 'APPROVED') {dialogType = 'success';}
-  if (newStatus === 'DENIED') {dialogType = 'denied';}
-
-  const confirmed = await window.showConfirmDialog(
-    confirmMessage,
-    `${newStatus === 'APPROVED' ? 'Approve' : newStatus === 'DENIED' ? 'Deny' : 'Reset'} All Dates`,
-    dialogType
-  );
-
-  if (confirmed) {
-    try {
+  // Remove confirmation dialog as requested - users are grown up
+  try {
       // Get all request IDs from the current modal
       const statusBadges = document.querySelectorAll('[id^="status-badge-"]');
       const requestIds = [];
@@ -291,7 +279,6 @@ window.bulkUpdateStatus = async function (newStatus) {
       });
       window.showToast('Failed to update all dates', 'error');
     }
-  }
 };
 
 // Email generation functions

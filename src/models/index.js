@@ -7,6 +7,7 @@ const defineEmailTemplate = require('./EmailTemplate');
 const defineUserSetting = require('./UserSetting');
 const defineRosterSchedule = require('./RosterSchedule');
 const defineAppSetting = require('./AppSetting');
+const defineEmailReply = require('./EmailReply');
 
 // Initialize models
 const User = defineUser(sequelize);
@@ -15,6 +16,7 @@ const EmailTemplate = defineEmailTemplate(sequelize);
 const UserSetting = defineUserSetting(sequelize);
 const RosterSchedule = defineRosterSchedule(sequelize);
 const AppSetting = defineAppSetting(sequelize);
+const EmailReply = defineEmailReply(sequelize);
 
 // Define associations
 User.hasMany(TimeOffRequest, { foreignKey: 'userId', onDelete: 'CASCADE' });
@@ -22,6 +24,13 @@ TimeOffRequest.belongsTo(User, { foreignKey: 'userId' });
 
 User.hasMany(UserSetting, { foreignKey: 'userId', onDelete: 'CASCADE' });
 UserSetting.belongsTo(User, { foreignKey: 'userId' });
+
+// EmailReply associations
+TimeOffRequest.hasMany(EmailReply, { foreignKey: 'timeOffRequestId', onDelete: 'CASCADE' });
+EmailReply.belongsTo(TimeOffRequest, { foreignKey: 'timeOffRequestId' });
+
+User.hasMany(EmailReply, { foreignKey: 'processedBy' });
+EmailReply.belongsTo(User, { as: 'ProcessedByUser', foreignKey: 'processedBy' });
 
 // Self-referencing association for admin approval
 User.belongsTo(User, {
@@ -297,6 +306,7 @@ module.exports = {
   UserSetting,
   RosterSchedule,
   AppSetting,
+  EmailReply,
   initializeDatabase,
   createUser,
   getUserByGoogleId,

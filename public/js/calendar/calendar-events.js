@@ -156,7 +156,14 @@ window.updateDateType = function (index, newType) {
     if (newType === 'FLIGHT') {
       flightInput.style.display = 'block';
       flightInput.required = true;
+      // Auto-prefill with TB if empty or doesn't start with TB
+      if (!flightInput.value || !flightInput.value.toUpperCase().startsWith('TB')) {
+        flightInput.value = 'TB';
+        window.selectedDates[index].flightNumber = 'TB';
+      }
       flightInput.focus();
+      // Position cursor at the end
+      flightInput.setSelectionRange(flightInput.value.length, flightInput.value.length);
     } else {
       flightInput.style.display = 'none';
       flightInput.required = false;
@@ -170,6 +177,17 @@ window.updateDateType = function (index, newType) {
 };
 
 window.updateFlightNumber = function (index, flightNumber) {
+  // Auto-prefix with TB if not already present and user has entered something
+  if (flightNumber && !flightNumber.toUpperCase().startsWith('TB')) {
+    flightNumber = 'TB' + flightNumber.replace(/^TB/i, ''); // Remove any existing TB case-insensitive
+  }
+  
+  // Update the input field to reflect the TB prefix
+  const flightInput = document.querySelector(`[data-index="${index}"]`);
+  if (flightInput && flightInput.value !== flightNumber) {
+    flightInput.value = flightNumber;
+  }
+
   // Update the selectedDates array
   window.selectedDates[index].flightNumber = flightNumber;
 
@@ -443,9 +461,9 @@ function populateModalDates() {
         <input 
           type="text" 
           class="form-control form-control-sm" 
-          placeholder="Flight#"
+          placeholder="TB1234"
           data-index="${index}"
-          value="${dateObj.flightNumber || ''}"
+          value="${dateObj.flightNumber || (isFlightType ? 'TB' : '')}"
           onchange="updateFlightNumber(${index}, this.value)"
           oninput="updateFlightNumber(${index}, this.value)"
           style="display: ${isFlightType ? 'block' : 'none'}"

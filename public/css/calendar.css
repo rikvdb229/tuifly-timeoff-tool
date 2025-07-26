@@ -234,6 +234,13 @@
   border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
+/* Request status legend items should be rectangles to match actual requests */
+.legend-color.request-status {
+  border-radius: 2px;
+  width: 20px;
+  height: 12px;
+}
+
 .legend-container {
   border: 1px solid rgba(0, 0, 0, 0.1);
   background-color: #f8f9fa !important;

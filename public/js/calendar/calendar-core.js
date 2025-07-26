@@ -131,10 +131,8 @@ class CalendarManager {
   async monthHasSelectableDays(monthStart) {
     const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
     
-    // Check a few days in the month (not all 30+ days for efficiency)
-    const samplesToCheck = Math.min(10, monthEnd.getDate());
-    
-    for (let day = 1; day <= samplesToCheck; day++) {
+    // Check all days in the month to ensure we don't miss selectable days
+    for (let day = 1; day <= monthEnd.getDate(); day++) {
       const dateToCheck = new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
       const isAvailable = await this.isDateAvailableForRoster(dateToCheck);
       if (isAvailable) {
@@ -152,6 +150,15 @@ class CalendarManager {
     
     // Quick check: if date is in the past, it's not available
     if (dateStr < today) {
+      return false;
+    }
+    
+    // Check minimum advance days requirement
+    const todayDate = new Date(today);
+    const requestDate = new Date(dateStr);
+    const daysDifference = Math.floor((requestDate - todayDate) / (1000 * 60 * 60 * 24));
+    
+    if (daysDifference < CONFIG.MIN_ADVANCE_DAYS) {
       return false;
     }
     

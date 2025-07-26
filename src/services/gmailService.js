@@ -196,8 +196,8 @@ class GmailService {
     }
   }
 
-  // Check for replies to sent emails
-  async checkForReplies(user, gmailThreadId, lastCheckTime = null) {
+  // Check for replies to sent emails - SIMPLIFIED: No more timestamp comparison issues!
+  async checkForReplies(user, gmailThreadId, lastProcessedMessageId = null) {
     try {
       // Set user credentials
       this.setUserCredentials(user);
@@ -214,11 +214,28 @@ class GmailService {
         id: gmailThreadId,
       });
 
-      // Find new messages since last check
+      // Find new messages since last processed message
       const messages = thread.data.messages || [];
       const newMessages = [];
 
-      for (const message of messages) {
+      serviceLogger.info(`Thread ${gmailThreadId} has ${messages.length} total messages. Last processed message: ${lastProcessedMessageId || 'none'}`);
+
+      // Find the index of the last processed message
+      let startIndex = 0;
+      if (lastProcessedMessageId) {
+        const lastProcessedIndex = messages.findIndex(m => m.id === lastProcessedMessageId);
+        if (lastProcessedIndex !== -1) {
+          startIndex = lastProcessedIndex + 1; // Start after the last processed message
+          serviceLogger.info(`Found last processed message at index ${lastProcessedIndex}, starting from index ${startIndex}`);
+        } else {
+          serviceLogger.info(`Last processed message ${lastProcessedMessageId} not found in thread, checking all messages`);
+        }
+      }
+
+      // Process only new messages (after the last processed one)
+      for (let i = startIndex; i < messages.length; i++) {
+        const message = messages[i];
+        
         const messageDetails = await gmail.users.messages.get({
           userId: 'me',
           id: message.id,
@@ -228,18 +245,31 @@ class GmailService {
           parseInt(messageDetails.data.internalDate)
         );
 
-        // Skip if message is older than last check
-        if (lastCheckTime && receivedDate <= lastCheckTime) {
-          continue;
-        }
-
-        // Skip if message is from the user (not a reply)
         const fromHeader = messageDetails.data.payload.headers.find(
           h => h.name.toLowerCase() === 'from'
         );
+        const fromEmail = fromHeader ? fromHeader.value : 'unknown';
+        
+        // Flag to track if this is a user reply (vs scheduling reply)
+        let isUserReply = false;
+
+        serviceLogger.info(`Processing message ${message.id}: from=${fromEmail}, received=${receivedDate.toISOString()}`);
+
+        // Handle messages from the user differently
         if (fromHeader && fromHeader.value.includes(user.email)) {
-          continue;
+          // If this is the first message in the thread, skip it (original request)
+          if (i === 0) {
+            serviceLogger.info(`Skipping message ${message.id} - original request from user (${user.email})`);
+            continue;
+          } else {
+            // This is a user reply to scheduling - mark as user has reviewed
+            serviceLogger.info(`Found user reply ${message.id} from ${user.email} - user has reviewed by responding`);
+            // Add flag to indicate this is a user reply (not scheduling reply)
+            isUserReply = true;
+          }
         }
+
+        serviceLogger.info(`Found NEW message ${message.id} from ${fromEmail} - will process as reply`);
 
         // Extract message body
         const body = this.extractMessageBody(messageDetails.data.payload);
@@ -250,6 +280,7 @@ class GmailService {
           from: fromHeader ? fromHeader.value : 'Unknown',
           body: body,
           receivedAt: receivedDate,
+          isUserReply: isUserReply, // Flag to indicate if this is user reply
         });
       }
 
@@ -265,7 +296,7 @@ class GmailService {
         userId: user.id,
         userEmail: user.email,
         threadId: gmailThreadId,
-        lastCheckTime: lastCheckTime
+        lastProcessedMessageId: lastProcessedMessageId
       });
       throw new Error(`Failed to check for replies: ${error.message}`);
     }
@@ -356,6 +387,96 @@ class GmailService {
         hasRefreshToken: !!user.gmailRefreshToken
       });
       throw new Error('Failed to refresh Gmail token. Please re-authorize.');
+    }
+  }
+
+  /**
+   * Send threaded reply to maintain conversation continuity
+   */
+  async sendThreadedReply(user, threadId, toEmail, messageContent) {
+    try {
+      // Set user credentials
+      this.setUserCredentials(user);
+
+      // Check if token needs refresh
+      await this.refreshTokenIfNeeded(user);
+
+      // Create Gmail API client
+      const gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
+
+      // Get original thread to extract message IDs and subject for proper threading
+      const thread = await gmail.users.threads.get({
+        userId: 'me',
+        id: threadId
+      });
+
+      const lastMessage = thread.data.messages[thread.data.messages.length - 1];
+      const messageIdHeader = lastMessage.payload.headers.find(h => h.name === 'Message-ID');
+      const subjectHeader = lastMessage.payload.headers.find(h => h.name.toLowerCase() === 'subject');
+      const originalMessageId = messageIdHeader ? messageIdHeader.value : null;
+      
+      // Extract original subject and ensure proper Re: prefix
+      let replySubject = 'Re: Time-off Request';
+      if (subjectHeader && subjectHeader.value) {
+        const originalSubject = subjectHeader.value;
+        replySubject = originalSubject.startsWith('Re:') ? originalSubject : `Re: ${originalSubject}`;
+      }
+
+      // Build reply content - just the user message (no signature for replies)
+      const fullContent = messageContent;
+      
+      // Create reply headers for proper threading
+      const headerLines = [
+        `To: ${toEmail}`,
+        `Subject: ${replySubject}`,
+        originalMessageId ? `In-Reply-To: ${originalMessageId}` : '',
+        originalMessageId ? `References: ${originalMessageId}` : '',
+        'Content-Type: text/plain; charset=utf-8'
+      ].filter(header => header !== '');
+      
+      // Join headers and add empty line before body content
+      const headers = headerLines.join('\n') + '\n\n' + fullContent;
+
+      // Encode message
+      const encodedMessage = Buffer.from(headers)
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+      // Send threaded reply
+      const response = await gmail.users.messages.send({
+        userId: 'me',
+        requestBody: {
+          raw: encodedMessage,
+          threadId: threadId
+        }
+      });
+
+      serviceLogger.info('Threaded reply sent successfully', {
+        userId: user.id,
+        threadId: threadId,
+        messageId: response.data.id,
+        subject: replySubject,
+        contentLength: messageContent.length
+      });
+
+      return {
+        success: true,
+        messageId: response.data.id,
+        threadId: response.data.threadId,
+        subject: replySubject
+      };
+
+    } catch (error) {
+      serviceLogger.logError(error, {
+        operation: 'sendThreadedReply',
+        service: 'gmailService',
+        userId: user.id,
+        threadId: threadId,
+        messageContent: messageContent?.substring(0, 100) + '...'
+      });
+      throw new Error(`Failed to send reply: ${error.message}`);
     }
   }
 }

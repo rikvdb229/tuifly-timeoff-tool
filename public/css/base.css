@@ -191,3 +191,57 @@ main {
     display: none;
   }
 }
+
+/* Active state for outline buttons - filled backgrounds */
+.btn.btn-outline-danger.active,
+.btn.btn-outline-danger:active,
+.btn.btn-outline-danger.active:hover,
+.btn.btn-outline-danger.active:focus,
+.btn-group > .btn.btn-outline-danger.active,
+.btn-group > .btn.btn-outline-danger:active {
+  background-color: #dc3545 !important;
+  border-color: #dc3545 !important;
+  color: white !important;
+}
+
+.btn.btn-outline-warning.active,
+.btn.btn-outline-warning:active,
+.btn.btn-outline-warning.active:hover,
+.btn.btn-outline-warning.active:focus,
+.btn-group > .btn.btn-outline-warning.active,
+.btn-group > .btn.btn-outline-warning:active {
+  background-color: #ffc107 !important;
+  border-color: #ffc107 !important;
+  color: #212529 !important;
+}
+
+.btn.btn-outline-success.active,
+.btn.btn-outline-success:active,
+.btn.btn-outline-success.active:hover,
+.btn.btn-outline-success.active:focus,
+.btn-group > .btn.btn-outline-success.active,
+.btn-group > .btn.btn-outline-success:active {
+  background-color: #28a745 !important;
+  border-color: #28a745 !important;
+  color: white !important;
+}
+
+/* Ensure active state icon colors are visible */
+.btn.btn-outline-danger.active .bi,
+.btn.btn-outline-success.active .bi {
+  color: white !important;
+}
+
+.btn.btn-outline-warning.active .bi {
+  color: #212529 !important;
+}
+/* Email conversation thread styles */
+.conversation-thread {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.conversation-thread .user-reply {
+  border-left: 3px solid var(--bs-primary);
+  padding-left: 1rem;
+}
