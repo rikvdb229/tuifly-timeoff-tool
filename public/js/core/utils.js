@@ -980,8 +980,20 @@ function updateRequestSymbols(updatedRequests) {
  * Works on all pages to show number of replies needing review
  */
 async function updateBadgeCounter() {
+  // Don't load badge counter on auth/onboarding pages
+  const currentPath = window.location.pathname;
+  if (currentPath.startsWith('/auth/') || currentPath === '/onboarding') {
+    return;
+  }
+  
   try {
-    const response = await fetch('/api/replies/count');
+    const response = await fetch('/api/replies/count', {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      credentials: 'same-origin'
+    });
     const result = await response.json();
 
     if (result.success) {
@@ -1037,8 +1049,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
   
-  // Update replies badge counter on every page load
-  if (typeof updateBadgeCounter === 'function') {
+  // Update replies badge counter on every page load (only for onboarded users)
+  const currentPath = window.location.pathname;
+  if (typeof updateBadgeCounter === 'function' && 
+      !currentPath.startsWith('/auth/') && 
+      !currentPath.startsWith('/onboarding')) {
     updateBadgeCounter();
   }
 });

@@ -23,6 +23,8 @@ const getGmailScopes = () => {
 
 console.log('🔧 Basic OAuth Scopes:', getBasicScopes());
 console.log('🔧 Gmail OAuth Scopes:', getGmailScopes());
+console.log('🔧 Basic OAuth Callback URL:', process.env.GOOGLE_REDIRECT_URI || '/auth/google/callback');
+console.log('🔧 Gmail OAuth Callback URL:', process.env.GOOGLE_GMAIL_REDIRECT_URI || '/auth/google/gmail/callback');
 
 // Strategy 1: Basic Google OAuth (for initial login)
 passport.use('google-basic', new GoogleStrategy(
@@ -159,15 +161,19 @@ passport.use('google-gmail', new GoogleStrategy(
 
 // Serialize user for session
 passport.serializeUser((user, done) => {
+  console.log('🔍 Serializing user:', user.id, user.email);
   done(null, user.id);
 });
 
 // Deserialize user from session
 passport.deserializeUser(async (id, done) => {
   try {
+    console.log('🔍 Deserializing user ID:', id);
     const user = await User.findByPk(id);
+    console.log('🔍 Deserialized user:', user ? user.email : 'NOT FOUND');
     done(null, user);
   } catch (error) {
+    console.error('🔍 Deserialize error:', error);
     done(error, null);
   }
 });

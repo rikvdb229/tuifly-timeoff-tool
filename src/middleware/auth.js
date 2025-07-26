@@ -16,7 +16,15 @@ const { middlewareLogger } = require('../utils/logger');
  * @returns {void}
  */
 const requireAuth = (req, res, next) => {
+  console.log('🔍 requireAuth check:', {
+    hasSession: !!req.session,
+    sessionId: req.sessionID,
+    userId: req.session?.userId,
+    url: req.originalUrl
+  });
+  
   if (!req.session || !req.session.userId) {
+    console.log('🔍 Auth failed - redirecting to login');
     if (req.xhr || req.headers.accept?.includes('application/json')) {
       return res.status(401).json({
         success: false,
@@ -26,6 +34,7 @@ const requireAuth = (req, res, next) => {
     }
     return res.redirect('/auth/login');
   }
+  console.log('🔍 Auth passed');
   next();
 };
 

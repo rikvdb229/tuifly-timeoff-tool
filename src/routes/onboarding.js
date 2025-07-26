@@ -60,7 +60,6 @@ router.get('/', requireAuth, async (req, res) => {
     const gmailSuccess = req.query.gmail_success === '1';
     const gmailError = req.query.error?.includes('gmail');
     const step = req.query.step || '1';
-
     res.render('layouts/base', {
       title: 'Welcome - Complete Your Profile',
       body: '../pages/onboarding',

@@ -139,59 +139,58 @@ router.get('/waiting-approval', async (req, res) => {
 // Initiate basic Google OAuth (profile + email only)
 router.get(
   '/google',
-  requireGuest,
   authRateLimit,
   passport.authenticate('google-basic', {
-    scope: process.env.GOOGLE_SCOPES_BASIC
-      ? process.env.GOOGLE_SCOPES_BASIC.split(' ')
-      : ['profile', 'email', 'openid'],
     prompt: 'select_account',
   })
 );
 
+// Test route to see what's happening
+router.get('/google/test', (req, res) => {
+  console.log('🔍 Test route hit');
+  res.json({ message: 'Test route working', query: req.query });
+});
+
 // Basic Google OAuth callback
 router.get(
   '/google/callback',
+  (req, res, next) => {
+    next();
+  },
   passport.authenticate('google-basic', {
     failureRedirect: '/auth/login?error=oauth_failed',
-    session: false,
   }),
   async (req, res) => {
     try {
-      // Set session data
+      if (!req.user) {
+        return res.redirect('/auth/login?error=no_user');
+      }
+
+      // Save session manually
       req.session.userId = req.user.id;
       req.session.googleId = req.user.googleId;
       req.session.email = req.user.email;
+      
+      // Force session save
+      req.session.save((err) => {
+        if (err) {
+          return res.redirect('/auth/login?error=session_error');
+        }
+        
+        // Check if user needs onboarding
+        if (!req.user.isOnboarded()) {
+          return res.redirect('/onboarding');
+        }
 
-      routeLogger.info('User logged in with basic OAuth', { 
-        userId: req.user.id, 
-        userEmail: req.user.email, 
-        googleId: req.user.googleId, 
-        isOnboarded: req.user.isOnboarded(), 
-        canUseApp: req.user.canUseApp(), 
-        operation: 'basicOAuthLogin' 
+        // Check if user can use app (admin or approved)
+        if (!req.user.canUseApp()) {
+          return res.redirect('/auth/waiting-approval');
+        }
+
+        // Success - redirect to dashboard
+        res.redirect('/?message=login_success');
       });
-
-      // Check if user needs onboarding
-      if (!req.user.isOnboarded()) {
-        req.session.needsOnboarding = true;
-        return res.redirect('/onboarding');
-      }
-
-      // Check if user can use app (admin or approved)
-      if (!req.user.canUseApp()) {
-        return res.redirect('/auth/waiting-approval');
-      }
-
-      // Success - redirect to dashboard
-      res.redirect('/?message=login_success');
     } catch (error) {
-      routeLogger.logError(error, { 
-        operation: 'basicOAuthCallback', 
-        userId: req.user?.id, 
-        userEmail: req.user?.email, 
-        endpoint: '/auth/google/callback' 
-      });
       res.redirect('/auth/login?error=callback_error');
     }
   }
@@ -207,14 +206,6 @@ router.get(
   requireAuth, // User must be logged in first
   authRateLimit,
   passport.authenticate('google-gmail', {
-    scope: process.env.GOOGLE_SCOPES_GMAIL
-      ? process.env.GOOGLE_SCOPES_GMAIL.split(' ')
-      : [
-          'profile',
-          'email',
-          'openid',
-          'https://www.googleapis.com/auth/gmail.send',
-        ],
     accessType: 'offline',
     prompt: 'consent', // Force consent screen to get refresh token
   })
@@ -224,17 +215,10 @@ router.get(
 router.get(
   '/google/gmail/callback',
   (req, res, next) => {
-    routeLogger.debug('Gmail OAuth callback received', { 
-      queryParams: req.query, 
-      sessionId: req.sessionID, 
-      hasSession: !!req.session, 
-      operation: 'gmailOAuthCallback' 
-    });
     next();
   },
   passport.authenticate('google-gmail', {
     failureRedirect: '/onboarding?error=gmail_oauth_failed&step=3',
-    session: false,
   }),
   async (req, res) => {
     try {

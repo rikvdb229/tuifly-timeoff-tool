@@ -14,6 +14,12 @@ const { logger, createLogger } = require('./utils/logger');
 
 const app = express();
 
+// SUPER EARLY DEBUG ROUTE - BEFORE ANY MIDDLEWARE
+app.get('/debug-early', (req, res) => {
+  console.log('🔍 SUPER EARLY debug route hit');
+  res.json({ message: 'Super early debug route working', url: req.originalUrl });
+});
+
 // Trust proxy for production deployments
 app.set('trust proxy', 1);
 
@@ -134,17 +140,21 @@ const sessionConfig = {
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.SESSION_COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
     httpOnly: true,
     maxAge: parseInt(process.env.SESSION_TIMEOUT) || 2592000000, // 30 days default
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    sameSite: 'lax', // Changed from 'strict' to 'lax' for OAuth compatibility
   },
   name: 'tuifly.sid', // Custom session name
 };
 
 // Use Redis store for production/development, memory store for tests
 if (process.env.NODE_ENV !== 'test') {
-  sessionConfig.store = new RedisStore({ client: redisClient });
+  sessionConfig.store = new RedisStore({ 
+    client: redisClient,
+    ttl: 86400, // 24 hours
+    logErrors: true
+  });
 }
 
 app.use(session(sessionConfig));
@@ -183,6 +193,12 @@ if (process.env.NODE_ENV === 'test') {
   setupTestAuthRoutes(app);
 }
 
+// Debug route to test if routing works at all
+app.get('/debug-test', (req, res) => {
+  console.log('🔍 Debug test route hit');
+  res.json({ message: 'Debug route working', url: req.originalUrl });
+});
+
 // Routes
 try {
   // Authentication routes (no auth required)
@@ -197,7 +213,7 @@ try {
   const adminRoutes = require('./routes/admin');
   app.use('/admin', adminRoutes);
 
-  // Main routes (auth + onboarding required) - NOW PROPERLY PROTECTED
+  // Main routes (auth + onboarding required)
   const indexRoutes = require('./routes/index');
   app.use('/', indexRoutes);
 
