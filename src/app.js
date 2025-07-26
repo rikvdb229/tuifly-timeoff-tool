@@ -42,15 +42,14 @@ app.use(
         connectSrc: [
           "'self'",
           'https://accounts.google.com',
-          'https://off-time.duckdns.org',
+          process.env.CORS_ORIGIN || 'http://localhost:3000', // Dynamic from env
         ],
         frameSrc: ["'self'", 'https://accounts.google.com'],
         baseUri: ["'self'"],
         formAction: ["'self'"],
         frameAncestors: ["'self'"],
         objectSrc: ["'none'"],
-        // Remove upgrade-insecure-requests for HTTP development
-        upgradeInsecureRequests: null,
+        upgradeInsecureRequests: null, // Keep disabled for flexible HTTP/HTTPS
       },
     },
   })
@@ -58,7 +57,25 @@ app.use(
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || 'https://off-time.duckdns.org',
+    origin: function (origin, callback) {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      // Get allowed origins from environment
+      const allowedOrigins = [
+        process.env.CORS_ORIGIN,
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+      ].filter(Boolean); // Remove undefined values
+
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   })
 );

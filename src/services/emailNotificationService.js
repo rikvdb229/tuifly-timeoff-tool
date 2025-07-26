@@ -11,7 +11,9 @@ class EmailNotificationService {
 
   // Initialize the email service
   async initialize() {
-    if (this.initialized) {return;}
+    if (this.initialized) {
+      return;
+    }
 
     try {
       // Check if SMTP is configured
@@ -36,15 +38,18 @@ class EmailNotificationService {
         serviceLogger.info('Email service initialized with SMTP', {
           smtpHost: process.env.SMTP_HOST,
           operation: 'initialize',
-          service: 'emailNotificationService'
+          service: 'emailNotificationService',
         });
       } else {
         // No SMTP configured - use console logging
-        serviceLogger.warn('No SMTP server configured - using mock email mode', {
-          operation: 'initialize',
-          service: 'emailNotificationService',
-          mockMode: true
-        });
+        serviceLogger.warn(
+          'No SMTP server configured - using mock email mode',
+          {
+            operation: 'initialize',
+            service: 'emailNotificationService',
+            mockMode: true,
+          }
+        );
         this.mockEmailMode = true;
       }
 
@@ -53,12 +58,12 @@ class EmailNotificationService {
       serviceLogger.logError(error, {
         operation: 'initialize',
         service: 'emailNotificationService',
-        fallbackMode: 'console'
+        fallbackMode: 'console',
       });
       serviceLogger.warn('Falling back to console logging mode', {
         operation: 'initialize',
         service: 'emailNotificationService',
-        mockMode: true
+        mockMode: true,
       });
       this.mockEmailMode = true;
       this.initialized = true;
@@ -77,12 +82,12 @@ class EmailNotificationService {
         serviceLogger.warn('No admin notification email configured', {
           operation: 'notifyAdminOfNewUser',
           service: 'emailNotificationService',
-          newUserEmail: newUser.email
+          newUserEmail: newUser.email,
         });
         return false;
       }
-
-      const approvalUrl = `${process.env.HOST || 'http://localhost:3000'}/admin/users`;
+      const appUrl = process.env.HOST || 'http://localhost:3000';
+      const approvalUrl = `${appUrl}/admin/users`;
       const subject = 'TUIfly Time-Off Tool - New User Needs Approval';
 
       const textBody = `
@@ -113,7 +118,7 @@ This is an automated notification from the TUIfly Time-Off Tool.
           subject: subject,
           bodyLength: textBody.length,
           newUserEmail: newUser.email,
-          mockMode: true
+          mockMode: true,
         });
         return true;
       }
@@ -133,7 +138,7 @@ This is an automated notification from the TUIfly Time-Off Tool.
         operation: 'notifyAdminOfNewUser',
         service: 'emailNotificationService',
         to: adminEmail,
-        newUserEmail: newUser.email
+        newUserEmail: newUser.email,
       });
       return true;
     } catch (error) {
@@ -141,7 +146,7 @@ This is an automated notification from the TUIfly Time-Off Tool.
         operation: 'notifyAdminOfNewUser',
         service: 'emailNotificationService',
         newUserEmail: newUser.email,
-        adminEmail: process.env.ADMIN_NOTIFICATION_EMAIL
+        adminEmail: process.env.ADMIN_NOTIFICATION_EMAIL,
       });
       return false;
     }
@@ -185,7 +190,7 @@ This is an automated notification from the TUIfly Time-Off Tool.
           subject: subject,
           bodyLength: textBody.length,
           approvedBy: approvedByAdmin.name || approvedByAdmin.email,
-          mockMode: true
+          mockMode: true,
         });
         return true;
       }
@@ -205,7 +210,7 @@ This is an automated notification from the TUIfly Time-Off Tool.
         operation: 'notifyUserApproval',
         service: 'emailNotificationService',
         to: user.email,
-        approvedBy: approvedByAdmin.name || approvedByAdmin.email
+        approvedBy: approvedByAdmin.name || approvedByAdmin.email,
       });
       return true;
     } catch (error) {
@@ -213,7 +218,7 @@ This is an automated notification from the TUIfly Time-Off Tool.
         operation: 'notifyUserApproval',
         service: 'emailNotificationService',
         userEmail: user.email,
-        approvedBy: approvedByAdmin.name || approvedByAdmin.email
+        approvedBy: approvedByAdmin.name || approvedByAdmin.email,
       });
       return false;
     }
