@@ -23,7 +23,11 @@
       "Bash(grep:*)",
       "Bash(npm run test:coverage:*)",
       "Bash(git push:*)",
-      "Bash(npm start)"
+      "Bash(npm start)",
+      "Bash(curl:*)",
+      "Bash(sqlite3:*)",
+      "Bash(npm run:*)",
+      "Bash(psql:*)"
     ],
     "deny": []
   }

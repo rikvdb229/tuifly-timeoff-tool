@@ -193,7 +193,7 @@ function createReplyCard(reply) {
         ${statusBadge}
       </div>
       
-      <!-- Per-Date Approval Section (MOVED UP) -->
+      <!-- Per-Date Approval Section or Processed Info -->
       ${
         !isProcessed
           ? `
@@ -203,16 +203,23 @@ function createReplyCard(reply) {
           }
         `
           : `
-          <div class="text-muted small mb-3">
-            <i class="bi bi-check-circle me-1"></i>
-            Processed as: <span class="badge bg-${getStatusColor(request.status)} ${request.status === 'PENDING' ? 'text-dark' : ''}">${request.status}</span>
-            ${reply.processedAt ? `on ${formatDateTime(reply.processedAt)}` : ''}
+          <div class="processed-info mb-3">
+            <div class="text-muted small d-flex justify-content-between align-items-center">
+              <span>
+                <i class="bi bi-check-circle me-1"></i>
+                Processed as: <span class="badge bg-${getStatusColor(request.status)} ${request.status === 'PENDING' ? 'text-dark' : ''}">${request.status}</span>
+                ${reply.processedAt ? `on ${formatDateTime(reply.processedAt)}` : ''}
+              </span>
+              <button type="button" class="btn btn-link btn-sm p-0" onclick="toggleConversation(${reply.id})" title="Show conversation">
+                <i id="collapse-icon-${reply.id}" class="bi bi-three-dots"></i>
+              </button>
+            </div>
           </div>
         `
         }
       
       <!-- Email Thread Conversation -->
-      <div class="mt-3 pt-3 border-top">
+      <div id="conversation-${reply.id}" class="mt-3 pt-3 border-top" ${isProcessed ? 'style="display: none;"' : ''}>
         <h6 class="text-muted mb-2">
           <i class="bi bi-chat-dots me-1"></i>
           Email Conversation
@@ -245,24 +252,15 @@ function createReplyCard(reply) {
         </div>
       </div>
         
-      <!-- Send Reply Section (for automatic email users - processed or unprocessed) -->
+      <!-- Send Reply Section (for automatic email users - only show if not processed) -->
       ${
-        window.currentUserData?.emailPreference === 'automatic'
+        window.currentUserData?.emailPreference === 'automatic' && !isProcessed
           ? reply.userReplySent
             ? `
         <div class="reply-container mt-3 pt-3 border-top">
-          <h6 class="text-muted mb-2">
+          <div class="text-muted small">
             <i class="bi bi-check-circle text-success me-1"></i>
-            Reply Sent
-          </h6>
-          <div class="bg-light p-3 rounded">
-            <div class="reply-text mb-2">
-              ${formatReplyContent(reply.userReplyContent)}
-            </div>
-            <small class="text-muted">
-              <i class="bi bi-clock me-1"></i>
-              Sent ${formatDateTime(reply.userReplySentAt)}
-            </small>
+            Reply Sent ${formatDateTime(reply.userReplySentAt)}
           </div>
         </div>
       `
@@ -375,6 +373,9 @@ async function sendReply() {
     const result = await response.json();
     if (result.success) {
       showToast('Reply sent successfully!', 'success');
+      
+      // Update badge counter immediately
+      await updateBadgeCounter();
 
       // Close modal
       const modal = bootstrap.Modal.getInstance(
@@ -384,6 +385,11 @@ async function sendReply() {
 
       // Clear current reply ID
       currentReplyId = null;
+      
+      // Reload replies to show updated state
+      setTimeout(() => {
+        loadReplies();
+      }, 500);
     } else {
       showToast(result.error || 'Failed to send reply', 'error');
     }
@@ -765,7 +771,7 @@ function formatReplyContent(content) {
         <div class="reply-preview">${truncated}...</div>
         <div class="reply-full" style="display: none;">${escaped}</div>
         <button type="button" class="btn btn-link btn-sm p-0 mt-2" onclick="toggleReplyContent(this)">
-          <i class="bi bi-chevron-down me-1"></i>Show more
+          <i class="bi bi-three-dots-vertical me-1"></i>Show more
         </button>
       </div>
     `;
@@ -788,7 +794,7 @@ function toggleReplyContent(button) {
   } else {
     preview.style.display = 'block';
     full.style.display = 'none';
-    button.innerHTML = '<i class="bi bi-chevron-down me-1"></i>Show more';
+    button.innerHTML = '<i class="bi bi-three-dots-vertical me-1"></i>Show more';
   }
 }
 
@@ -821,6 +827,9 @@ async function sendDirectReply(replyId) {
     const result = await response.json();
     if (result.success) {
       showToast('Reply sent successfully!', 'success');
+      
+      // Update badge counter immediately
+      await updateBadgeCounter();
       
       // Reload replies to show updated state from database
       setTimeout(() => {
@@ -970,9 +979,27 @@ function formatOriginalRequestEmail(request, allRequests) {
   return content;
 }
 
+// Toggle conversation visibility for processed replies
+function toggleConversation(replyId) {
+  const conversation = document.getElementById(`conversation-${replyId}`);
+  const icon = document.getElementById(`collapse-icon-${replyId}`);
+  const button = icon.closest('button');
+  
+  if (conversation.style.display === 'none') {
+    conversation.style.display = 'block';
+    icon.className = 'bi bi-chevron-up';
+    button.title = 'Hide conversation';
+  } else {
+    conversation.style.display = 'none';
+    icon.className = 'bi bi-three-dots';
+    button.title = 'Show conversation';
+  }
+}
+
 // Export functions for global access
 window.processReply = processReply;
 window.showReplyModal = showReplyModal;
 window.sendReply = sendReply;
 window.sendDirectReply = sendDirectReply;
 window.updateBadgeCounter = updateBadgeCounter;
+window.toggleConversation = toggleConversation;

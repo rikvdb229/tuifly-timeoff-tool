@@ -2,9 +2,11 @@
 const express = require('express');
 const { requireAuth } = require('../../middleware/auth');
 const ReplyCheckingService = require('../../services/ReplyCheckingService');
-const { EmailReply, TimeOffRequest } = require('../../models');
+const { EmailReply, TimeOffRequest, RosterSchedule } = require('../../models');
+const { sequelize } = require('../../../config/database');
 const { routeLogger } = require('../../utils/logger');
 const GmailService = require('../../services/gmailService');
+const { Op } = require('sequelize');
 
 const router = express.Router();
 
@@ -59,6 +61,39 @@ router.get('/replies', async (req, res) => {
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
+    // Get current roster period date range to filter old replies
+    const today = new Date();
+    const ninetyDaysAgo = new Date(today.getTime() - (90 * 24 * 60 * 60 * 1000));
+    
+    // Get relevant roster periods (current + last 90 days)
+    const relevantPeriods = await RosterSchedule.findAll({
+      where: {
+        isActive: true,
+        [Op.or]: [
+          // Currently active period
+          {
+            startPeriod: { [Op.lte]: today },
+            endPeriod: { [Op.gte]: today }
+          },
+          // Period started within last 90 days
+          { startPeriod: { [Op.gte]: ninetyDaysAgo } },
+          // Period ends after 90 days ago
+          { endPeriod: { [Op.gte]: ninetyDaysAgo } }
+        ]
+      },
+      order: [['startPeriod', 'ASC']]
+    });
+
+    let dateRangeStart, dateRangeEnd;
+    if (relevantPeriods.length > 0) {
+      dateRangeStart = relevantPeriods[0].startPeriod;
+      dateRangeEnd = relevantPeriods[relevantPeriods.length - 1].endPeriod;
+    } else {
+      // Fallback: use last 90 days
+      dateRangeStart = ninetyDaysAgo;
+      dateRangeEnd = today;
+    }
+
     // Build where clause based on filter
     let whereClause = {};
     switch (filter) {
@@ -75,30 +110,101 @@ router.get('/replies', async (req, res) => {
         whereClause.isProcessed = false;
     }
 
-    const replies = await EmailReply.findAndCountAll({
-      where: whereClause,
-      include: [
-        {
-          model: TimeOffRequest,
-          where: { userId: req.user.id },
-          required: true,
-          attributes: [
-            'id',
-            'startDate',
-            'endDate',
-            'type',
-            'status',
-            'flightNumber',
-            'customMessage',
-            'gmailThreadId',
-            'needsReview',
+    // For reviewed section, we need to handle duplicates differently
+    let replies;
+    if (filter === 'reviewed') {
+      // First get distinct thread IDs for processed replies
+      const distinctThreads = await EmailReply.findAll({
+        where: whereClause,
+        attributes: [[sequelize.fn('DISTINCT', sequelize.col('gmail_thread_id')), 'gmailThreadId']],
+        include: [
+          {
+            model: TimeOffRequest,
+            where: { userId: req.user.id },
+            required: true,
+            attributes: [],
+          },
+        ],
+        raw: true,
+      });
+
+      const threadIds = distinctThreads.map(t => t.gmailThreadId);
+      
+      // Now get the latest reply for each thread
+      const repliesData = [];
+      for (const threadId of threadIds) {
+        const latestReply = await EmailReply.findOne({
+          where: {
+            ...whereClause,
+            gmailThreadId: threadId,
+          },
+          include: [
+            {
+              model: TimeOffRequest,
+              where: { userId: req.user.id },
+              required: true,
+              attributes: [
+                'id',
+                'startDate',
+                'endDate',
+                'type',
+                'status',
+                'flightNumber',
+                'customMessage',
+                'gmailThreadId',
+                'needsReview',
+                'emailSent',
+              ],
+            },
           ],
-        },
-      ],
-      order: [['receivedAt', 'DESC']],
-      limit: parseInt(limit),
-      offset: offset,
-    });
+          order: [['receivedAt', 'DESC']],
+        });
+        if (latestReply) {
+          repliesData.push(latestReply);
+        }
+      }
+      
+      // Sort by receivedAt DESC and apply pagination
+      repliesData.sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt));
+      const paginatedReplies = repliesData.slice(offset, offset + parseInt(limit));
+      
+      replies = {
+        rows: paginatedReplies,
+        count: threadIds.length,
+      };
+    } else {
+      // For other filters, use the standard query
+      replies = await EmailReply.findAndCountAll({
+        where: whereClause,
+        include: [
+          {
+            model: TimeOffRequest,
+            where: { 
+              userId: req.user.id,
+              startDate: {
+                [Op.between]: [dateRangeStart, dateRangeEnd]
+              }
+            },
+            required: true,
+            attributes: [
+              'id',
+              'startDate',
+              'endDate',
+              'type',
+              'status',
+              'flightNumber',
+              'customMessage',
+              'gmailThreadId',
+              'needsReview',
+              'emailSent',
+            ],
+          },
+        ],
+        order: [['receivedAt', 'DESC']],
+        limit: parseInt(limit),
+        offset: offset,
+      });
+    }
 
     // For each reply, fetch all requests in the same Gmail thread for group request handling
     // Also fetch all replies in the thread to show conversation history
@@ -108,6 +214,9 @@ router.get('/replies', async (req, res) => {
           where: {
             gmailThreadId: reply.TimeOffRequest.gmailThreadId,
             userId: req.user.id,
+            startDate: {
+              [Op.between]: [dateRangeStart, dateRangeEnd]
+            }
           },
           attributes: [
             'id',
@@ -295,7 +404,55 @@ router.put('/replies/:id/process-individual', async (req, res) => {
  */
 router.get('/replies/count', async (req, res) => {
   try {
-    const count = await EmailReply.getCountForUser(req.user.id, false);
+    // Use the same roster period filtering as the main replies endpoint
+    const today = new Date();
+    const ninetyDaysAgo = new Date(today.getTime() - (90 * 24 * 60 * 60 * 1000));
+    
+    // Get relevant roster periods (current + last 90 days)
+    const relevantPeriods = await RosterSchedule.findAll({
+      where: {
+        isActive: true,
+        [Op.or]: [
+          // Currently active period
+          {
+            startPeriod: { [Op.lte]: today },
+            endPeriod: { [Op.gte]: today }
+          },
+          // Period started within last 90 days
+          { startPeriod: { [Op.gte]: ninetyDaysAgo } },
+          // Period ends after 90 days ago
+          { endPeriod: { [Op.gte]: ninetyDaysAgo } }
+        ]
+      },
+      order: [['startPeriod', 'ASC']]
+    });
+
+    let dateRangeStart, dateRangeEnd;
+    if (relevantPeriods.length > 0) {
+      dateRangeStart = relevantPeriods[0].startPeriod;
+      dateRangeEnd = relevantPeriods[relevantPeriods.length - 1].endPeriod;
+    } else {
+      // Fallback: use last 90 days
+      dateRangeStart = ninetyDaysAgo;
+      dateRangeEnd = today;
+    }
+
+    // Count unprocessed replies with roster period filtering
+    const count = await EmailReply.count({
+      where: { isProcessed: false },
+      include: [
+        {
+          model: TimeOffRequest,
+          where: { 
+            userId: req.user.id,
+            startDate: {
+              [Op.between]: [dateRangeStart, dateRangeEnd]
+            }
+          },
+          required: true,
+        },
+      ],
+    });
 
     res.json({
       success: true,
