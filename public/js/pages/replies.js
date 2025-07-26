@@ -39,7 +39,7 @@ async function initializeUserData() {
     
     if (result.success) {
       window.currentUserData = result.user;
-      console.log('User data initialized:', window.currentUserData);
+      logger.debug('User data initialized', { userData: window.currentUserData });
     } else {
       console.warn('Failed to load user data:', result.error);
     }
@@ -93,10 +93,6 @@ function showEmptyState() {
       case 'reviewed':
         emptyStateMessage.textContent = 'No replies have been reviewed yet.';
         break;
-      case 'all':
-        emptyStateMessage.textContent =
-          'No replies found. Use "Check for Replies" to scan for responses.';
-        break;
     }
   }
 }
@@ -134,9 +130,8 @@ function filterReplies(replies) {
       return replies.filter(r => !r.isProcessed);
     case 'reviewed':
       return replies.filter(r => r.isProcessed);
-    case 'all':
     default:
-      return replies;
+      return replies.filter(r => !r.isProcessed);
   }
 }
 
@@ -412,10 +407,6 @@ function initializeEventListeners() {
     loadReplies(); // Use loadReplies instead of renderReplies to fetch fresh data
   });
 
-  document.getElementById('filterAll').addEventListener('change', () => {
-    currentFilter = 'all';
-    loadReplies(); // Use loadReplies instead of renderReplies to fetch fresh data
-  });
 }
 
 // Badge counter is now handled globally in utils.js

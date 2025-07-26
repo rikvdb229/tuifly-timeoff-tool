@@ -81,6 +81,12 @@ class CalendarManager {
     // Find the first month with selectable days
     let firstSelectableMonth = await this.findFirstSelectableMonth();
 
+    // Find the first selectable day in that month
+    const firstSelectableDay = await this.findFirstSelectableDay(firstSelectableMonth);
+    
+    // Update maxDate to be first selectable day + 6 months (approximately 180 days)
+    this.maxDate = this.addDays(firstSelectableDay, 180);
+
     // Start WITH the first selectable month (it will be the leftmost/first displayed)  
     this.currentViewStart = new Date(firstSelectableMonth);
     
@@ -89,8 +95,8 @@ class CalendarManager {
       this.currentViewStart = new Date(this.viewMinDate.getFullYear(), this.viewMinDate.getMonth(), 1);
     }
     
-    // Adjust viewMaxDate to allow 6 months of navigation from the first selectable month
-    this.viewMaxDate = this.addDays(firstSelectableMonth, CONFIG.MAX_ADVANCE_DAYS);
+    // Adjust viewMaxDate to allow 6 months of navigation from the first selectable day
+    this.viewMaxDate = this.addDays(firstSelectableDay, 180);
     
     // Generate the initial calendar
     await this.generateCalendar();
@@ -125,6 +131,25 @@ class CalendarManager {
     // Fallback to current month if no selectable days found
     logger.debug('No selectable days found, using current month');
     return currentMonth;
+  }
+
+  // Find the first selectable day in a given month
+  async findFirstSelectableDay(monthStart) {
+    const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
+    
+    for (let day = 1; day <= monthEnd.getDate(); day++) {
+      const dayToCheck = new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
+      
+      // Check if this day is available for selection
+      if (await this.isDateAvailable(dayToCheck)) {
+        logger.debug('Found first selectable day:', this.formatDate(dayToCheck));
+        return dayToCheck;
+      }
+    }
+    
+    // Fallback to first day of month if no selectable days found
+    logger.debug('No selectable days found in month, using first day');
+    return new Date(monthStart.getFullYear(), monthStart.getMonth(), 1);
   }
 
   // Check if a month has any selectable days
@@ -387,11 +412,18 @@ class CalendarManager {
       // Add deadline information if available from cached data
       const dateStr = this.formatDate(date);
       const schedule = this.rosterDeadlines.get(dateStr);
+      
+      // Always add tooltip for unavailable days
+      dayCell.setAttribute('data-bs-toggle', 'tooltip');
+      dayCell.setAttribute('data-bs-placement', this.getTooltipPlacement(date));
+      
       if (schedule) {
-        dayCell.setAttribute('data-bs-toggle', 'tooltip');
-        dayCell.setAttribute('data-bs-placement', 'top');
         dayCell.setAttribute('title', 
           `Request deadline: ${new Date(schedule.deadline).toLocaleDateString()}`);
+      } else {
+        // Default tooltip for unavailable days
+        const reason = isWeekend ? 'Weekend' : 'Not available for requests';
+        dayCell.setAttribute('title', `${this.formatDate(date)}: ${reason}`);
       }
     } else {
       dayCell.addEventListener('click', async () => await this.handleDateClick(date));
@@ -427,7 +459,7 @@ class CalendarManager {
 
       // Tooltip
       dayCell.setAttribute('data-bs-toggle', 'tooltip');
-      dayCell.setAttribute('data-bs-placement', 'top');
+      dayCell.setAttribute('data-bs-placement', this.getTooltipPlacement(date));
       dayCell.setAttribute(
         'title',
         `${this.formatDate(date)}: ${existingRequest.type} (${existingRequest.status}) - ${emailStatus.title}${
@@ -592,6 +624,34 @@ class CalendarManager {
       default:
         return 'warning';
     }
+  }
+
+  /**
+   * Get smart tooltip placement based on date position in calendar
+   * @param {Date} date - The date to position tooltip for
+   * @returns {string} Bootstrap tooltip placement ('top', 'bottom', 'left', 'right')
+   */
+  getTooltipPlacement(date) {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    
+    // If date is in current month, use top placement
+    if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
+      return 'top';
+    }
+    
+    // For future months, check how far ahead
+    const monthsDiff = (date.getFullYear() - currentYear) * 12 + (date.getMonth() - currentMonth);
+    
+    // For dates more than 2 months in the future, use bottom placement
+    // This helps when the calendar shows far future dates at the bottom
+    if (monthsDiff > 2) {
+      return 'bottom';
+    }
+    
+    // Default to top for near-future dates
+    return 'top';
   }
 }
 

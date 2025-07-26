@@ -78,29 +78,15 @@ router.get('/api/users', async (req, res) => {
 // Get pending approvals
 router.get('/api/pending-approvals', async (req, res) => {
   try {
-    console.log('DEBUG: Fetching pending approvals...');
+    routeLogger.debug('Fetching pending approvals');
     const pendingUsers = await getPendingApprovals();
-    console.log('DEBUG: Found pending users:', pendingUsers.length);
+    routeLogger.debug('Found pending users', { count: pendingUsers.length });
     
     // Also check all users to see what's in the database
     const allUsers = await getAllUsers();
     const unapprovedUsers = allUsers.filter(user => !user.adminApproved);
-    console.log('DEBUG: All users count:', allUsers.length);
-    console.log('DEBUG: All users details:', allUsers.map(u => ({
-      id: u.id,
-      email: u.email,
-      isAdmin: u.isAdmin,
-      adminApproved: u.adminApproved,
-      onboardedAt: u.onboardedAt ? u.onboardedAt.toISOString() : null
-    })));
-    console.log('DEBUG: Unapproved users count:', unapprovedUsers.length);
-    console.log('DEBUG: Unapproved users details:', unapprovedUsers.map(u => ({
-      id: u.id,
-      email: u.email,
-      isAdmin: u.isAdmin,
-      adminApproved: u.adminApproved,
-      onboardedAt: u.onboardedAt ? u.onboardedAt.toISOString() : null
-    })));
+    routeLogger.debug('Fetched all users', { count: allUsers.length });
+    routeLogger.debug('Filtered unapproved users', { count: unapprovedUsers.length });
     
     res.json({
       success: true,
